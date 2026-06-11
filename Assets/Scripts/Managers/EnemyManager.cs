@@ -95,6 +95,27 @@ public class EnemyManager : MonoBehaviour
         set => _spawnRadius = value;
     }
 
+    [Header("Smart Spawn")]
+    [Tooltip("Số vị trí ứng viên được thử khi chọn cạnh spawn. Cao hơn giúp spawn thông minh hơn nhưng tốn thêm rất ít CPU.")]
+    [SerializeField] private int _spawnEdgeCandidateCount = 12;
+
+    [Tooltip("Khoảng cách tối thiểu mong muốn từ vị trí spawn tới camera hiện tại.")]
+    [SerializeField] private float _minSpawnDistanceFromCamera = 60f;
+
+    [Tooltip("Giảm điểm cạnh vừa spawn ở wave trước để tránh địch luôn tới từ cùng một hướng.")]
+    [SerializeField] private bool _avoidRepeatingSpawnEdge = true;
+
+    [Header("Group Rally")]
+    [Tooltip("Bán kính quanh rally point được xem là đã tập hợp xong.")]
+    [SerializeField] private float _groupRallyRadius = 5f;
+
+    [Tooltip("Tỷ lệ quân trong group phải tới rally trước khi cả nhóm bắt đầu tấn công.")]
+    [Range(0.1f, 1f)]
+    [SerializeField] private float _groupRallyMinReadyRatio = 0.65f;
+
+    [Tooltip("Thời gian tối đa chờ tập hợp trước khi release group.")]
+    [SerializeField] private float _groupRallyMaxWait = 12f;
+
     [Tooltip("Time ratio for the night raid spawn. 0.5 = night start, 0.75 = midnight.")]
     [Range(0.5f, 0.99f)]
     [SerializeField] private float _nightRaidSpawnTimeRatio = 0.75f;
@@ -116,6 +137,7 @@ public class EnemyManager : MonoBehaviour
     private bool[] _spawnedWavesThisNight = new bool[0];
     private bool _dayRainRaidSpawned = false;
     private List<DayWaveConfig> _activeNightWaves = new List<DayWaveConfig>();
+    private int _lastSpawnEdgeChoice = -1;
 
 
     void Awake()
@@ -888,18 +910,49 @@ public class EnemyManager : MonoBehaviour
             successfulSpawns++;
         }
 
-        // Kich hoat coroutine giai phong rally cho group sau 12 giay tap hop
+        // Giai phong rally khi group da tap hop du hoac het thoi gian cho.
         if (spawnedGroup.Count > 0)
         {
-            StartCoroutine(ReleaseGroupAfterDelay(spawnedGroup, 12f));
+            StartCoroutine(ReleaseGroupWhenReady(spawnedGroup, rallyPos));
         }
 
         return successfulSpawns;
     }
 
-    private System.Collections.IEnumerator ReleaseGroupAfterDelay(List<EnemyUnitController> group, float delay)
+    private System.Collections.IEnumerator ReleaseGroupWhenReady(List<EnemyUnitController> group, Vector3 rallyPosition)
     {
-        yield return new WaitForSeconds(delay);
+        float elapsed = 0f;
+        float maxWait = Mathf.Max(0.5f, _groupRallyMaxWait);
+        float readyRadiusSqr = _groupRallyRadius * _groupRallyRadius;
+
+        while (elapsed < maxWait)
+        {
+            int activeCount = 0;
+            int readyCount = 0;
+
+            foreach (EnemyUnitController enemy in group)
+            {
+                if (enemy == null || !enemy.gameObject.activeInHierarchy || enemy.currentState == CombatState.Dead)
+                {
+                    continue;
+                }
+
+                activeCount++;
+                if ((enemy.transform.position - rallyPosition).sqrMagnitude <= readyRadiusSqr)
+                {
+                    readyCount++;
+                }
+            }
+
+            if (activeCount == 0 || (float)readyCount / activeCount >= _groupRallyMinReadyRatio)
+            {
+                break;
+            }
+
+            elapsed += 0.5f;
+            yield return new WaitForSeconds(0.5f);
+        }
+
         foreach (var enemy in group)
         {
             if (enemy != null && enemy.gameObject.activeInHierarchy && enemy.currentState != CombatState.Dead)
@@ -950,36 +1003,103 @@ public class EnemyManager : MonoBehaviour
             return false;
         }
 
-        int edgeChoice = Random.Range(0, 4);
-        int edgeX = 0;
-        int edgeZ = 0;
+        int bestEdgeChoice = 0;
+        int bestEdgeX = 0;
+        int bestEdgeZ = length - 1;
+        float bestScore = float.NegativeInfinity;
+        int candidateCount = Mathf.Max(4, _spawnEdgeCandidateCount);
+
+        for (int i = 0; i < candidateCount; i++)
+        {
+            int edgeChoice = Random.Range(0, 4);
+            GetRandomPointOnEdge(edgeChoice, width, length, out int edgeX, out int edgeZ);
+
+            Vector3 candidatePos = _gridSystem.GetWorldPosition(edgeX, edgeZ);
+            float score = GetSpawnCandidateScore(candidatePos, edgeChoice);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestEdgeChoice = edgeChoice;
+                bestEdgeX = edgeX;
+                bestEdgeZ = edgeZ;
+            }
+        }
+
+        centerSpawnPos = _gridSystem.GetWorldPosition(bestEdgeX, bestEdgeZ);
+        edgeName = GetSpawnEdgeName(bestEdgeChoice);
+        _lastSpawnEdgeChoice = bestEdgeChoice;
+        return true;
+    }
+
+    private void GetRandomPointOnEdge(int edgeChoice, int width, int length, out int edgeX, out int edgeZ)
+    {
+        edgeX = 0;
+        edgeZ = 0;
 
         switch (edgeChoice)
         {
             case 0:
                 edgeX = Random.Range(0, width);
                 edgeZ = length - 1;
-                edgeName = "North";
                 break;
             case 1:
                 edgeX = Random.Range(0, width);
                 edgeZ = 0;
-                edgeName = "South";
                 break;
             case 2:
                 edgeX = 0;
                 edgeZ = Random.Range(0, length);
-                edgeName = "West";
                 break;
-            case 3:
+            default:
                 edgeX = width - 1;
                 edgeZ = Random.Range(0, length);
-                edgeName = "East";
                 break;
         }
+    }
 
-        centerSpawnPos = _gridSystem.GetWorldPosition(edgeX, edgeZ);
-        return true;
+    private float GetSpawnCandidateScore(Vector3 candidatePos, int edgeChoice)
+    {
+        float score = Random.Range(0f, 5f);
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+        {
+            float cameraDistance = Vector3.Distance(candidatePos, mainCamera.transform.position);
+            score += Mathf.Min(cameraDistance, _minSpawnDistanceFromCamera) * 0.5f;
+            if (cameraDistance < _minSpawnDistanceFromCamera)
+            {
+                score -= (_minSpawnDistanceFromCamera - cameraDistance) * 2f;
+            }
+        }
+
+        BuildingManager buildingManager = BuildingManager.Instance != null ? BuildingManager.Instance : FindAnyObjectByType<BuildingManager>();
+        if (buildingManager != null && buildingManager.MainBuildingInstance != null)
+        {
+            float mainBuildingDistance = Vector3.Distance(candidatePos, buildingManager.MainBuildingInstance.transform.position);
+            score += mainBuildingDistance * 0.15f;
+        }
+
+        if (_avoidRepeatingSpawnEdge && edgeChoice == _lastSpawnEdgeChoice)
+        {
+            score -= 25f;
+        }
+
+        return score;
+    }
+
+    private string GetSpawnEdgeName(int edgeChoice)
+    {
+        switch (edgeChoice)
+        {
+            case 0:
+                return "North";
+            case 1:
+                return "South";
+            case 2:
+                return "West";
+            default:
+                return "East";
+        }
     }
 
     private void CleanupActiveEnemies()

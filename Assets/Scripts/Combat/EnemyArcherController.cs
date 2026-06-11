@@ -153,6 +153,24 @@ public class EnemyArcherController : EnemyUnitController
         base.HandleAttackingState();
     }
 
+    protected override int GetTargetPriority(BaseCombatUnitController unit)
+    {
+        if (unit == null) return 99;
+        if (IsBloodMoonActive())
+        {
+            if (IsWatchTowerTarget(unit)) return 1;
+            if (!IsVillagerTarget(unit) && !IsBuildingTarget(unit)) return 2;
+            if (IsMainBuildingTarget(unit)) return 3;
+            if (IsVillagerTarget(unit)) return 4;
+            return 5;
+        }
+
+        if (!IsVillagerTarget(unit) && !IsBuildingTarget(unit)) return 1;
+        if (IsVillagerTarget(unit)) return 2;
+        if (unit.GetComponent<WatchTowerGarrison>() != null) return 2;
+        return 4;
+    }
+
     protected override void UpdateAnimationState()
     {
         base.UpdateAnimationState();

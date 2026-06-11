@@ -41,6 +41,12 @@ public class DayNightCycle : MonoBehaviour
 
     [Header("Fog Settings")]
     [SerializeField] private bool _enableFog = false;
+    [SerializeField] private Color _clearFogColor = new Color(0.5f, 0.5f, 0.5f);
+    [SerializeField] private float _clearFogDensity = 0.02f;
+    [SerializeField] private Color _rainFogColor = new Color(0.28f, 0.32f, 0.36f);
+    [SerializeField] private float _rainFogDensity = 0.035f;
+    [SerializeField] private Color _bloodMoonFogColor = new Color(0.45f, 0.06f, 0.06f);
+    [SerializeField] private float _bloodMoonFogDensity = 0.028f;
 
     private float _currentRainIntensity = 0f;
     private float _currentBloodMoonIntensity = 0f;
@@ -145,8 +151,8 @@ public class DayNightCycle : MonoBehaviour
         // Blood Moon targets
         Color bloodRedAmbient = new Color(0.45f, 0.04f, 0.04f);
         Color bloodMoonAmbient = Color.Lerp(dayHorizon * 0.75f, bloodRedAmbient, nightBlend);
-        Color bloodRedZenith = new Color(0.08f, 0.01f, 0.01f);
-        Color bloodRedHorizon = new Color(0.25f, 0.02f, 0.02f);
+        Color bloodRedZenith = new Color(0.12f, 0.015f, 0.015f);
+        Color bloodRedHorizon = new Color(0.32f, 0.035f, 0.03f);
         Color bloodMoonZenith = Color.Lerp(dayZenith, bloodRedZenith, nightBlend);
         Color bloodMoonHorizon = Color.Lerp(dayHorizon, bloodRedHorizon, nightBlend);
         Color bloodMoonTint = Color.Lerp(Color.white, bloodRedZenith, nightBlend);
@@ -181,7 +187,7 @@ public class DayNightCycle : MonoBehaviour
         RenderSettings.ambientMode = AmbientMode.Flat;
         RenderSettings.ambientLight = targetAmbient;
         RenderSettings.reflectionIntensity = targetReflection;
-        RenderSettings.fog = _enableFog;
+        ApplyWeatherFog(rainIntensity, bloodMoonIntensity);
 
         Material skybox = runtimeSkyboxMaterial != null ? runtimeSkyboxMaterial : RenderSettings.skybox;
         if (skybox == null)
@@ -230,6 +236,22 @@ public class DayNightCycle : MonoBehaviour
         {
             skybox.SetFloat(RotationProperty, timeRatio * 360f);
         }
+    }
+
+    private void ApplyWeatherFog(float rainIntensity, float bloodMoonIntensity)
+    {
+        bool weatherFogActive = rainIntensity > 0.01f || bloodMoonIntensity > 0.01f;
+        RenderSettings.fog = _enableFog || weatherFogActive;
+
+        Color fogColor = Color.Lerp(_clearFogColor, _bloodMoonFogColor, bloodMoonIntensity);
+        fogColor = Color.Lerp(fogColor, _rainFogColor, rainIntensity);
+
+        float fogDensity = Mathf.Lerp(_clearFogDensity, _bloodMoonFogDensity, bloodMoonIntensity);
+        fogDensity = Mathf.Lerp(fogDensity, _rainFogDensity, rainIntensity);
+
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogColor = fogColor;
+        RenderSettings.fogDensity = fogDensity;
     }
 
     private void SetupSkyboxMaterial()

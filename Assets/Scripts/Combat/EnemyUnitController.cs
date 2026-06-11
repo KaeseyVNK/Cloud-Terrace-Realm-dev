@@ -1,5 +1,13 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
+
+public enum EnemyTargetRole
+{
+    Assault,
+    Raider,
+    SiegeBreaker
+}
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyUnitController : BaseCombatUnitController, IPoolable
@@ -12,6 +20,9 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     [SerializeField] private float _enemyIdleScanInterval = 0.3f;
     [SerializeField] private float _enemyMovingScanInterval = 0.25f;
     [SerializeField] private float _enemyRetargetScanInterval = 0.45f;
+
+    [Header("Enemy Role")]
+    [SerializeField] protected EnemyTargetRole _targetRole = EnemyTargetRole.Assault;
 
     private float _repathTimer = 0f;
     private float _nextIdleTargetScanTime = 0f;
@@ -28,6 +39,10 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     private bool _isRetreating = false;
     private float _retreatTimer = 0f;
     private Vector3 _spawnPosition;
+
+    private static readonly List<BaseCombatUnitController> s_cachedPlayerBuildingTargets = new List<BaseCombatUnitController>(64);
+    private static float s_nextPlayerBuildingCacheRefreshTime;
+    private const float PLAYER_BUILDING_CACHE_INTERVAL = 1f;
 
     public EnemyUnitController()
     {
@@ -225,10 +240,10 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         // 3. Tìm mục tiêu hành quân (Target Diversification): Công trình/Nhà lính/Tường gần nhất của Player
         BaseCombatUnitController targetMarchObject = null;
         float minBuildDist = float.MaxValue;
-        var allUnits = FindObjectsByType<BaseCombatUnitController>(FindObjectsSortMode.None);
-        foreach (var t in allUnits)
+        List<BaseCombatUnitController> buildingTargets = GetCachedPlayerBuildingTargets();
+        foreach (var t in buildingTargets)
         {
-            if (t != null && t.currentState != CombatState.Dead && t.faction == UnitFaction.Player && IsBuildingTarget(t))
+            if (t != null && t.currentState != CombatState.Dead)
             {
                 float d = Vector3.Distance(transform.position, t.transform.position);
                 if (d < minBuildDist)
@@ -284,9 +299,9 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                     // Quét các công trình/bức tường cản trở trong phạm vi 15 mét và tấn công phá hủy chúng trước
                     BaseCombatUnitController blockingWall = null;
                     float wallMinDist = float.MaxValue;
-                    foreach (var t in allUnits)
+                    foreach (var t in buildingTargets)
                     {
-                        if (t != null && t.currentState != CombatState.Dead && t.faction == UnitFaction.Player && IsBuildingTarget(t))
+                        if (t != null && t.currentState != CombatState.Dead)
                         {
                             float d = Vector3.Distance(transform.position, t.transform.position);
                             if (d <= 15f && d < wallMinDist)
@@ -495,31 +510,90 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     /// <summary>
     /// Trả về mức độ ưu tiên của mục tiêu. Số nhỏ hơn biểu thị mức độ ưu tiên cao hơn.
     /// </summary>
-    private int GetTargetPriority(BaseCombatUnitController unit)
+    protected virtual int GetTargetPriority(BaseCombatUnitController unit)
     {
         if (unit == null) return 99;
 
-        bool isVillager = unit.GetComponent<VillagerCombatTarget>() != null || unit.GetComponent<VillagerController>() != null;
+        bool isVillager = IsVillagerTarget(unit);
         bool isBuilding = IsBuildingTarget(unit);
+        bool isCombatUnit = !isVillager && !isBuilding;
 
-        // 1. Ưu tiên cao nhất: Lính chiến đấu của người chơi (Militia, v.v.)
-        if (!isVillager && !isBuilding)
+        if (IsBloodMoonActive())
         {
-            return 1;
+            if (IsMainBuildingTarget(unit)) return 1;
+            if (isBuilding) return 2;
+            if (isCombatUnit) return 3;
+            return 4;
         }
 
-        // 2. Ưu tiên nhì: Dân làng
-        if (isVillager)
+        if (_targetRole == EnemyTargetRole.Raider)
         {
-            return 2;
+            if (isVillager) return 1;
+            if (isCombatUnit) return 2;
+            return 3;
         }
 
-        // 3. Ưu tiên cuối: Công trình
+        if (_targetRole == EnemyTargetRole.SiegeBreaker)
+        {
+            if (isBuilding) return 1;
+            if (isCombatUnit) return 2;
+            return 3;
+        }
+
+        if (isCombatUnit) return 1;
+        if (isVillager) return 2;
         return 3;
     }
 
-    private bool IsBuildingTarget(BaseCombatUnitController unit)
+    protected bool IsVillagerTarget(BaseCombatUnitController unit)
+    {
+        return unit != null && (unit.GetComponent<VillagerCombatTarget>() != null || unit.GetComponent<VillagerController>() != null);
+    }
+
+    protected bool IsBuildingTarget(BaseCombatUnitController unit)
     {
         return unit != null && (unit.GetComponent<BuildingCombatTarget>() != null || unit.GetComponent<MainBuildingCombatTarget>() != null);
+    }
+
+    protected bool IsMainBuildingTarget(BaseCombatUnitController unit)
+    {
+        return unit != null && unit.GetComponent<MainBuildingCombatTarget>() != null;
+    }
+
+    protected bool IsWatchTowerTarget(BaseCombatUnitController unit)
+    {
+        return unit != null && unit.GetComponent<WatchTowerGarrison>() != null;
+    }
+
+    protected bool IsBloodMoonActive()
+    {
+        return WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.BloodMoon;
+    }
+
+    private static List<BaseCombatUnitController> GetCachedPlayerBuildingTargets()
+    {
+        if (Time.time < s_nextPlayerBuildingCacheRefreshTime)
+        {
+            return s_cachedPlayerBuildingTargets;
+        }
+
+        s_nextPlayerBuildingCacheRefreshTime = Time.time + PLAYER_BUILDING_CACHE_INTERVAL;
+        s_cachedPlayerBuildingTargets.Clear();
+
+        BaseCombatUnitController[] allUnits = FindObjectsByType<BaseCombatUnitController>(FindObjectsSortMode.None);
+        foreach (BaseCombatUnitController unit in allUnits)
+        {
+            if (unit == null || unit.currentState == CombatState.Dead || unit.faction != UnitFaction.Player)
+            {
+                continue;
+            }
+
+            if (unit.GetComponent<BuildingCombatTarget>() != null || unit.GetComponent<MainBuildingCombatTarget>() != null)
+            {
+                s_cachedPlayerBuildingTargets.Add(unit);
+            }
+        }
+
+        return s_cachedPlayerBuildingTargets;
     }
 }
