@@ -44,8 +44,8 @@ GameObject:
   - component: {fileID: 2175885393966730812}
   - component: {fileID: 265660388863219297}
   - component: {fileID: 6470093026476801720}
-  - component: {fileID: 5872032217953815832}
   - component: {fileID: -1641244735471645076}
+  - component: {fileID: 5266381356830593033}
   m_Layer: 0
   m_Name: WoodCamp
   m_TagString: Untagged
@@ -164,25 +164,6 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: 0, y: 0, z: 0}
   m_TimeToStationary: 0.5
---- !u!114 &5872032217953815832
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5987755191451098744}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d845d36c5ff2624192cfcfe03bcebc2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BuildingProduction
-  _buildingData: {fileID: 11400000, guid: 8ece3f1679a51604f8085329137ad24e, type: 2}
-  _spawnPoint: {fileID: 0}
-  _controlChildPointLights: 1
-  _lightsRequireCompletedBuilding: 1
-  _controlledPointLights: []
-  _rallyFlagPrefab: {fileID: 5136300279719615144, guid: 42a77840b79d0e64ca7fc7d324d3fae9, type: 3}
-  _rallyFlagYOffset: 0.05
 --- !u!114 &-1641244735471645076
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -197,6 +178,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VisionSource
   visionRadius: 15
   revealWhileInactive: 0
+--- !u!114 &5266381356830593033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5987755191451098744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 790f8255b0e8dac4fa9a660808df7402, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingNightLightController
+  _controlChildPointLights: 1
+  _lightsRequireCompletedBuilding: 1
+  _controlledPointLights:
+  - {fileID: 1331658655727004365}
 --- !u!1 &8105493327296372576
 GameObject:
   m_ObjectHideFlags: 0

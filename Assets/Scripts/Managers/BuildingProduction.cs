@@ -12,12 +12,6 @@ public class BuildingProduction : MonoBehaviour
     [Tooltip("Vị trí sinh ra lính/dân")]
     [SerializeField] private Transform _spawnPoint;
     
-
-    [Header("Night Lights")]
-    [SerializeField] private bool _controlChildPointLights = true;
-    [SerializeField] private bool _lightsRequireCompletedBuilding = true;
-    [SerializeField] private Light[] _controlledPointLights;
-
     [Header("Rally Point")]
     [SerializeField] private GameObject _rallyFlagPrefab;
     [SerializeField] private float _rallyFlagYOffset = 0.05f;
@@ -32,8 +26,6 @@ public class BuildingProduction : MonoBehaviour
     private float _currentProductionTimer = 0f;
     private bool _isProducing = false;
     private ConstructibleBuilding _constructibleBuilding;
-    private bool _lastLightState;
-    private bool _hasAppliedLightState;
     private Vector3? _rallyPoint;
     private ResourceNode _rallyResource;
     private BaseCombatUnitController _rallyAttackTarget;
@@ -67,22 +59,10 @@ public class BuildingProduction : MonoBehaviour
         }
 
         PrewarmProducedCombatUnits();
-
-        SetupNightLights();
-
-        if (TimeManager.Instance != null)
-        {
-            TimeManager.Instance.OnDayNightChanged += HandleDayNightChanged;
-        }
     }
 
     private void OnDestroy()
     {
-        if (TimeManager.Instance != null)
-        {
-            TimeManager.Instance.OnDayNightChanged -= HandleDayNightChanged;
-        }
-
         if (_rallyFlagInstance != null)
         {
             Destroy(_rallyFlagInstance);
@@ -92,8 +72,6 @@ public class BuildingProduction : MonoBehaviour
     void Update()
     {
         // Không chạy hàng đợi sản xuất nếu công trình chưa được xây xong hoàn toàn
-        RefreshNightLights();
-
         if (_constructibleBuilding != null && !_constructibleBuilding.IsCompleted) return;
 
         if (_isProducing && _currentProducingUnit != null)
@@ -105,67 +83,6 @@ public class BuildingProduction : MonoBehaviour
                 FinishProduction();
             }
         }
-    }
-
-    // Night light management
-    private void SetupNightLights()
-    {
-        if (!_controlChildPointLights)
-        {
-            return;
-        }
-
-        if (_controlledPointLights == null || _controlledPointLights.Length == 0)
-        {
-            Light[] childLights = GetComponentsInChildren<Light>(true);
-            List<Light> pointLights = new List<Light>();
-
-            for (int i = 0; i < childLights.Length; i++)
-            {
-                if (childLights[i] != null && childLights[i].type == LightType.Point)
-                {
-                    pointLights.Add(childLights[i]);
-                }
-            }
-
-            _controlledPointLights = pointLights.ToArray();
-        }
-
-        RefreshNightLights(true);
-    }
-
-    private void HandleDayNightChanged(bool isNight)
-    {
-        RefreshNightLights(true);
-    }
-
-    private void RefreshNightLights(bool force = false)
-    {
-        if (!_controlChildPointLights || _controlledPointLights == null || _controlledPointLights.Length == 0)
-        {
-            return;
-        }
-
-        bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
-        bool isRaining = WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain;
-        bool isCompleted = _constructibleBuilding == null || _constructibleBuilding.IsCompleted;
-        bool shouldEnable = (isNight || isRaining) && (!_lightsRequireCompletedBuilding || isCompleted);
-
-        if (!force && _hasAppliedLightState && _lastLightState == shouldEnable)
-        {
-            return;
-        }
-
-        for (int i = 0; i < _controlledPointLights.Length; i++)
-        {
-            if (_controlledPointLights[i] != null)
-            {
-                _controlledPointLights[i].enabled = shouldEnable;
-            }
-        }
-
-        _lastLightState = shouldEnable;
-        _hasAppliedLightState = true;
     }
 
     // UI sẽ gọi hàm này khi người chơi bấm nút "Mua Lính"

@@ -141,8 +141,8 @@ GameObject:
   - component: {fileID: 2106500959992630161}
   - component: {fileID: 1614361092273722258}
   - component: {fileID: 5134053954993959612}
-  - component: {fileID: 849897931121021026}
   - component: {fileID: 2848546189433113640}
+  - component: {fileID: 2816207349396816869}
   m_Layer: 0
   m_Name: homeblue
   m_TagString: Untagged
@@ -274,26 +274,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HouseShelter
   _capacity: 5
   _enterDistance: 1.5
---- !u!114 &849897931121021026
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6276198275343968975}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d845d36c5ff2624192cfcfe03bcebc2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BuildingProduction
-  _buildingData: {fileID: 0}
-  _spawnPoint: {fileID: 0}
-  _controlChildPointLights: 1
-  _lightsRequireCompletedBuilding: 1
-  _controlledPointLights: []
-  _rallyFlagPrefab: {fileID: 0}
-  _rallyFlagYOffset: 0.05
-  _combatUnitPoolPrewarmCount: 6
 --- !u!114 &2848546189433113640
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -308,3 +288,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VisionSource
   visionRadius: 12
   revealWhileInactive: 0
+--- !u!114 &2816207349396816869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6276198275343968975}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 790f8255b0e8dac4fa9a660808df7402, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingNightLightController
+  _controlChildPointLights: 1
+  _lightsRequireCompletedBuilding: 1
+  _controlledPointLights:
+  - {fileID: 3502791160580189951}

@@ -46,6 +46,7 @@ GameObject:
   - component: {fileID: 7351657936658685828}
   - component: {fileID: 8851565134439310215}
   - component: {fileID: 1732825291883899458}
+  - component: {fileID: 5115695085269930139}
   m_Layer: 0
   m_Name: OrcCamp
   m_TagString: Untagged
@@ -178,9 +179,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingProduction
   _buildingData: {fileID: 11400000, guid: 167ae58548fd81c4fafa3b2d5ff3a29c, type: 2}
   _spawnPoint: {fileID: 0}
-  _controlChildPointLights: 1
-  _lightsRequireCompletedBuilding: 1
-  _controlledPointLights: []
   _rallyFlagPrefab: {fileID: 5136300279719615144, guid: 42a77840b79d0e64ca7fc7d324d3fae9, type: 3}
   _rallyFlagYOffset: 0.05
   _combatUnitPoolPrewarmCount: 6
@@ -198,6 +196,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VisionSource
   visionRadius: 15
   revealWhileInactive: 0
+--- !u!114 &5115695085269930139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6103480610250070807}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 790f8255b0e8dac4fa9a660808df7402, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingNightLightController
+  _controlChildPointLights: 1
+  _lightsRequireCompletedBuilding: 1
+  _controlledPointLights:
+  - {fileID: 7376103552798864516}
 --- !u!1 &7357271094134046003
 GameObject:
   m_ObjectHideFlags: 0

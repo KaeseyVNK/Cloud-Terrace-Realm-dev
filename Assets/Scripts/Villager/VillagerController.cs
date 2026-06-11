@@ -94,6 +94,7 @@ public class VillagerController : MonoBehaviour
     private const int MaxPathRetries = 5;
 
     private HouseShelter _assignedShelter;
+    private WatchTowerGarrison _assignedGarrison;
     private bool _overrideShelter = false;
     private float _shelterSearchTimer = 0f;
     private const float ShelterSearchCooldown = 1.5f;
@@ -303,6 +304,22 @@ public class VillagerController : MonoBehaviour
         _assignedShelter = null;
     }
 
+    private void CancelAssignedGarrison()
+    {
+        if (_assignedGarrison == null)
+        {
+            return;
+        }
+
+        SelectableUnit selectable = GetComponent<SelectableUnit>();
+        if (selectable != null)
+        {
+            _assignedGarrison.CancelReservation(selectable);
+        }
+
+        _assignedGarrison = null;
+    }
+
     public void SetOverrideShelter(bool value)
     {
         _overrideShelter = value;
@@ -380,6 +397,40 @@ public class VillagerController : MonoBehaviour
         return closest;
     }
 
+    private WatchTowerGarrison FindClosestAvailableGarrison()
+    {
+        WatchTowerGarrison[] garrisons = FindObjectsByType<WatchTowerGarrison>(FindObjectsInactive.Exclude);
+        WatchTowerGarrison closest = null;
+        float closestDistSqr = float.MaxValue;
+
+        foreach (WatchTowerGarrison garrison in garrisons)
+        {
+            if (garrison == null || !garrison.IsOperational() || !garrison.HasSpace) continue;
+
+            float distSqr = (transform.position - garrison.transform.position).sqrMagnitude;
+            if (distSqr < closestDistSqr)
+            {
+                closestDistSqr = distSqr;
+                closest = garrison;
+            }
+        }
+
+        return closest;
+    }
+
+    private void CachePreShelterWorkIfNeeded()
+    {
+        if (_preShelterState != VillagerState.Idle)
+        {
+            return;
+        }
+
+        _preShelterState = _currentState;
+        _preShelterJob = _currentJob;
+        _preShelterBuilding = _targetBuilding;
+        _preShelterResource = _targetResource;
+    }
+
     private void Update()
     {
         // Kiểm tra nhu cầu trú ẩn (mưa, đêm, hoặc lệnh khẩn cấp)
@@ -399,7 +450,39 @@ public class VillagerController : MonoBehaviour
 
         if (needsShelter && _currentState != VillagerState.Sheltered)
         {
-            if (_assignedShelter == null || !_assignedShelter.HasSpace || !_assignedShelter.IsOperational())
+            bool isEmergencyShelter = HouseShelter.IsEmergencyShelterActive;
+            bool shouldUseHouseShelter = true;
+
+            if (isEmergencyShelter)
+            {
+                SelectableUnit selectable = GetComponent<SelectableUnit>();
+                if (_assignedGarrison != null && (!_assignedGarrison.IsOperational() || !_assignedGarrison.IsTrackingUnit(selectable)))
+                {
+                    _assignedGarrison = null;
+                }
+
+                shouldUseHouseShelter = _assignedGarrison == null;
+                if (_assignedGarrison == null)
+                {
+                    _shelterSearchTimer += Time.deltaTime;
+                    if (_shelterSearchTimer >= ShelterSearchCooldown || _shelterSearchTimer <= Time.deltaTime)
+                    {
+                        _shelterSearchTimer = 0f;
+                        WatchTowerGarrison closestGarrison = FindClosestAvailableGarrison();
+                        if (closestGarrison != null && selectable != null)
+                        {
+                            CachePreShelterWorkIfNeeded();
+                            if (closestGarrison.TrySendToGarrison(selectable))
+                            {
+                                _assignedGarrison = closestGarrison;
+                                shouldUseHouseShelter = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (shouldUseHouseShelter && (_assignedShelter == null || !_assignedShelter.HasSpace || !_assignedShelter.IsOperational()))
             {
                 if (_assignedShelter != null)
                 {
@@ -414,14 +497,7 @@ public class VillagerController : MonoBehaviour
                     HouseShelter closestShelter = FindClosestAvailableShelter();
                     if (closestShelter != null)
                     {
-                        if (_preShelterState == VillagerState.Idle)
-                        {
-                            _preShelterState = _currentState;
-                            _preShelterJob = _currentJob;
-                            _preShelterBuilding = _targetBuilding;
-                            _preShelterResource = _targetResource;
-                        }
-
+                        CachePreShelterWorkIfNeeded();
                         _assignedShelter = closestShelter;
                         _assignedShelter.TryReserveSpot(this);
                         if (SetPathToTarget(_assignedShelter.transform.position))
@@ -431,7 +507,7 @@ public class VillagerController : MonoBehaviour
                     }
                 }
             }
-            else
+            else if (shouldUseHouseShelter)
             {
                 if (_currentState != VillagerState.Moving)
                 {
@@ -446,6 +522,11 @@ public class VillagerController : MonoBehaviour
         {
             _assignedShelter.CancelReservation(this);
             _assignedShelter = null;
+            ChangeState(VillagerState.Idle);
+        }
+        else if (!needsShelter && _assignedGarrison != null)
+        {
+            CancelAssignedGarrison();
             ChangeState(VillagerState.Idle);
         }
 
@@ -1349,6 +1430,7 @@ public class VillagerController : MonoBehaviour
     public void CommandMoveTo(Vector3 destination)
     {
         _overrideShelter = true;
+        CancelAssignedGarrison();
         if (_assignedShelter != null)
         {
             _assignedShelter.CancelReservation(this);
@@ -1374,6 +1456,7 @@ public class VillagerController : MonoBehaviour
     public void CommandGather(ResourceNode node, GridCell cell)
     {
         _overrideShelter = true;
+        CancelAssignedGarrison();
         if (_assignedShelter != null)
         {
             _assignedShelter.CancelReservation(this);
@@ -1406,6 +1489,7 @@ public class VillagerController : MonoBehaviour
         if (building == null || building.IsCompleted) return;
 
         _overrideShelter = true;
+        CancelAssignedGarrison();
         if (_assignedShelter != null)
         {
             _assignedShelter.CancelReservation(this);
@@ -1437,6 +1521,7 @@ public class VillagerController : MonoBehaviour
     /// </summary>
     public void AssignJob(Job newJob)
     {
+        CancelAssignedGarrison();
         if (_assignedShelter != null)
         {
             _assignedShelter.CancelReservation(this);

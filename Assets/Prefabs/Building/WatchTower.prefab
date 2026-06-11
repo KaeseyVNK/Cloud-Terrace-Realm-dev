@@ -261,6 +261,7 @@ GameObject:
   - component: {fileID: 6090183527902718828}
   - component: {fileID: 4401951799062683995}
   - component: {fileID: 4908224100906670324}
+  - component: {fileID: 7501596650729813472}
   m_Layer: 0
   m_Name: WatchTower
   m_TagString: Untagged
@@ -354,6 +355,22 @@ MonoBehaviour:
   targetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &7501596650729813472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6327034547306236624}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 790f8255b0e8dac4fa9a660808df7402, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingNightLightController
+  _controlChildPointLights: 1
+  _lightsRequireCompletedBuilding: 1
+  _controlledPointLights:
+  - {fileID: 2354766466503256946}
 --- !u!1 &6636710303792041467
 GameObject:
   m_ObjectHideFlags: 0
