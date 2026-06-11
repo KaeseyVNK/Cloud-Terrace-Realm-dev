@@ -725,7 +725,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fd8504778c49c1249aa7362807bb29d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SelectableUnit
-  selectionDecal: {fileID: 0}
+  selectionDecal: {fileID: 3573023291471413915}
 --- !u!114 &153961034636806923
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1140,7 +1140,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1166605888110444219
 Transform:
   m_ObjectHideFlags: 0

@@ -79,6 +79,17 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
         base.HandleAttackingState();
     }
 
+    public override void CommandMove(Vector3 position)
+    {
+        _isHoldingAimAfterTargetLost = false;
+        base.CommandMove(position);
+
+        if (animator != null)
+        {
+            SetAimAnimatorBool(false);
+        }
+    }
+
     protected override void UpdateAnimationState()
     {
         base.UpdateAnimationState();

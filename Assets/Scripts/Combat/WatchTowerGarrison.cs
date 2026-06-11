@@ -91,6 +91,28 @@ public class WatchTowerGarrison : MonoBehaviour
         return true;
     }
 
+    public void CancelReservation(SelectableUnit unit)
+    {
+        if (unit == null)
+        {
+            return;
+        }
+
+        int index = incomingUnits.IndexOf(unit);
+        if (index >= 0)
+        {
+            incomingUnits.RemoveAt(index);
+        }
+
+        incomingEntryPositions.Remove(unit);
+        incomingReservationTimes.Remove(unit);
+    }
+
+    public bool IsTrackingUnit(SelectableUnit unit)
+    {
+        return unit != null && (garrisonedUnits.Contains(unit) || incomingUnits.Contains(unit));
+    }
+
     public void EjectAll()
     {
         for (int i = garrisonedUnits.Count - 1; i >= 0; i--)
@@ -104,7 +126,7 @@ public class WatchTowerGarrison : MonoBehaviour
         incomingReservationTimes.Clear();
     }
 
-    private bool IsOperational()
+    public bool IsOperational()
     {
         if (constructibleBuilding == null)
         {

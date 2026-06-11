@@ -65,6 +65,15 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
                 shelter.EjectAll();
             }
         }
+
+        WatchTowerGarrison[] garrisons = FindObjectsByType<WatchTowerGarrison>(FindObjectsInactive.Exclude);
+        foreach (WatchTowerGarrison garrison in garrisons)
+        {
+            if (garrison != null)
+            {
+                garrison.EjectAll();
+            }
+        }
     }
 
     protected override void Die()

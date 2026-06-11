@@ -173,6 +173,7 @@ GameObject:
   - component: {fileID: 6470093026476801720}
   - component: {fileID: 5872032217953815832}
   - component: {fileID: -837528376805193831}
+  - component: {fileID: 2966422808112019922}
   m_Layer: 0
   m_Name: Barrack
   m_TagString: Untagged
@@ -305,10 +306,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingProduction
   _buildingData: {fileID: 11400000, guid: 2ab7b52027708254da5ba9c7593ac597, type: 2}
   _spawnPoint: {fileID: 6229998023474131857}
-  _controlChildPointLights: 1
-  _lightsRequireCompletedBuilding: 1
-  _controlledPointLights:
-  - {fileID: 4290373671068127756}
   _rallyFlagPrefab: {fileID: 5136300279719615144, guid: 42a77840b79d0e64ca7fc7d324d3fae9, type: 3}
   _rallyFlagYOffset: 0.05
   _combatUnitPoolPrewarmCount: 6
@@ -326,3 +323,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VisionSource
   visionRadius: 15
   revealWhileInactive: 0
+--- !u!114 &2966422808112019922
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5987755191451098744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 790f8255b0e8dac4fa9a660808df7402, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingNightLightController
+  _controlChildPointLights: 1
+  _lightsRequireCompletedBuilding: 1
+  _controlledPointLights: []
