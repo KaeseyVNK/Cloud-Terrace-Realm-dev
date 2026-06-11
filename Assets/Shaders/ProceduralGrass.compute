@@ -1,0 +1,159 @@
+#pragma kernel CullAndProcess
+
+struct GrassBladeData
+{
+    float3 position;
+    float rotation;
+    float2 size;
+    float bend;
+    float windEffect;
+    float3 bendDirection;
+};
+
+// Input buffer containing all grass blades on the terrain
+StructuredBuffer<GrassBladeData> _SourceBuffer;
+
+// Output buffer containing only visible/processed grass blades
+AppendStructuredBuffer<GrassBladeData> _CulledBuffer;
+
+// Culling & Camera Parameters
+uint _NumSourceBlades;
+float3 _CameraPosition;
+float _CullDistance;
+float4 _FrustumPlanes[6];
+int _EnableCulling; // Using int to prevent platform-dependent bool serialization issues
+
+// Interactor Parameters
+int _NumInteractors;
+float4 _Interactors[128]; // xyz: position, w: radius
+
+// Fog of War Parameters
+Texture2D<float4> _FogTexture;
+SamplerState sampler_FogTexture;
+float4 _FogWorldCenter; // XZ center of the fog coverage area (xy)
+float4 _FogWorldSize;   // XZ total size of the fog coverage area (xy)
+int _EnableFogCulling;   // 0 = disabled, 1 = enabled
+float _FogCullThreshold; // Normalized threshold for full cull (0.0 to 1.0)
+float _FogPlaneAlpha;    // Current max fog opacity (changes day/night)
+
+/// <summary>
+/// Checks if a sphere (blade position + margin) intersects the camera frustum.
+/// </summary>
+bool IsInFrustum(float3 pos, float margin)
+{
+    for (int i = 0; i < 6; i++)
+    {
+        float dist = dot(_FrustumPlanes[i].xyz, pos) + _FrustumPlanes[i].w;
+        if (dist < -margin)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// <summary>
+/// Samples the fog texture alpha at the blade's world XZ position.
+/// Returns 0.0 when fully visible, up to fogPlaneAlpha when fully fogged.
+/// </summary>
+float SampleFogAlpha(float3 worldPos)
+{
+    float2 fogUV = (worldPos.xz - (_FogWorldCenter.xy - _FogWorldSize.xy * 0.5)) / _FogWorldSize.xy;
+
+    // Flip UV coordinates because the CPU-generated texture is flipped on both X and Y axes relative to world space
+    fogUV = 1.0 - fogUV;
+
+    // Blades outside the fog area are treated as fully fogged (hidden)
+    if (fogUV.x < 0 || fogUV.x > 1 || fogUV.y < 0 || fogUV.y > 1)
+    {
+        return 1.0;
+    }
+
+    float4 fogSample = _FogTexture.SampleLevel(sampler_FogTexture, fogUV, 0);
+    return fogSample.a;
+}
+
+[numthreads(64, 1, 1)]
+void CullAndProcess(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumSourceBlades)
+    {
+        return;
+    }
+
+    GrassBladeData blade = _SourceBuffer[id.x];
+
+    if (_EnableCulling != 0)
+    {
+        // 1. Distance Culling
+        float distToCamera = distance(blade.position, _CameraPosition);
+        if (distToCamera > _CullDistance)
+        {
+            return;
+        }
+
+        // 2. Frustum Culling
+        float margin = max(blade.size.x, blade.size.y) * 1.5;
+        if (!IsInFrustum(blade.position, margin))
+        {
+            return;
+        }
+    }
+
+    // 3. Fog of War Culling — hide grass blades under dense fog
+    float fogVisibility = 1.0;
+    if (_EnableFogCulling != 0)
+    {
+        float fogAlpha = SampleFogAlpha(blade.position);
+
+        // Normalize fog alpha against the current max fog opacity
+        // This ensures correct culling regardless of day (0.16) or night (0.75) alpha
+        float normalizedFog = saturate(fogAlpha / max(_FogPlaneAlpha, 0.01));
+
+        // Full cull: blade is deeply hidden in fog
+        if (normalizedFog >= _FogCullThreshold)
+        {
+            return;
+        }
+
+        // Partial visibility: scale blade height smoothly as fog lifts
+        // normalizedFog 0.0 = fully visible → fogVisibility = 1.0
+        // normalizedFog approaching threshold = nearly hidden → fogVisibility ≈ 0.0
+        fogVisibility = 1.0 - (normalizedFog / _FogCullThreshold);
+    }
+
+    // 4. Dynamic Interactive Bending
+    float3 bendDir = float3(0, 0, 0);
+    for (int i = 0; i < _NumInteractors; i++)
+    {
+        float3 interactorPos = _Interactors[i].xyz;
+        float radius = _Interactors[i].w;
+        
+        float3 toBlade = blade.position - interactorPos;
+        toBlade.y = 0; // Project onto horizontal plane
+        
+        float dist = length(toBlade);
+        if (dist < radius && dist > 0.0001)
+        {
+            float force = 1.0 - (dist / radius); // Linear falloff (1 at center, 0 at radius edge)
+            // Push direction weighted by force
+            bendDir += normalize(toBlade) * force * 1.2;
+        }
+    }
+
+    // Clamp the bend vector to avoid unrealistic stretching
+    float bendLen = length(bendDir);
+    if (bendLen > 1.2)
+    {
+        bendDir = (bendDir / bendLen) * 1.2;
+    }
+
+    // Assign the computed bending offset to the blade data
+    blade.bendDirection = bendDir;
+
+    // Apply fog visibility by scaling blade height (smooth reveal/hide transition)
+    blade.size.y *= fogVisibility;
+
+    // Append to the culled draw list
+    _CulledBuffer.Append(blade);
+}

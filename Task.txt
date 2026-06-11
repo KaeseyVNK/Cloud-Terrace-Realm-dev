@@ -1,0 +1,49 @@
+# DANH SÁCH TÍNH NĂNG CẦN IMPLEMENT (FEATURE LIST)
+
+*Quy ước Phân công:*
+
+- **[Dev 1] - Kỹ sư Hệ thống & Môi trường:** Đảm nhận thuật toán nền tảng (Grid, Pathfinding), quản lý dữ liệu toàn cục (Tài nguyên, Thời gian), và các hệ thống môi trường (Thời tiết, Ánh sáng).
+- **[Dev 2] - Kỹ sư Gameplay & AI:** Đảm nhận tương tác người chơi (UI, Xây dựng), AI logic của Cư dân và Kẻ địch, cùng tiến trình game (Tech tree).
+
+### Giai đoạn 1: Nền tảng cốt lõi (Foundation & Prototype)
+
+*Mục tiêu: Xây dựng được môi trường cơ bản, người chơi có thể thao tác với thế giới, hệ thống đếm thời gian và tài nguyên hoạt động.*
+
+- [x]  **[Dev 1] Camera Controls:** Pan (Di chuyển), Zoom (Thu phóng), có thể xoay quanh trục cố định hoặc giữ nguyên góc Isometric thuần túy.
+- [x]  **[Dev 1] Bản đồ độ cao (Elevation/Terrain System):** Hệ thống lưới (Grid) hỗ trợ nhiều tầng độ cao khác nhau (ruộng bậc thang), ảnh hưởng đến xây dựng và di chuyển.
+- [x]  **[Dev 1] Quản lý Tài nguyên (Resource Manager):** Lưu trữ và tính toán các loại tài nguyên cốt lõi (Gỗ, Đá, Thực phẩm, Nước, vàng).
+- [x]  **[Dev 1] Chu kỳ Thời gian (Time & Cycle System):** Đồng hồ đếm thời gian thực (ví dụ 1 ngày trong game = 10 phút), chuyển đổi trạng thái (Sáng, Chiều, Tối) làm trigger cho các sự kiện.
+- [x]  **[Dev 2] Giao diện người dùng vĩ mô (Macro HUD):** Thanh tài nguyên, Đồng hồ chu kỳ ngày đêm, Menu Xây dựng cơ bản.
+
+### Giai đoạn 2: Vòng lặp Gameplay chính (Core Loop & AI Swarm)
+
+*Mục tiêu: Cư dân có thể tự động đi lại, làm việc, thu thập tài nguyên và xây dựng nhà cửa dựa trên lệnh vĩ mô của người chơi.*
+
+- [x]  **[Dev 1] Hệ thống Lưới Xây dựng (Grid Placement System):** Cho phép đặt bản vẽ công trình (Blueprints) và cảnh báo hợp lệ/không hợp lệ (va chạm, sai địa hình).
+- [x]  **[Dev 1] Hệ thống Tìm đường (Pathfinding):** Tối ưu hóa NavMesh/A* cho số lượng lớn AI. Tốc độ di chuyển thay đổi dựa trên loại đường (đất, đá).
+- [x]  **[Dev 2] Máy trạng thái Cư dân (Villager State Machine):** Quản lý các trạng thái: Rảnh rỗi (Idle), Đi lại (Moving), Thu thập (Gathering), Xây dựng (Building), Nghỉ ngơi (Resting/Sleeping).
+- [x]  **[Dev 2] Công cụ Chọn vùng (Zoning Tool):** Cho phép người chơi "vẽ" hoặc quét chọn các ô trên mặt đất để đánh dấu khu vực đốn gỗ, hái lượm, khai thác đá.
+- [x]  **[Dev 2] Hệ thống Phân việc tự động (Job Broker System):** AI quét bản đồ để tìm công việc ưu tiên cao nhất đang chưa có người làm và tự động gán cho cư dân đang rảnh.
+- [ ]  **[Dev 1] Chuỗi Cung ứng (Logistics/Inventory Storage):** Cư dân phải thực sự cầm tài nguyên từ điểm A mang về điểm B (Kho chứa) thay vì tài nguyên tự động bay vào kho (Cần tương tác giữa Pathfinding của Dev 1 và Resource Manager).
+
+### Giai đoạn 3: Chiều sâu chiến thuật & Phòng thủ (Strategy & Night Phase)
+
+*Mục tiêu: Thêm lớp chiến thuật vào việc quản lý, đồng thời ra mắt kẻ địch thụ động vào ban đêm để tạo áp lực nhẹ nhàng.*
+
+- [ ]  **[Dev 2] Quản lý Mức độ Ưu tiên (Priority Queue UI):** Nút tăng/giảm mức độ ưu tiên cho từng công trình đang xây dựng hoặc từng khu vực khai thác.
+- [ ]  **[Dev 1] Hệ thống Ánh sáng (Lighting/Lantern System):** Tính toán bán kính ánh sáng từ các cột đèn/lửa trại. Ánh sáng đóng vai trò là "vùng an toàn" xua đuổi Tinh linh.
+- [ ]  **[Dev 2] AI Tinh linh Sương mù (Fog Sprites AI):** Spawn vào ban đêm từ các khu vực thấp/sương mù. Lập trình hành vi tàng hình, nhặt trộm tài nguyên và chạy trốn.
+- [ ]  **[Dev 2] Tương tác Đóng băng (Freeze Mechanic):** Tinh linh có thể vô hiệu hóa công trình, yêu cầu cư dân đến "rã đông" hoặc đốt lửa vào sáng hôm sau.
+
+### Giai đoạn 4: Vibe "Chill", Tiến trình & Đánh bóng (Progression & Polish)
+
+*Mục tiêu: Hoàn thiện cảm giác thư giãn của game, tích hợp hệ thống hình ảnh/âm thanh ASMR và thiết lập mục tiêu dài hạn.*
+
+- [ ]  **[Dev 1] Chỉ số Cozy (Cozy Level Manager):** Tính toán điểm Cozy dựa trên môi trường làm việc, thời gian làm việc, và các buff lân cận; sau đó áp dụng hệ số nhân lên tốc độ/tải trọng.
+- [ ]  **[Dev 1] Hệ thống Thời tiết (Weather System):** Trình tạo thời tiết ngẫu nhiên (Trời quang, Mưa, Sương mù) ảnh hưởng đến gameplay.
+- [ ]  **[Dev 2] Cây Công nghệ (Tech Tree UI/Logic):** Giao diện nhánh nâng cấp, kiểm tra điều kiện (đủ tài nguyên) và mở khóa nhà mới/tính năng mới.
+- [ ]  **[Dev 2] Nâng cấp Thời đại (Age Transition):** Tính năng thay đổi giao diện/model của toàn bộ công trình hiện có khi lên cấp thời đại mới.
+- [ ]  **[Dev 2] Phản hồi hình ảnh (Visual Feedback):** Biểu tượng lơ lửng trên đầu cư dân (Floating icons) khi họ thiếu tài nguyên, bị lạnh, hoặc đang "hát".
+- [ ]  **[Dev 1] Hệ thống Particle (VFX):** Tích hợp hiệu ứng thời tiết (hạt mưa, lá rơi), tia sáng đèn lồng, hiệu ứng xây nhà (bụi mây, búa đập).
+- [ ]  **[Dev 1] Hệ thống ASMR Audio (Spatial Audio):** Phát âm thanh 3D dựa trên khoảng cách của camera đến công trình (kéo lại gần cối xay gió nghe tiếng nước rõ hơn).
+- [ ]  **[Dev 1] Quản lý Nhạc nền theo ngữ cảnh (Dynamic BGM):** Cross-fade nhạc mượt mà giữa Sáng/Tối và Mưa/Nắng.

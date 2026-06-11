@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
+  m_Name: Rogue_Hooded
+  m_EditorClassIdentifier: Assembly-CSharp::UnitData
+  unitName: Rogue Hooded
+  description: A swift rogue capable of firing arrows and dealing high damage.
+  unitPrefab: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
+  productionTime: 10
+  productionCosts:
+  - resourceType: 0
+    amount: 60
+  - resourceType: 4
+    amount: 30

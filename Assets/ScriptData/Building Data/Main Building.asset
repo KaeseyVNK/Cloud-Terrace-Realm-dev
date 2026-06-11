@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: Main Building
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: Main Building
+  description: 
+  buildingPrefab: {fileID: 6673023864783920064, guid: e3166afbf9457cd4699625a48ef1aa43, type: 3}
+  buildingSize: {x: 4, y: 4}
+  buildCosts:
+  - resourceType: 0
+    amount: 500
+  - resourceType: 1
+    amount: 500
+  maxHealth: 1000
+  maxWorkers: 0
+  buildTime: 60
+  isStorage: 1
+  acceptedResources: 0000000001000000020000000300000004000000
+  requiredBuildings: []
+  producibleUnits:
+  - {fileID: 11400000, guid: f4eac0e9f35c3aa4794ddd5ba3caa6e6, type: 2}

@@ -1,0 +1,72 @@
+Cloud Terrace Realm - Task List
+
+Current Goal
+- Build a stable survival RTS loop: gather resources, build base, train units, survive stronger night waves, and expand vision through fog of war.
+
+Next Priority
+- Enemy Wave Scaling Pass 1 [Done]
+  - Scale enemy count by day.
+  - Add max enemy cap to protect FPS.
+  - Add debug force-spawn wave option.
+  - Log day, wave size, and spawn result.
+
+- Enemy Multi-Wave Composition [Done]
+  - Support multiple enemy waves per night.
+  - Support multiple enemy prefab types inside each wave.
+  - Add per-type unlock night, base count, increase per night, and max count.
+  - Keep active enemy cap to protect FPS.
+
+Core Gameplay
+- Resource balance pass
+  - Tune wood, stone, food, and gold node amounts. [Config Added]
+  - Tune respawn delays per resource type.
+  - Ensure starting resources feel enough but not unlimited.
+
+- Enemy behavior polish
+  - Keep enemies searching for the next nearest target after destroying a building. [Done]
+  - Prioritize nearby player units before buildings when appropriate. [Already supported]
+  - Prevent running/death animation state conflicts. [Done]
+
+- Player unit behavior polish
+  - Ensure player commands override auto combat. [Done]
+  - Reduce villager clumping during gathering and building. [Done]
+  - Improve rally point and rally job reliability. [Done]
+
+Fog Of War
+- Building placement rules
+  - Allow building only inside visible or explored valid area. [Done]
+  - Keep ghost buildings from revealing fog. [Done]
+  - Give vision only after building construction is completed. [Done]
+
+- Visibility polish
+  - Hide/fade enemy and resource objects outside vision. [Done]
+  - Keep terrain grass static unless a cheaper fog masking solution is added later. [Done]
+
+Progression
+- Building progression
+  - Define roles for house, wood camp, stone camp, barracks, watch tower, and main house.
+  - Add upgrades or unlocks from main house level.
+
+- Enemy progression
+  - Add stronger enemy types after later days.
+  - Add multi-wave nights after the early game.
+
+- Archer units [Done]
+  - Add player ranged archer controller and prefab.
+  - Add enemy ranged archer controller and prefab.
+  - Reuse pooled arrow projectile for ranged attacks.
+  - Add Archer UnitData to barracks production.
+
+Performance
+- Pooling
+  - Keep pooling for enemies, projectiles, and player units where safe.
+  - Avoid pooling villagers if spawn position/state bugs return.
+
+- AI update budget
+  - Move non-critical AI scans to interval-based updates.
+  - Cap active enemies and resource objects.
+
+Later
+- Expandable map or chunk map
+  - Keep fixed map for now.
+  - Revisit automatic map expansion only after the core loop and performance are stable.

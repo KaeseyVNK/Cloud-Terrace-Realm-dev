@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: BarrackTrain
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: "Tr\u1EA1i L\xEDnh"
+  description: 
+  buildingPrefab: {fileID: 5987755191451098744, guid: 019aa01d4d4eb4e4687fe6c9a58095b3, type: 3}
+  buildingSize: {x: 3, y: 3}
+  buildCosts:
+  - resourceType: 0
+    amount: 100
+  maxHealth: 100
+  maxWorkers: 0
+  buildTime: 20
+  isStorage: 0
+  acceptedResources: 
+  requiredBuildings:
+  - {fileID: 11400000, guid: b8266293286ded145b88c39bfbf93fdd, type: 2}
+  producibleUnits:
+  - {fileID: 11400000, guid: 884637089d91c3847a9d21925de3da9d, type: 2}
+  - {fileID: 11400000, guid: ae0ea0ce562d08a47b3962b84dca74f3, type: 2}
+  - {fileID: 11400000, guid: c0ffee4637089d91c3847a9d25de3da9, type: 2}
+
