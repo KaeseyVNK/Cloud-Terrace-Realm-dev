@@ -13,6 +13,16 @@ public class EnemyWaveEntry
 }
 
 [System.Serializable]
+public class EnemyRosterEntry
+{
+    public string name = "Enemy";
+    public GameObject prefab;
+    [Min(1)] public int unlockDay = 1;
+    [Min(0f)] public float weight = 1f;
+    [Min(0)] public int maxCountPerWave = 20;
+}
+
+[System.Serializable]
 public class DayWaveConfig
 {
     [Tooltip("Đêm cụ thể áp dụng cấu hình này (1, 2, 3...). Nhập 0 nếu muốn làm wave mặc định cho các đêm không có cấu hình riêng.")]
@@ -120,9 +130,40 @@ public class EnemyManager : MonoBehaviour
     [Range(0.5f, 0.99f)]
     [SerializeField] private float _nightRaidSpawnTimeRatio = 0.75f;
 
-    [Header("Multi Wave Settings")]
-    [SerializeField] private bool _useMultiWaveConfig = true;
+    [Header("Wave Settings")]
+    [Tooltip("Bật nếu muốn dùng _customWaves để override lịch wave. Tắt đi thì EnemyManager tự sinh wave từ Enemy Roster.")]
+    [SerializeField] private bool _useCustomWaveOverrides = false;
     [SerializeField] private List<DayWaveConfig> _customWaves = new List<DayWaveConfig>();
+
+    [Header("Auto Progression")]
+    [Tooltip("Danh sách loại quái. Quái sẽ tự mở khóa theo unlockDay và chia số lượng theo weight.")]
+    [SerializeField] private List<EnemyRosterEntry> _enemyRoster = new List<EnemyRosterEntry>();
+    [SerializeField] private int _waveIncreaseEveryNights = 3;
+    [SerializeField] private int _maxAutoWavesPerNight = 6;
+    [Range(0.5f, 0.95f)]
+    [SerializeField] private float _autoWaveStartTimeRatio = 0.55f;
+    [Range(0.55f, 0.99f)]
+    [SerializeField] private float _autoWaveEndTimeRatio = 0.9f;
+    [SerializeField] private float _bloodMoonWaveMultiplier = 1.75f;
+    [SerializeField] private float _bloodMoonCountMultiplier = 1.6f;
+
+    [Header("Post Tutorial Scaling")]
+    [SerializeField] private int _enemyScalingStartNight = 10;
+    [SerializeField] private float _healthGrowthPerNightAfterTutorial = 0.03f;
+    [SerializeField] private float _damageGrowthPerNightAfterTutorial = 0.02f;
+    [SerializeField] private float _speedGrowthPerNightAfterTutorial = 0.01f;
+
+    [Header("Special Events")]
+    [SerializeField] private int _minorEventStartNight = 5;
+    [SerializeField] private int _dangerEventStartNight = 10;
+    [Range(0f, 1f)]
+    [SerializeField] private float _minorNightEventChance = 0.12f;
+    [Range(0f, 1f)]
+    [SerializeField] private float _dangerNightEventChance = 0.08f;
+    [Range(0f, 1f)]
+    [SerializeField] private float _minorDayEventChance = 0.08f;
+    [Range(0f, 1f)]
+    [SerializeField] private float _dangerDayEventChance = 0.05f;
 
     [Header("Pooling")]
     [SerializeField] private int _enemyPoolPrewarmCount = 24;
@@ -136,10 +177,12 @@ public class EnemyManager : MonoBehaviour
     private bool _nightRaidPending = false;
     private bool[] _spawnedWavesThisNight = new bool[0];
     private bool _dayRainRaidSpawned = false;
+    private bool _daySpecialEventSpawned = false;
     private List<DayWaveConfig> _activeNightWaves = new List<DayWaveConfig>();
     private int _lastSpawnEdgeChoice = -1;
 
 
+    // ===== Unity lifecycle =====
     void Awake()
     {
         if (s_instance == null)
@@ -200,8 +243,8 @@ public class EnemyManager : MonoBehaviour
             PoolManager.Instance.Prewarm(_enemyArcherPrefab, _enemyPoolPrewarmCount);
         }
 
+        EnsureDefaultEnemyRoster();
         EnsureDefaultWaveConfig();
-        AddEnemyArcherToWavesIfNeeded();
         PrewarmConfiguredEnemies();
 
         // Đăng ký lắng nghe sự kiện đổi Ngày/Đêm từ TimeManager
@@ -219,6 +262,7 @@ public class EnemyManager : MonoBehaviour
 #if UNITY_EDITOR
     private void OnValidate()
     {
+        EnsureDefaultEnemyRoster();
         EnsureDefaultWaveConfig();
     }
 #endif
@@ -244,86 +288,28 @@ public class EnemyManager : MonoBehaviour
             _nightRaidPending = false;
             _spawnedWavesThisNight = new bool[0];
             _dayRainRaidSpawned = false;
+            _daySpecialEventSpawned = false;
         }
     }
 
+    // ===== Public debug and query API =====
     [ContextMenu("Spawn Night Raid Test")]
     public void SpawnNightRaid()
     {
         _currentNightNumber++;
         CleanupActiveEnemies();
-        
-        if (_enemyPrefab == null)
+
+        if (!TryGetSpawnEdge(out Vector3 centerSpawnPos, out string edgeName))
         {
-            Debug.LogError("[EnemyManager] Không có enemyPrefab để sinh kẻ địch!");
             return;
         }
 
-        if (_gridSystem == null)
-        {
-            _gridSystem = FindAnyObjectByType<GridSystem>();
-            if (_gridSystem == null)
-            {
-                Debug.LogError("[EnemyManager] Không tìm thấy GridSystem trong cảnh!");
-                return;
-            }
-        }
-
-        int width = _gridSystem.GetWidth();
-        int length = _gridSystem.GetLength();
-
-        if (width <= 0 || length <= 0)
-        {
-            Debug.LogError($"[EnemyManager] Kích thước GridSystem không hợp lệ: {width}x{length}");
-            return;
-        }
-
-        // Chọn ngẫu nhiên 1 trong 4 rìa bản đồ để spawn cả nhóm lính
-        int edgeChoice = Random.Range(0, 4);
-        int edgeX = 0;
-        int edgeZ = 0;
-        string edgeName = "";
-
-        switch (edgeChoice)
-        {
-            case 0: // Rìa trên (Z tối đa)
-                edgeX = Random.Range(0, width);
-                edgeZ = length - 1;
-                edgeName = "Bắc (Rìa Trên)";
-                break;
-            case 1: // Rìa dưới (Z = 0)
-                edgeX = Random.Range(0, width);
-                edgeZ = 0;
-                edgeName = "Nam (Rìa Dưới)";
-                break;
-            case 2: // Rìa trái (X = 0)
-                edgeX = 0;
-                edgeZ = Random.Range(0, length);
-                edgeName = "Tây (Rìa Trái)";
-                break;
-            case 3: // Rìa phải (X tối đa)
-                edgeX = width - 1;
-                edgeZ = Random.Range(0, length);
-                edgeName = "Đông (Rìa Phải)";
-                break;
-        }
-
-        Vector3 centerSpawnPos = _gridSystem.GetWorldPosition(edgeX, edgeZ);
-        
         PrepareNightRaidSchedule();
 
         int successfulSpawns = 0;
-        int requestedEnemyCount = GetEnemyCountForNight(_currentNightNumber);
-        if (_useMultiWaveConfig && _activeNightWaves.Count > 0)
+        for (int waveIndex = 0; waveIndex < _activeNightWaves.Count; waveIndex++)
         {
-            for (int waveIndex = 0; waveIndex < _activeNightWaves.Count; waveIndex++)
-            {
-                successfulSpawns += SpawnWave(_currentNightNumber, waveIndex, centerSpawnPos, edgeName);
-            }
-        }
-        else
-        {
-            successfulSpawns = SpawnEnemyGroup(_enemyPrefab, "Enemy", requestedEnemyCount, _currentNightNumber, 0, centerSpawnPos);
+            successfulSpawns += SpawnWave(_currentNightNumber, waveIndex, centerSpawnPos, edgeName);
         }
 
         Debug.Log($"[EnemyManager] Đêm {_currentNightNumber}: Spawn test thành công {successfulSpawns} kẻ địch từ hướng {edgeName}.");
@@ -366,36 +352,39 @@ public class EnemyManager : MonoBehaviour
     /// </summary>
     void Update()
     {
+        TimeManager timeManager = TimeManager.Instance;
+        WeatherManager weatherManager = WeatherManager.Instance;
+        bool hasTimeManager = timeManager != null;
+        float timeRatio = hasTimeManager ? timeManager.GetTimeRatio() : 0f;
+
         // Kiểm tra đột kích ban ngày nếu trời mưa sương mù âm u
-        if (TimeManager.Instance != null && !TimeManager.Instance.IsNight)
+        if (hasTimeManager && !timeManager.IsNight)
         {
-            if (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain)
+            if (weatherManager != null && weatherManager.CurrentWeather == WeatherState.Rain)
             {
-                if (!_dayRainRaidSpawned && TimeManager.Instance.GetTimeRatio() >= 0.2f)
+                if (!_dayRainRaidSpawned && timeRatio >= 0.2f)
                 {
                     _dayRainRaidSpawned = true;
                     SpawnDayRainRaid();
                 }
             }
-        }
 
-        if (_nightRaidPending && TimeManager.Instance != null && TimeManager.Instance.IsNight && TimeManager.Instance.GetTimeRatio() >= _nightRaidSpawnTimeRatio)
-        {
-            if (!_useMultiWaveConfig || _activeNightWaves.Count == 0)
+            if (!_daySpecialEventSpawned && timeRatio >= 0.35f)
             {
-                _nightRaidPending = false;
-                SpawnLegacyNightWave();
+                _daySpecialEventSpawned = true;
+                TrySpawnDaySpecialEvent();
             }
         }
 
-        if (_nightRaidPending && TimeManager.Instance != null && TimeManager.Instance.IsNight && _useMultiWaveConfig && _activeNightWaves.Count > 0)
+        if (_nightRaidPending && hasTimeManager && timeManager.IsNight)
         {
-            ProcessScheduledNightWaves(TimeManager.Instance.GetTimeRatio());
+            ProcessScheduledNightWaves(timeRatio);
         }
 
         CleanupActiveEnemies();
     }
 
+    // ===== Daytime raid events =====
     private void SpawnDayRainRaid()
     {
         if (!TryGetSpawnEdge(out Vector3 centerSpawnPos, out string edgeName))
@@ -410,13 +399,76 @@ public class EnemyManager : MonoBehaviour
         Debug.Log($"[EnemyManager] Đột kích ngày mưa: Spawn thành công {successfulSpawns} Skeleton từ hướng {edgeName} lúc sáng sớm.");
     }
 
+    private void TrySpawnDaySpecialEvent()
+    {
+        if (!TryRollSpecialEvent(_currentNightNumber, _minorDayEventChance, _dangerDayEventChance, out string eventName, out int _, out float countMultiplier))
+        {
+            return;
+        }
 
+        if (!TryGetSpawnEdge(out Vector3 centerSpawnPos, out string edgeName))
+        {
+            return;
+        }
+
+        int baseCount = Mathf.Clamp(Mathf.RoundToInt(GetEnemyCountForNight(_currentNightNumber) * 0.5f * countMultiplier), 2, Mathf.Max(2, _maxEnemiesPerWave));
+        List<EnemyWaveEntry> entries = BuildWeightedEnemyEntries(_currentNightNumber, baseCount);
+        int totalSpawned = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            GameObject prefab = GetEntryPrefab(entries[i]);
+            totalSpawned += SpawnEnemyGroup(prefab, $"{eventName}_{entries[i].name}", entries[i].baseCount, _currentNightNumber, 98, centerSpawnPos);
+        }
+
+        Debug.Log($"[EnemyManager] Sự kiện ban ngày {eventName}: spawned {totalSpawned} enemies từ {edgeName}.");
+    }
+
+
+    // ===== Wave setup: roster and optional custom presets =====
     [ContextMenu("Reset to Preset Waves")]
     public void ResetToPresetWaves()
     {
         _customWaves.Clear();
-        EnsureDefaultWaveConfig();
+        CreatePresetWaveConfig();
+        _useCustomWaveOverrides = true;
         Debug.Log("[EnemyManager] Đã khôi phục danh sách các wave mẫu thành công.");
+    }
+
+    private void EnsureDefaultEnemyRoster()
+    {
+        if (_enemyRoster.Count == 1 && _enemyRoster[0].prefab == null && string.IsNullOrEmpty(_enemyRoster[0].name))
+        {
+            _enemyRoster.Clear();
+        }
+
+        if (_enemyRoster.Count > 0)
+        {
+            return;
+        }
+
+        if (_enemyPrefab != null)
+        {
+            _enemyRoster.Add(new EnemyRosterEntry
+            {
+                name = "Skeleton",
+                prefab = _enemyPrefab,
+                unlockDay = 1,
+                weight = 3f,
+                maxCountPerWave = _maxEnemiesPerWave
+            });
+        }
+
+        if (_enemyArcherPrefab != null)
+        {
+            _enemyRoster.Add(new EnemyRosterEntry
+            {
+                name = "EnemyArcher",
+                prefab = _enemyArcherPrefab,
+                unlockDay = 4,
+                weight = 1f,
+                maxCountPerWave = 12
+            });
+        }
     }
 
     private void EnsureDefaultWaveConfig()
@@ -427,11 +479,16 @@ public class EnemyManager : MonoBehaviour
             _customWaves.Clear();
         }
 
-        if (_customWaves.Count > 0)
+        if (_customWaves.Count > 0 || !_useCustomWaveOverrides)
         {
             return;
         }
 
+        CreatePresetWaveConfig();
+    }
+
+    private void CreatePresetWaveConfig()
+    {
         // 1. Đêm 1: Lính Skeleton cơ bản, giới thiệu game
         DayWaveConfig waveNight1 = new DayWaveConfig
         {
@@ -564,39 +621,6 @@ public class EnemyManager : MonoBehaviour
         _customWaves.Add(defaultWave);
     }
 
-    private void AddEnemyArcherToWavesIfNeeded()
-    {
-        if (_enemyArcherPrefab == null) return;
-
-        bool hasArcher = false;
-        foreach (var wave in _customWaves)
-        {
-            foreach (var enemy in wave.enemies)
-            {
-                if (enemy.prefab == _enemyArcherPrefab || enemy.name == "EnemyArcher" || (enemy.prefab != null && enemy.prefab.name == "EnemyArcher"))
-                {
-                    hasArcher = true;
-                    break;
-                }
-            }
-            if (hasArcher) break;
-        }
-
-        if (!hasArcher && _customWaves.Count > 0)
-        {
-            _customWaves[0].enemies.Add(new EnemyWaveEntry
-            {
-                name = "EnemyArcher",
-                prefab = _enemyArcherPrefab,
-                baseCount = 1,
-                increasePerNight = 1,
-                maxCount = 10
-            });
-            Debug.Log("[EnemyManager] Tự động thêm EnemyArcher vào wave 1.");
-        }
-    }
-
-
     private void PrewarmConfiguredEnemies()
     {
         if (_enemyPoolPrewarmCount <= 0 || PoolManager.Instance == null)
@@ -605,6 +629,15 @@ public class EnemyManager : MonoBehaviour
         }
 
         HashSet<GameObject> prewarmedPrefabs = new HashSet<GameObject>();
+        for (int rosterIndex = 0; rosterIndex < _enemyRoster.Count; rosterIndex++)
+        {
+            GameObject rosterPrefab = GetRosterPrefab(_enemyRoster[rosterIndex]);
+            if (rosterPrefab != null && prewarmedPrefabs.Add(rosterPrefab))
+            {
+                PoolManager.Instance.Prewarm(rosterPrefab, _enemyPoolPrewarmCount);
+            }
+        }
+
         for (int waveIndex = 0; waveIndex < _customWaves.Count; waveIndex++)
         {
             DayWaveConfig wave = _customWaves[waveIndex];
@@ -619,6 +652,7 @@ public class EnemyManager : MonoBehaviour
         }
     }
 
+    // ===== Night wave scheduling =====
     private void PrepareNightRaidSchedule()
     {
         int night = Mathf.Max(1, _currentNightNumber);
@@ -630,84 +664,35 @@ public class EnemyManager : MonoBehaviour
 
         _activeNightWaves.Clear();
 
-        // 1. Search for custom waves matching the current night
-        foreach (var wave in _customWaves)
+        if (_useCustomWaveOverrides)
         {
-            if (wave.specificNight == night)
-            {
-                _activeNightWaves.Add(wave);
-            }
-        }
-
-        // 2. If none, search for default custom waves (specificNight <= 0)
-        if (_activeNightWaves.Count == 0)
-        {
+            // 1. Search for custom waves matching the current night
             foreach (var wave in _customWaves)
             {
-                if (wave.specificNight <= 0)
+                if (wave.specificNight == night)
                 {
                     _activeNightWaves.Add(wave);
                 }
             }
+
+            // 2. If none, search for default custom waves (specificNight <= 0)
+            if (_activeNightWaves.Count == 0)
+            {
+                foreach (var wave in _customWaves)
+                {
+                    if (wave.specificNight <= 0)
+                    {
+                        _activeNightWaves.Add(wave);
+                    }
+                }
+            }
         }
 
-        // 3. If still none, fallback to procedural wave generation
+        // 3. If still none, use roster-based auto progression
         if (_activeNightWaves.Count == 0)
         {
-            int baseWaveCount = 1 + (night / 3);
-            baseWaveCount = Mathf.Clamp(baseWaveCount, 1, 4);
-
-            int waveCount = baseWaveCount;
-            float multiplier = 1f;
-
-            if (weather == WeatherState.BloodMoon)
-            {
-                waveCount = baseWaveCount * 2;
-                multiplier = 1.6f;
-            }
-
-            for (int i = 0; i < waveCount; i++)
-            {
-                DayWaveConfig wave = new DayWaveConfig
-                {
-                    specificNight = 0,
-                    waveName = $"{(weather == WeatherState.BloodMoon ? "Blood Moon" : "Night")} Wave {i + 1}",
-                    countMultiplier = multiplier
-                };
-
-                if (waveCount == 1)
-                {
-                    wave.spawnTimeRatio = 0.7f;
-                }
-                else
-                {
-                    wave.spawnTimeRatio = 0.55f + ((float)i / (waveCount - 1)) * 0.35f;
-                }
-
-                wave.enemies.Add(new EnemyWaveEntry
-                {
-                    name = "Skeleton",
-                    prefab = _enemyPrefab,
-                    baseCount = _baseEnemyCount,
-                    increasePerNight = _enemyIncreasePerNight,
-                    maxCount = _maxEnemiesPerWave
-                });
-
-                if (night >= 2 || weather == WeatherState.BloodMoon)
-                {
-                    wave.enemies.Add(new EnemyWaveEntry
-                    {
-                        name = "EnemyArcher",
-                        prefab = _enemyArcherPrefab,
-                        baseCount = 1,
-                        increasePerNight = 1,
-                        maxCount = 10
-                    });
-                }
-
-                _activeNightWaves.Add(wave);
-            }
-            Debug.Log($"[EnemyManager] Đêm {night} ({weather}): Không tìm thấy cấu hình custom, tự động sinh {waveCount} wave procedural.");
+            BuildAutoNightWaves(night, weather);
+            Debug.Log($"[EnemyManager] Đêm {night} ({weather}): Tự sinh {_activeNightWaves.Count} wave từ Enemy Roster.");
         }
         else
         {
@@ -715,6 +700,229 @@ public class EnemyManager : MonoBehaviour
         }
 
         _spawnedWavesThisNight = new bool[_activeNightWaves.Count];
+    }
+
+    private void BuildAutoNightWaves(int night, WeatherState weather)
+    {
+        EnsureDefaultEnemyRoster();
+
+        int interval = Mathf.Max(1, _waveIncreaseEveryNights);
+        int normalWaveCount = Mathf.Clamp(1 + ((night - 1) / interval), 1, Mathf.Max(1, _maxAutoWavesPerNight));
+        int waveCount = normalWaveCount;
+        float countMultiplier = 1f;
+        string eventName = "";
+
+        if (weather == WeatherState.BloodMoon)
+        {
+            waveCount = Mathf.CeilToInt(waveCount * Mathf.Max(1f, _bloodMoonWaveMultiplier));
+            eventName = "Blood Moon";
+        }
+
+        if (TryRollSpecialEvent(night, _minorNightEventChance, _dangerNightEventChance, out string rolledEventName, out int bonusWaves, out float eventCountMultiplier))
+        {
+            waveCount += bonusWaves;
+            countMultiplier *= eventCountMultiplier;
+            eventName = string.IsNullOrEmpty(eventName) ? rolledEventName : $"{eventName} + {rolledEventName}";
+        }
+
+        waveCount = Mathf.Max(1, waveCount);
+        int perWaveBaseCount = GetEnemyCountForNight(night);
+        float startRatio = Mathf.Min(_autoWaveStartTimeRatio, _autoWaveEndTimeRatio);
+        float endRatio = Mathf.Max(_autoWaveStartTimeRatio, _autoWaveEndTimeRatio);
+
+        for (int i = 0; i < waveCount; i++)
+        {
+            float spawnRatio = waveCount == 1
+                ? Mathf.Clamp((startRatio + endRatio) * 0.5f, 0.5f, 0.99f)
+                : Mathf.Lerp(startRatio, endRatio, (float)i / (waveCount - 1));
+
+            DayWaveConfig wave = new DayWaveConfig
+            {
+                specificNight = 0,
+                waveName = string.IsNullOrEmpty(eventName) ? $"Night {night} Wave {i + 1}" : $"{eventName} Night {night} Wave {i + 1}",
+                spawnTimeRatio = spawnRatio,
+                countMultiplier = countMultiplier
+            };
+
+            wave.enemies.AddRange(BuildWeightedEnemyEntries(night, perWaveBaseCount));
+            _activeNightWaves.Add(wave);
+        }
+    }
+
+    private bool TryRollSpecialEvent(int night, float minorChance, float dangerChance, out string eventName, out int bonusWaves, out float countMultiplier)
+    {
+        eventName = "";
+        bonusWaves = 0;
+        countMultiplier = 1f;
+
+        if (night >= _dangerEventStartNight && Random.value < Mathf.Clamp01(dangerChance))
+        {
+            eventName = "Danger Event";
+            bonusWaves = 2;
+            countMultiplier = 1.35f;
+            return true;
+        }
+
+        if (night >= _minorEventStartNight && Random.value < Mathf.Clamp01(minorChance))
+        {
+            eventName = "Minor Event";
+            bonusWaves = 1;
+            countMultiplier = 1.15f;
+            return true;
+        }
+
+        return false;
+    }
+
+    private List<EnemyWaveEntry> BuildWeightedEnemyEntries(int night, int totalCount)
+    {
+        List<EnemyWaveEntry> entries = new List<EnemyWaveEntry>();
+        List<EnemyRosterEntry> unlockedRoster = new List<EnemyRosterEntry>();
+        float totalWeight = 0f;
+
+        for (int i = 0; i < _enemyRoster.Count; i++)
+        {
+            EnemyRosterEntry rosterEntry = _enemyRoster[i];
+            if (rosterEntry == null || GetRosterPrefab(rosterEntry) == null || night < Mathf.Max(1, rosterEntry.unlockDay) || rosterEntry.weight <= 0f)
+            {
+                continue;
+            }
+
+            unlockedRoster.Add(rosterEntry);
+            totalWeight += rosterEntry.weight;
+        }
+
+        if (unlockedRoster.Count == 0)
+        {
+            if (_enemyPrefab != null)
+            {
+                entries.Add(CreateFixedCountWaveEntry("Enemy", _enemyPrefab, Mathf.Max(1, totalCount), _maxEnemiesPerWave));
+            }
+            return entries;
+        }
+
+        int remainingCount = Mathf.Max(1, totalCount);
+        int guaranteedCount = remainingCount >= unlockedRoster.Count ? 1 : 0;
+        if (guaranteedCount > 0)
+        {
+            remainingCount -= unlockedRoster.Count;
+        }
+
+        int assignedCount = 0;
+        List<int> counts = new List<int>();
+        for (int i = 0; i < unlockedRoster.Count; i++)
+        {
+            int count = guaranteedCount;
+            if (remainingCount > 0 && totalWeight > 0f)
+            {
+                count += Mathf.RoundToInt(remainingCount * (unlockedRoster[i].weight / totalWeight));
+            }
+
+            int maxCount = Mathf.Max(0, unlockedRoster[i].maxCountPerWave);
+            if (maxCount > 0)
+            {
+                count = Mathf.Min(count, maxCount);
+            }
+
+            counts.Add(count);
+            assignedCount += count;
+        }
+
+        int safety = 0;
+        while (assignedCount > totalCount && safety < 128)
+        {
+            int trimIndex = GetLowestWeightAssignedRosterIndex(unlockedRoster, counts);
+            if (trimIndex < 0)
+            {
+                break;
+            }
+
+            counts[trimIndex]--;
+            assignedCount--;
+            safety++;
+        }
+
+        safety = 0;
+        while (assignedCount < totalCount && safety < 128)
+        {
+            int bestIndex = GetHighestWeightRosterIndex(unlockedRoster, counts);
+            if (bestIndex < 0)
+            {
+                break;
+            }
+
+            counts[bestIndex]++;
+            assignedCount++;
+            safety++;
+        }
+
+        for (int i = 0; i < unlockedRoster.Count; i++)
+        {
+            if (counts[i] <= 0)
+            {
+                continue;
+            }
+
+            EnemyRosterEntry rosterEntry = unlockedRoster[i];
+            entries.Add(CreateFixedCountWaveEntry(rosterEntry.name, GetRosterPrefab(rosterEntry), counts[i], rosterEntry.maxCountPerWave));
+        }
+
+        return entries;
+    }
+
+    private int GetHighestWeightRosterIndex(List<EnemyRosterEntry> roster, List<int> counts)
+    {
+        int bestIndex = -1;
+        float bestWeight = float.NegativeInfinity;
+        for (int i = 0; i < roster.Count; i++)
+        {
+            int maxCount = Mathf.Max(0, roster[i].maxCountPerWave);
+            if (maxCount > 0 && counts[i] >= maxCount)
+            {
+                continue;
+            }
+
+            if (roster[i].weight > bestWeight)
+            {
+                bestWeight = roster[i].weight;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    private int GetLowestWeightAssignedRosterIndex(List<EnemyRosterEntry> roster, List<int> counts)
+    {
+        int bestIndex = -1;
+        float bestWeight = float.PositiveInfinity;
+        for (int i = 0; i < roster.Count; i++)
+        {
+            if (counts[i] <= 0)
+            {
+                continue;
+            }
+
+            if (roster[i].weight < bestWeight)
+            {
+                bestWeight = roster[i].weight;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    private EnemyWaveEntry CreateFixedCountWaveEntry(string enemyName, GameObject prefab, int count, int maxCount)
+    {
+        return new EnemyWaveEntry
+        {
+            name = string.IsNullOrEmpty(enemyName) ? "Enemy" : enemyName,
+            prefab = prefab,
+            baseCount = Mathf.Max(0, count),
+            increasePerNight = 0,
+            maxCount = Mathf.Max(Mathf.Max(0, count), maxCount)
+        };
     }
 
     private void ProcessScheduledNightWaves(float timeRatio)
@@ -787,19 +995,7 @@ public class EnemyManager : MonoBehaviour
         return 0;
     }
 
-    private void SpawnLegacyNightWave()
-    {
-        CleanupActiveEnemies();
-        if (!TryGetSpawnEdge(out Vector3 centerSpawnPos, out string edgeName))
-        {
-            return;
-        }
-
-        int requestedEnemyCount = GetEnemyCountForNight(_currentNightNumber);
-        int successfulSpawns = SpawnEnemyGroup(_enemyPrefab, "Enemy", requestedEnemyCount, _currentNightNumber, 0, centerSpawnPos);
-        Debug.Log($"[EnemyManager] Đêm {_currentNightNumber}: Legacy wave spawned {successfulSpawns}/{requestedEnemyCount} enemies from {edgeName}.");
-    }
-
+    // ===== Spawn execution =====
     private int SpawnWave(int nightNumber, int waveIndex, Vector3 centerSpawnPos, string edgeName)
     {
         EnsureDefaultWaveConfig();
@@ -839,13 +1035,18 @@ public class EnemyManager : MonoBehaviour
         float finalMultiplier = waveMultiplier;
         if (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.BloodMoon)
         {
-            finalMultiplier *= 1.6f;
+            finalMultiplier *= Mathf.Max(1f, _bloodMoonCountMultiplier);
         }
         
         return Mathf.RoundToInt(cappedCount * Mathf.Max(0f, finalMultiplier));
     }
 
     private GameObject GetEntryPrefab(EnemyWaveEntry entry)
+    {
+        return entry != null && entry.prefab != null ? entry.prefab : _enemyPrefab;
+    }
+
+    private GameObject GetRosterPrefab(EnemyRosterEntry entry)
     {
         return entry != null && entry.prefab != null ? entry.prefab : _enemyPrefab;
     }
@@ -895,11 +1096,8 @@ public class EnemyManager : MonoBehaviour
             enemyController.OnSpawnedFromPool();
             enemyController.SetRallyPoint(rallyPos); // Bat dau di chuyen den rally point truoc
 
-            // Áp dụng tăng chỉ số nếu là đêm Trăng Máu (Blood Moon)
-            if (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.BloodMoon)
-            {
-                enemyController.ApplyStatMultipliers(1.5f, 1.3f, 1.15f);
-            }
+            GetEnemyStatMultipliers(nightNumber, out float healthMultiplier, out float damageMultiplier, out float speedMultiplier);
+            enemyController.ApplyStatMultipliers(healthMultiplier, damageMultiplier, speedMultiplier);
 
             if (!_activeEnemies.Contains(enemyController))
             {
@@ -917,6 +1115,31 @@ public class EnemyManager : MonoBehaviour
         }
 
         return successfulSpawns;
+    }
+
+    private void GetEnemyStatMultipliers(int nightNumber, out float healthMultiplier, out float damageMultiplier, out float speedMultiplier)
+    {
+        healthMultiplier = 1f;
+        damageMultiplier = 1f;
+        speedMultiplier = 1f;
+
+        if (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.BloodMoon)
+        {
+            healthMultiplier *= 1.5f;
+            damageMultiplier *= 1.3f;
+            speedMultiplier *= 1.15f;
+        }
+
+        int scalingStartNight = Mathf.Max(1, _enemyScalingStartNight);
+        if (nightNumber <= scalingStartNight)
+        {
+            return;
+        }
+
+        int scalingNights = nightNumber - scalingStartNight;
+        healthMultiplier *= 1f + (scalingNights * Mathf.Max(0f, _healthGrowthPerNightAfterTutorial));
+        damageMultiplier *= 1f + (scalingNights * Mathf.Max(0f, _damageGrowthPerNightAfterTutorial));
+        speedMultiplier *= 1f + (scalingNights * Mathf.Max(0f, _speedGrowthPerNightAfterTutorial));
     }
 
     private System.Collections.IEnumerator ReleaseGroupWhenReady(List<EnemyUnitController> group, Vector3 rallyPosition)
@@ -962,6 +1185,7 @@ public class EnemyManager : MonoBehaviour
         }
     }
 
+    // ===== Spawn position selection =====
     private Vector3 GetSpawnPositionNear(Vector3 centerSpawnPos)
     {
         Vector2 randomCircle = Random.insideUnitCircle * _spawnRadius;
