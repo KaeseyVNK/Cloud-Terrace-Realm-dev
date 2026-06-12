@@ -85,6 +85,20 @@ public class EnemyArcherController : EnemyUnitController
         if (currentState == CombatState.Dead) return;
         if (isStunned) return;
 
+        if (IsKnockupActive())
+        {
+            _isKiting = false;
+            UpdateKnockupAnimationState();
+            return;
+        }
+
+        if (IsPostKnockupRecovering())
+        {
+            _isKiting = false;
+            UpdatePostKnockupRecoveryAnimationState();
+            return;
+        }
+
         if (_isKiting)
         {
             if (navAgent == null || !navAgent.enabled || (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance) || (navAgent.velocity.sqrMagnitude == 0f && !navAgent.pathPending))

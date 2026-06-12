@@ -49,6 +49,24 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
         if (currentState == CombatState.Dead) return;
         if (isStunned) return;
 
+        if (IsKnockupActive())
+        {
+            _isKiting = false;
+            _isHoldingAimAfterTargetLost = false;
+            SetAimAnimatorBool(false);
+            UpdateKnockupAnimationState();
+            return;
+        }
+
+        if (IsPostKnockupRecovering())
+        {
+            _isKiting = false;
+            _isHoldingAimAfterTargetLost = false;
+            SetAimAnimatorBool(false);
+            UpdatePostKnockupRecoveryAnimationState();
+            return;
+        }
+
         if (_isKiting)
         {
             if (HasFinishedKiting())
@@ -101,11 +119,13 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
             return;
         }
 
+        BaseCombatUnitController attackTarget = currentTarget;
+        Vector3 targetPosition = attackTarget.transform.position;
         Vector3 firePosition = _firePoint != null ? _firePoint.position : transform.position + Vector3.up * _projectileSpawnHeight;
         ArrowProjectile projectile = PoolManager.Instance.Spawn(_projectilePrefab, firePosition, Quaternion.identity);
         if (projectile != null)
         {
-            projectile.Launch(currentTarget, attackDamage);
+            projectile.LaunchAtPosition(attackTarget, targetPosition, attackDamage);
         }
     }
 

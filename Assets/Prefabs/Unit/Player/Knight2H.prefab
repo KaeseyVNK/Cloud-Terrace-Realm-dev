@@ -1231,13 +1231,16 @@ MonoBehaviour:
   attackDamage: 15
   attackRange: 2
   attackCooldown: 1
-  scanRange: 15
+  scanRange: 20
   idleScanInterval: 0.25
   movingScanInterval: 0.35
   currentState: 0
   autoAggroDuringMove: 1
   useAutoChaseLeash: 1
   maxAutoChaseDistance: 12
+  attackRangeExitBuffer: 0.35
+  knockupRecoveryDuration: 0.25
+  movingAnimationVelocityThreshold: 0.08
   _blockChance: 0.35
   _frontBlockAngle: 120
   _blockCooldown: 1

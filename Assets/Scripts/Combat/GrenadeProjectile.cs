@@ -24,6 +24,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
     private readonly HashSet<BaseCombatUnitController> hitUnits = new HashSet<BaseCombatUnitController>();
 
     private BaseCombatUnitController target;
+    private Vector3 fixedTargetPosition;
     private UnitFaction ownerFaction;
     private int damage;
     private float spawnTime;
@@ -31,20 +32,40 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
     private Vector3 startPosition;
     private Vector3 lastPosition;
     private bool hasExploded;
+    private bool useFixedTargetPosition;
 
     public void Launch(BaseCombatUnitController newTarget, UnitFaction newOwnerFaction, int newDamage)
     {
         target = newTarget;
+        fixedTargetPosition = transform.position;
         ownerFaction = newOwnerFaction;
         damage = newDamage;
         spawnTime = Time.time;
         startPosition = transform.position;
         lastPosition = startPosition;
         hasExploded = false;
+        useFixedTargetPosition = false;
         hitUnits.Clear();
 
         Vector3 targetPosition = GetTargetPosition();
         float distance = Vector3.Distance(startPosition, targetPosition);
+        flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
+    }
+
+    public void LaunchAtPosition(Vector3 newTargetPosition, UnitFaction newOwnerFaction, int newDamage)
+    {
+        target = null;
+        fixedTargetPosition = newTargetPosition + targetOffset;
+        ownerFaction = newOwnerFaction;
+        damage = newDamage;
+        spawnTime = Time.time;
+        startPosition = transform.position;
+        lastPosition = startPosition;
+        hasExploded = false;
+        useFixedTargetPosition = true;
+        hitUnits.Clear();
+
+        float distance = Vector3.Distance(startPosition, fixedTargetPosition);
         flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
     }
 
@@ -55,7 +76,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
             return;
         }
 
-        if (target == null || target.currentState == CombatState.Dead || Time.time > spawnTime + maxLifetime)
+        if ((!useFixedTargetPosition && (target == null || target.currentState == CombatState.Dead)) || Time.time > spawnTime + maxLifetime)
         {
             Explode(transform.position);
             return;
@@ -85,21 +106,25 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
     public void OnSpawnedFromPool()
     {
         target = null;
+        fixedTargetPosition = transform.position;
         damage = 0;
         spawnTime = Time.time;
         flightDuration = 0f;
         startPosition = transform.position;
         lastPosition = transform.position;
         hasExploded = false;
+        useFixedTargetPosition = false;
         hitUnits.Clear();
     }
 
     public void OnReturnedToPool()
     {
         target = null;
+        fixedTargetPosition = transform.position;
         damage = 0;
         flightDuration = 0f;
         hasExploded = false;
+        useFixedTargetPosition = false;
         hitUnits.Clear();
     }
 
@@ -201,6 +226,11 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
 
     private Vector3 GetTargetPosition()
     {
+        if (useFixedTargetPosition)
+        {
+            return fixedTargetPosition;
+        }
+
         return target != null ? target.transform.position + targetOffset : transform.position;
     }
 

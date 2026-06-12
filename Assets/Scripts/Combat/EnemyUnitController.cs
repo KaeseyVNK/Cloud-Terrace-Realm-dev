@@ -153,6 +153,18 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         if (currentState == CombatState.Dead) return;
         if (isStunned) return;
 
+        if (IsKnockupActive())
+        {
+            UpdateKnockupAnimationState();
+            return;
+        }
+
+        if (IsPostKnockupRecovering())
+        {
+            UpdatePostKnockupRecoveryAnimationState();
+            return;
+        }
+
         // 1. Retreat Check
         if (currentHealth < maxHealth * 0.25f && !_isRetreating)
         {

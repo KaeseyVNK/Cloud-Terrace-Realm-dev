@@ -32,6 +32,10 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     [Header("Chase Leash")]
     [SerializeField] protected bool useAutoChaseLeash = true;
     [SerializeField] protected float maxAutoChaseDistance = 12f;
+    [SerializeField] private float attackRangeExitBuffer = 0.35f;
+    [SerializeField] private float knockupRecoveryDuration = 0.25f;
+    [SerializeField] private float movingAnimationVelocityThreshold = 0.08f;
+    [SerializeField] private float movingAnimationHoldTime = 0.18f;
 
     protected NavMeshAgent navAgent;
     protected Animator animator;
@@ -52,6 +56,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     private float nextMovingScanTime;
     private BaseCombatUnitController cachedIdleScanTarget;
     private BaseCombatUnitController cachedMovingScanTarget;
+    private float knockupRecoveryUntil;
+    private float movingAnimationHoldUntil;
 
     // Base stats caching to avoid accumulated multipliers on pool recycle
     protected int baseMaxHealth = -1;
@@ -134,6 +140,18 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     {
         if (currentState == CombatState.Dead) return;
         if (isStunned) return;
+
+        if (IsKnockupActive())
+        {
+            UpdateKnockupAnimationState();
+            return;
+        }
+
+        if (IsPostKnockupRecovering())
+        {
+            UpdatePostKnockupRecoveryAnimationState();
+            return;
+        }
 
         switch (currentState)
         {
@@ -380,7 +398,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         float distance = GetDistanceToTarget(currentTarget);
 
         // Nếu mục tiêu di chuyển ra xa quá tầm đánh -> Đuổi theo
-        if (distance > GetAttackRangeForTarget(currentTarget))
+        if (distance > GetAttackRangeForTarget(currentTarget) + attackRangeExitBuffer)
         {
             ChangeState(CombatState.Chasing);
             return;
@@ -822,6 +840,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
         currentState = newState;
 
+        if (currentState == CombatState.Moving || currentState == CombatState.Chasing)
+        {
+            movingAnimationHoldUntil = Time.time + Mathf.Max(0f, movingAnimationHoldTime);
+        }
+
         if (IsNavAgentReady())
         {
             if (currentState == CombatState.Idle || currentState == CombatState.Attacking || currentState == CombatState.Dead)
@@ -853,10 +876,103 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             return;
         }
 
+        bool useMovingAnimation = ShouldUseMovingAnimation();
+
         SetAnimatorBoolIfExists("IsDead", false);
-        SetAnimatorBoolIfExists("IsIdle", currentState == CombatState.Idle);
-        SetAnimatorBoolIfExists("IsMoving", currentState == CombatState.Moving || currentState == CombatState.Chasing);
+        SetAnimatorBoolIfExists("IsIdle", currentState == CombatState.Idle && !useMovingAnimation);
+        SetAnimatorBoolIfExists("IsMoving", useMovingAnimation);
         SetAnimatorBoolIfExists("IsAttacking", currentState == CombatState.Attacking);
+    }
+
+    private bool ShouldUseMovingAnimation()
+    {
+        if (currentState == CombatState.Chasing)
+        {
+            movingAnimationHoldUntil = Time.time + Mathf.Max(0f, movingAnimationHoldTime);
+            return true;
+        }
+
+        if (Time.time < movingAnimationHoldUntil && currentState != CombatState.Attacking && currentState != CombatState.Dead)
+        {
+            return true;
+        }
+
+        if (currentState != CombatState.Moving)
+        {
+            return false;
+        }
+
+        if (!IsNavAgentReady())
+        {
+            return false;
+        }
+
+        if (navAgent.velocity.sqrMagnitude > movingAnimationVelocityThreshold * movingAnimationVelocityThreshold)
+        {
+            return true;
+        }
+
+        return navAgent.pathPending || (navAgent.hasPath && navAgent.remainingDistance > navAgent.stoppingDistance + 0.05f);
+    }
+
+    protected bool IsKnockupActive()
+    {
+        CombatKnockupMotion knockupMotion = GetComponent<CombatKnockupMotion>();
+        return knockupMotion != null && knockupMotion.IsActive;
+    }
+
+    protected bool IsPostKnockupRecovering()
+    {
+        return Time.time < knockupRecoveryUntil;
+    }
+
+    protected void UpdateKnockupAnimationState()
+    {
+        if (animator == null) return;
+
+        SetAnimatorBoolIfExists("IsDead", false);
+        SetAnimatorBoolIfExists("IsIdle", false);
+        SetAnimatorBoolIfExists("IsMoving", false);
+        SetAnimatorBoolIfExists("IsAttacking", false);
+        ResetAnimatorTriggerIfExists("Attack");
+    }
+
+    protected void UpdatePostKnockupRecoveryAnimationState()
+    {
+        if (animator == null) return;
+
+        SetAnimatorBoolIfExists("IsDead", false);
+        SetAnimatorBoolIfExists("IsIdle", false);
+        SetAnimatorBoolIfExists("IsMoving", false);
+        SetAnimatorBoolIfExists("IsAttacking", false);
+        ResetAnimatorTriggerIfExists("Attack");
+    }
+
+    public void RecoverFromKnockup()
+    {
+        if (currentState == CombatState.Dead)
+        {
+            return;
+        }
+
+        blockedTimer = 0f;
+        isManualMoveCommand = false;
+        knockupRecoveryUntil = Time.time + Mathf.Max(0f, knockupRecoveryDuration);
+
+        if (animator != null)
+        {
+            UpdatePostKnockupRecoveryAnimationState();
+        }
+
+        if (currentTarget != null && currentTarget.currentState != CombatState.Dead && currentTarget.gameObject.activeInHierarchy)
+        {
+            float distance = GetDistanceToTarget(currentTarget);
+            float effectiveAttackRange = GetAttackRangeForTarget(currentTarget);
+            ChangeState(distance <= effectiveAttackRange ? CombatState.Attacking : CombatState.Chasing);
+            return;
+        }
+
+        ClearCurrentTargetAndIdle();
     }
 
     protected void ForceDeadAnimationState()

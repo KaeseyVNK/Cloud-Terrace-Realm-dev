@@ -34,9 +34,21 @@ public class EnemyShieldKnightController : EnemyUnitController
         if (currentState == CombatState.Dead) return;
         if (isStunned) return;
 
+        if (IsKnockupActive())
+        {
+            UpdateKnockupAnimationState();
+            return;
+        }
+
+        if (IsPostKnockupRecovering())
+        {
+            UpdatePostKnockupRecoveryAnimationState();
+            return;
+        }
+
         if (_blockVisualTimer > 0f)
         {
-            if (navAgent != null && navAgent.enabled && !navAgent.isStopped)
+            if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh && !navAgent.isStopped)
             {
                 navAgent.isStopped = true;
                 navAgent.velocity = Vector3.zero;

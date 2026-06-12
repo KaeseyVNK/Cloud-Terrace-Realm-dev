@@ -9,6 +9,8 @@ public class CombatKnockupMotion : MonoBehaviour
     private bool shouldRestoreAgent;
     private bool restoreStoppedState;
 
+    public bool IsActive => knockupCoroutine != null;
+
     public void Play(Vector3 landingPosition, float height, float duration)
     {
         if (knockupCoroutine != null)
@@ -61,6 +63,12 @@ public class CombatKnockupMotion : MonoBehaviour
         transform.position = finalPosition;
         RestoreAgentSafely(finalPosition);
         knockupCoroutine = null;
+
+        BaseCombatUnitController combatUnit = GetComponent<BaseCombatUnitController>();
+        if (combatUnit != null)
+        {
+            combatUnit.RecoverFromKnockup();
+        }
     }
 
     private void RestoreAgentSafely(Vector3 position)

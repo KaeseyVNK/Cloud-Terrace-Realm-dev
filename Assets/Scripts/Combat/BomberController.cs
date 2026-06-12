@@ -15,8 +15,10 @@ public class BomberController : RangedCombatUnitController, IPoolable
     [SerializeField] private float _throwEventFallbackDelay = 0.9f;
 
     private BaseCombatUnitController _queuedThrowTarget;
+    private Vector3 _queuedThrowTargetPosition;
     private int _queuedThrowDamage;
     private float _queuedThrowExpireTime;
+    private bool _hasQueuedThrow;
 
     public BomberController()
     {
@@ -62,16 +64,24 @@ public class BomberController : RangedCombatUnitController, IPoolable
 
         FaceCurrentTarget();
         _queuedThrowTarget = currentTarget;
+        _queuedThrowTargetPosition = currentTarget.transform.position;
         _queuedThrowDamage = attackDamage;
         _queuedThrowExpireTime = Time.time + Mathf.Max(0.1f, _throwEventFallbackDelay);
+        _hasQueuedThrow = true;
     }
 
     protected override void Update()
     {
         base.Update();
 
-        if (_queuedThrowTarget == null)
+        if (!_hasQueuedThrow)
         {
+            return;
+        }
+
+        if (!CanReleaseQueuedThrow())
+        {
+            ClearQueuedThrow();
             return;
         }
 
@@ -81,24 +91,52 @@ public class BomberController : RangedCombatUnitController, IPoolable
         }
     }
 
-    public void ThrowGrenade()
+    protected override void HandleAttackingState()
     {
-        BaseCombatUnitController throwTarget = _queuedThrowTarget;
-        int throwDamage = _queuedThrowDamage;
-        _queuedThrowTarget = null;
-        _queuedThrowDamage = 0;
-        _queuedThrowExpireTime = 0f;
-
-        if (throwTarget == null || throwTarget.currentState == CombatState.Dead)
+        if (!_hasQueuedThrow)
         {
+            base.HandleAttackingState();
             return;
         }
+
+        if (currentState == CombatState.Dead || isStunned)
+        {
+            ClearQueuedThrow();
+            return;
+        }
+
+        if (IsNavAgentReady())
+        {
+            navAgent.isStopped = true;
+            navAgent.ResetPath();
+            navAgent.velocity = Vector3.zero;
+        }
+
+        FaceTarget(_queuedThrowTarget);
+    }
+
+    public void ThrowGrenade()
+    {
+        if (!CanReleaseQueuedThrow())
+        {
+            ClearQueuedThrow();
+            return;
+        }
+
+        BaseCombatUnitController throwTarget = _queuedThrowTarget;
+        Vector3 throwTargetPosition = _queuedThrowTargetPosition;
+        int throwDamage = _queuedThrowDamage;
+        ClearQueuedThrow();
 
         FaceTarget(throwTarget);
 
         if (_grenadePrefab == null)
         {
-            throwTarget.TakeDamage(Mathf.Max(1, throwDamage));
+            if (throwTarget != null && throwTarget.currentState != CombatState.Dead)
+            {
+                throwTarget.TakeDamage(Mathf.Max(1, throwDamage));
+            }
+
             return;
         }
 
@@ -106,8 +144,14 @@ public class BomberController : RangedCombatUnitController, IPoolable
         GrenadeProjectile projectile = PoolManager.Instance.Spawn(_grenadePrefab, throwPosition, Quaternion.identity);
         if (projectile != null)
         {
-            projectile.Launch(throwTarget, faction, Mathf.Max(1, throwDamage));
+            projectile.LaunchAtPosition(throwTargetPosition, faction, Mathf.Max(1, throwDamage));
         }
+    }
+
+    public override void CommandMove(Vector3 position)
+    {
+        ClearQueuedThrow();
+        base.CommandMove(position);
     }
 
     public void OnSpawnedFromPool()
@@ -117,9 +161,7 @@ public class BomberController : RangedCombatUnitController, IPoolable
         unitName = string.IsNullOrEmpty(unitName) ? "Bomer" : unitName;
         currentHealth = maxHealth;
         currentTarget = null;
-        _queuedThrowTarget = null;
-        _queuedThrowDamage = 0;
-        _queuedThrowExpireTime = 0f;
+        ClearQueuedThrow();
         lastAttackTime = 0f;
         isStunned = false;
         blockedTimer = 0f;
@@ -178,9 +220,7 @@ public class BomberController : RangedCombatUnitController, IPoolable
     public void OnReturnedToPool()
     {
         currentTarget = null;
-        _queuedThrowTarget = null;
-        _queuedThrowDamage = 0;
-        _queuedThrowExpireTime = 0f;
+        ClearQueuedThrow();
         isStunned = false;
         blockedTimer = 0f;
         isManualMoveCommand = false;
@@ -238,6 +278,25 @@ public class BomberController : RangedCombatUnitController, IPoolable
         }
 
         return !animator.IsInTransition(0) && stateInfo.normalizedTime >= Mathf.Clamp01(_throwNormalizedTime);
+    }
+
+    private bool CanReleaseQueuedThrow()
+    {
+        if (currentState != CombatState.Attacking || isStunned)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ClearQueuedThrow()
+    {
+        _queuedThrowTarget = null;
+        _queuedThrowTargetPosition = Vector3.zero;
+        _queuedThrowDamage = 0;
+        _queuedThrowExpireTime = 0f;
+        _hasQueuedThrow = false;
     }
 
     private static GrenadeProjectile LoadDefaultGrenadeProjectile()
