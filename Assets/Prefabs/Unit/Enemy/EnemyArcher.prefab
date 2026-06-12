@@ -1303,22 +1303,30 @@ MonoBehaviour:
   currentHealth: 60
   attackDamage: 9
   attackRange: 12
-  attackCooldown: 1.6
+  attackCooldown: 2
   scanRange: 16
   idleScanInterval: 0.25
   movingScanInterval: 0.35
   currentState: 0
   autoAggroDuringMove: 1
+  useAutoChaseLeash: 1
+  maxAutoChaseDistance: 12
   _idleSearchRange: 60
   _chaseRetargetRange: 12
   _enemyIdleScanInterval: 0.3
   _enemyMovingScanInterval: 0.25
   _enemyRetargetScanInterval: 0.45
+  _targetRole: 0
   _projectilePrefab: {fileID: 3481825871724354573, guid: d18ed97130047074e9f3d09a9e97b11d, type: 3}
   _firePoint: {fileID: 8098820939999326680}
   _projectileSpawnHeight: 1.4
   _projectilePoolPrewarmCount: 16
   _aimHoldAfterTargetLost: 1.5
+  _faceTargetRotationSpeed: 12
+  _kiteMeleeThreats: 1
+  _kiteTriggerDistance: 5
+  _kiteRetreatDistance: 5
+  _meleeThreatAttackRange: 3.5
 --- !u!1 &6382167219035808235
 GameObject:
   m_ObjectHideFlags: 0

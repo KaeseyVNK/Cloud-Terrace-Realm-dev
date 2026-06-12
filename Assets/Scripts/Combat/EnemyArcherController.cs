@@ -12,12 +12,17 @@ public class EnemyArcherController : EnemyUnitController
     [SerializeField] private float _aimHoldAfterTargetLost = 1.5f;
     [SerializeField] private float _faceTargetRotationSpeed = 12f;
 
+    [Header("Enemy Archer Kiting")]
+    [SerializeField] private bool _kiteMeleeThreats = true;
+    [SerializeField] private float _kiteTriggerDistance = 5f;
+    [SerializeField] private float _kiteRetreatDistance = 5f;
+    [SerializeField] private float _meleeThreatAttackRange = 3.5f;
+
     private bool _isHoldingAimAfterTargetLost;
     private float _aimHoldUntil;
 
     // New AI improvement fields for kiting
     private bool _isKiting = false;
-    private Vector3 _kiteDestination;
 
     public EnemyArcherController()
     {
@@ -85,6 +90,10 @@ public class EnemyArcherController : EnemyUnitController
             if (navAgent == null || !navAgent.enabled || (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance) || (navAgent.velocity.sqrMagnitude == 0f && !navAgent.pathPending))
             {
                 _isKiting = false;
+                if (currentTarget != null && currentTarget.currentState != CombatState.Dead && currentTarget.gameObject.activeInHierarchy)
+                {
+                    AttackTarget(currentTarget);
+                }
             }
             else
             {
@@ -95,7 +104,7 @@ public class EnemyArcherController : EnemyUnitController
         }
 
         // Try kiting if not already kiting, and we are in chasing or attacking state
-        if (!_isKiting && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
+        if (!_isKiting && _kiteMeleeThreats && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
         {
             if (TryKiteMeleeEnemy())
             {
@@ -111,19 +120,27 @@ public class EnemyArcherController : EnemyUnitController
         if (currentTarget != null && currentTarget.currentState != CombatState.Dead)
         {
             // Check if target is melee (short attack range)
-            bool isTargetMelee = currentTarget.attackRange < 3.5f;
-            if (isTargetMelee && GetDistanceToTarget(currentTarget) < 5.0f)
+            bool isTargetMelee = currentTarget.attackRange <= _meleeThreatAttackRange;
+            if (isTargetMelee && GetDistanceToTarget(currentTarget) < _kiteTriggerDistance)
             {
-                Vector3 escapeDir = (transform.position - currentTarget.transform.position).normalized;
-                Vector3 targetKitePos = transform.position + escapeDir * 5f;
+                Vector3 escapeDir = transform.position - currentTarget.transform.position;
+                escapeDir.y = 0f;
+                if (escapeDir.sqrMagnitude <= 0.01f)
+                {
+                    escapeDir = -transform.forward;
+                }
+
+                Vector3 targetKitePos = transform.position + escapeDir.normalized * Mathf.Max(0.5f, _kiteRetreatDistance);
                 if (UnityEngine.AI.NavMesh.SamplePosition(targetKitePos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
                 {
-                    _kiteDestination = hit.position;
                     if (navAgent != null && navAgent.enabled)
                     {
                         navAgent.isStopped = false;
-                        navAgent.SetDestination(_kiteDestination);
+                        navAgent.stoppingDistance = 0.2f;
+                        navAgent.SetDestination(hit.position);
                         _isKiting = true;
+                        isManualMoveCommand = false;
+                        _isHoldingAimAfterTargetLost = false;
                         ChangeState(CombatState.Moving);
                         return true;
                     }

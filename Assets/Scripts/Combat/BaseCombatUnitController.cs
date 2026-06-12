@@ -27,6 +27,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     [Header("State")]
     public CombatState currentState = CombatState.Idle;
     public bool autoAggroDuringMove = true; // Tự động tự vệ tấn công địch khi hành quân ngang qua
+    public virtual int TargetPriorityPenalty => 0;
+
+    [Header("Chase Leash")]
+    [SerializeField] protected bool useAutoChaseLeash = true;
+    [SerializeField] protected float maxAutoChaseDistance = 12f;
 
     protected NavMeshAgent navAgent;
     protected Animator animator;
@@ -40,6 +45,9 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected float blockedTimer = 0f;
     protected bool isManualMoveCommand = false;
     protected bool returnToPoolOnDeath = false;
+    private Vector3 chaseAnchorPosition;
+    private bool hasChaseAnchor;
+    private bool isManualAttackTarget;
     private float nextIdleScanTime;
     private float nextMovingScanTime;
     private BaseCombatUnitController cachedIdleScanTarget;
@@ -161,7 +169,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     protected virtual void HandleMovingState()
     {
-        if (navAgent == null) return;
+        if (!IsNavAgentReady()) return;
 
         // Tự động quét tự vệ khi đang di chuyển hành quân
         if (autoAggroDuringMove && !isManualMoveCommand)
@@ -263,9 +271,20 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             return;
         }
 
+        if (TrySwitchToBetterTarget())
+        {
+            return;
+        }
+
+        if (HasExceededAutoChaseLeash())
+        {
+            ClearCurrentTargetAndIdle();
+            return;
+        }
+
         float effectiveAttackRange = GetAttackRangeForTarget(currentTarget);
 
-        if (navAgent != null)
+        if (IsNavAgentReady())
         {
             navAgent.stoppingDistance = effectiveAttackRange * 0.5f; // Đảm bảo dừng lại khi nằm trong tầm chém
         }
@@ -275,7 +294,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         if (distance <= effectiveAttackRange)
         {
             // Trong tầm đánh -> Dừng lại và bắt đầu tấn công
-            if (navAgent != null)
+            if (IsNavAgentReady())
             {
                 navAgent.isStopped = true;
                 navAgent.ResetPath();
@@ -287,7 +306,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         else
         {
             // Ngoài tầm đánh -> Tiếp tục đuổi theo mục tiêu
-            if (navAgent != null && navAgent.enabled)
+            if (IsNavAgentReady())
             {
                 navAgent.isStopped = false;
                 navAgent.SetDestination(GetChaseDestination());
@@ -342,6 +361,17 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected virtual void HandleAttackingState()
     {
         if (currentTarget == null || currentTarget.currentState == CombatState.Dead)
+        {
+            ClearCurrentTargetAndIdle();
+            return;
+        }
+
+        if (TrySwitchToBetterTarget())
+        {
+            return;
+        }
+
+        if (HasExceededAutoChaseLeash())
         {
             ClearCurrentTargetAndIdle();
             return;
@@ -420,7 +450,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected virtual IEnumerator StaggerCoroutine(float duration)
     {
         isStunned = true;
-        if (navAgent != null && navAgent.enabled)
+        if (IsNavAgentReady())
         {
             navAgent.isStopped = true;
         }
@@ -430,7 +460,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         isStunned = false;
         
         // Nếu vẫn còn sống và đang đi/đuổi quái, tiếp tục di chuyển
-        if (currentState != CombatState.Dead && navAgent != null && navAgent.enabled)
+        if (currentState != CombatState.Dead && IsNavAgentReady())
         {
             if (currentState == CombatState.Moving || currentState == CombatState.Chasing)
             {
@@ -522,11 +552,16 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         currentTarget = null;
         blockedTimer = 0f;
         isManualMoveCommand = false;
+        isManualAttackTarget = false;
+        hasChaseAnchor = false;
         ChangeState(CombatState.Dead);
         
         if (navAgent != null)
         {
-            navAgent.isStopped = true;
+            if (navAgent.enabled && navAgent.isOnNavMesh)
+            {
+                navAgent.isStopped = true;
+            }
             navAgent.enabled = false;
         }
 
@@ -593,6 +628,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
         currentTarget = null;
         isManualMoveCommand = true;
+        isManualAttackTarget = false;
+        hasChaseAnchor = false;
         blockedTimer = 0f;
 
         if (animator != null)
@@ -601,7 +638,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             SetAnimatorBoolIfExists("IsAttacking", false);
         }
 
-        if (navAgent != null && navAgent.enabled)
+        if (IsNavAgentReady())
         {
             navAgent.stoppingDistance = 0.2f; // Reset về mặc định khi di chuyển thường
             navAgent.isStopped = false;
@@ -616,12 +653,15 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         if (target == null || target.currentState == CombatState.Dead) return;
 
         isManualMoveCommand = false;
-        AttackTarget(target);
+        AttackTarget(target, true);
     }
 
-    protected void AttackTarget(BaseCombatUnitController target)
+    protected void AttackTarget(BaseCombatUnitController target, bool manualAttack = false)
     {
         isManualMoveCommand = false;
+        isManualAttackTarget = manualAttack;
+        chaseAnchorPosition = transform.position;
+        hasChaseAnchor = true;
         currentTarget = target;
         ChangeState(CombatState.Chasing);
     }
@@ -631,8 +671,10 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         currentTarget = null;
         blockedTimer = 0f;
         isManualMoveCommand = false;
+        isManualAttackTarget = false;
+        hasChaseAnchor = false;
 
-        if (navAgent != null && navAgent.enabled)
+        if (IsNavAgentReady())
         {
             navAgent.isStopped = true;
             navAgent.ResetPath();
@@ -650,6 +692,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         Collider[] colliders = Physics.OverlapSphere(transform.position, scanRange);
         BaseCombatUnitController nearest = null;
         float minDistance = float.MaxValue;
+        int bestPenalty = int.MaxValue;
 
         foreach (var col in colliders)
         {
@@ -657,8 +700,10 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             if (unit != null && unit.currentState != CombatState.Dead && unit.faction != this.faction)
             {
                 float dist = GetDistanceToTarget(unit);
-                if (dist < minDistance)
+                int penalty = Mathf.Max(0, unit.TargetPriorityPenalty);
+                if (penalty < bestPenalty || (penalty == bestPenalty && dist < minDistance))
                 {
+                    bestPenalty = penalty;
                     minDistance = dist;
                     nearest = unit;
                 }
@@ -666,6 +711,62 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         }
 
         return nearest;
+    }
+
+    protected bool TrySwitchToBetterTarget()
+    {
+        if (currentTarget == null || currentTarget.TargetPriorityPenalty <= 0)
+        {
+            return false;
+        }
+
+        BaseCombatUnitController betterTarget = ScanForNearestEnemy();
+        if (betterTarget == null || betterTarget == currentTarget)
+        {
+            return false;
+        }
+
+        if (!IsBetterTargetThanCurrent(betterTarget, currentTarget))
+        {
+            return false;
+        }
+
+        AttackTarget(betterTarget);
+        return true;
+    }
+
+    private bool IsBetterTargetThanCurrent(BaseCombatUnitController candidate, BaseCombatUnitController current)
+    {
+        int candidatePenalty = Mathf.Max(0, candidate.TargetPriorityPenalty);
+        int currentPenalty = Mathf.Max(0, current.TargetPriorityPenalty);
+        if (candidatePenalty < currentPenalty)
+        {
+            return true;
+        }
+
+        if (candidatePenalty > currentPenalty)
+        {
+            return false;
+        }
+
+        return GetDistanceToTarget(candidate) + 1f < GetDistanceToTarget(current);
+    }
+
+    private bool HasExceededAutoChaseLeash()
+    {
+        if (!useAutoChaseLeash || isManualAttackTarget || !hasChaseAnchor)
+        {
+            return false;
+        }
+
+        if (maxAutoChaseDistance <= 0f)
+        {
+            return false;
+        }
+
+        Vector3 fromAnchor = transform.position - chaseAnchorPosition;
+        fromAnchor.y = 0f;
+        return fromAnchor.sqrMagnitude > maxAutoChaseDistance * maxAutoChaseDistance;
     }
 
     protected BaseCombatUnitController GetThrottledNearestEnemy(
@@ -721,7 +822,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
         currentState = newState;
 
-        if (navAgent != null && navAgent.enabled)
+        if (IsNavAgentReady())
         {
             if (currentState == CombatState.Idle || currentState == CombatState.Attacking || currentState == CombatState.Dead)
             {
@@ -846,5 +947,10 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             // Rảnh rỗi/đứng yên: Cận chiến (70-74); Archer (85-89) để dễ dàng nhường đường
             navAgent.avoidancePriority = (isRanged ? 85 : 70) + uniqueOffset;
         }
+    }
+
+    protected bool IsNavAgentReady()
+    {
+        return navAgent != null && navAgent.enabled && navAgent.isOnNavMesh;
     }
 }

@@ -39,6 +39,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     private bool _isRetreating = false;
     private float _retreatTimer = 0f;
     private Vector3 _spawnPosition;
+    public override int TargetPriorityPenalty => _isRetreating ? 100 : 0;
 
     private static readonly List<BaseCombatUnitController> s_cachedPlayerBuildingTargets = new List<BaseCombatUnitController>(64);
     private static float s_nextPlayerBuildingCacheRefreshTime;

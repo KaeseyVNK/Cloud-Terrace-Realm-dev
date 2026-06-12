@@ -1236,6 +1236,8 @@ MonoBehaviour:
   movingScanInterval: 0.35
   currentState: 0
   autoAggroDuringMove: 1
+  useAutoChaseLeash: 1
+  maxAutoChaseDistance: 12
   _blockChance: 0.35
   _frontBlockAngle: 120
   _blockCooldown: 1
@@ -1838,7 +1840,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &7058346576486098029
 Transform:
   m_ObjectHideFlags: 0

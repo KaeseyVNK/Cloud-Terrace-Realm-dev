@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 public abstract class RangedCombatUnitController : BaseCombatUnitController
 {
@@ -10,12 +11,27 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
     [SerializeField] private float _aimHoldAfterTargetLost = 1.5f;
     [SerializeField] private float _faceTargetRotationSpeed = 12f;
 
+    [Header("Ranged Kiting")]
+    [SerializeField] private bool _kiteMeleeThreats = true;
+    [SerializeField] private float _kiteTriggerDistance = 5f;
+    [SerializeField] private float _kiteRetreatDistance = 5f;
+    [SerializeField] private float _meleeThreatAttackRange = 3.5f;
+
     private bool _isHoldingAimAfterTargetLost;
     private float _aimHoldUntil;
+    private bool _isKiting;
+
+    protected virtual bool UsesArrowProjectile => true;
 
     protected override void Start()
     {
+        maxAutoChaseDistance = Mathf.Min(maxAutoChaseDistance, 8f);
         base.Start();
+
+        if (!UsesArrowProjectile)
+        {
+            return;
+        }
 
         if (_projectilePrefab == null)
         {
@@ -26,6 +42,40 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
         {
             PoolManager.Instance.Prewarm(_projectilePrefab.gameObject, _projectilePoolPrewarmCount);
         }
+    }
+
+    protected override void Update()
+    {
+        if (currentState == CombatState.Dead) return;
+        if (isStunned) return;
+
+        if (_isKiting)
+        {
+            if (HasFinishedKiting())
+            {
+                _isKiting = false;
+                if (currentTarget != null && currentTarget.currentState != CombatState.Dead && currentTarget.gameObject.activeInHierarchy)
+                {
+                    AttackTarget(currentTarget);
+                }
+            }
+            else
+            {
+                UpdateAvoidancePriority();
+                UpdateAnimationState();
+                return;
+            }
+        }
+
+        if (!_isKiting && _kiteMeleeThreats && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
+        {
+            if (TryKiteMeleeThreat())
+            {
+                return;
+            }
+        }
+
+        base.Update();
     }
 
     protected override void PerformAttack()
@@ -82,12 +132,63 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
     public override void CommandMove(Vector3 position)
     {
         _isHoldingAimAfterTargetLost = false;
+        _isKiting = false;
         base.CommandMove(position);
 
         if (animator != null)
         {
             SetAimAnimatorBool(false);
         }
+    }
+
+    private bool TryKiteMeleeThreat()
+    {
+        if (currentTarget == null || currentTarget.currentState == CombatState.Dead || !currentTarget.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        bool isMeleeThreat = currentTarget.attackRange <= _meleeThreatAttackRange;
+        if (!isMeleeThreat || GetDistanceToTarget(currentTarget) > _kiteTriggerDistance)
+        {
+            return false;
+        }
+
+        Vector3 escapeDirection = transform.position - currentTarget.transform.position;
+        escapeDirection.y = 0f;
+        if (escapeDirection.sqrMagnitude <= 0.01f)
+        {
+            escapeDirection = -transform.forward;
+        }
+
+        Vector3 targetKitePosition = transform.position + escapeDirection.normalized * Mathf.Max(0.5f, _kiteRetreatDistance);
+        if (!NavMesh.SamplePosition(targetKitePosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        if (navAgent == null || !navAgent.enabled)
+        {
+            return false;
+        }
+
+        _isHoldingAimAfterTargetLost = false;
+        _isKiting = true;
+        isManualMoveCommand = false;
+        navAgent.isStopped = false;
+        navAgent.stoppingDistance = 0.2f;
+        navAgent.SetDestination(hit.position);
+        ChangeState(CombatState.Moving);
+        SetAimAnimatorBool(false);
+        return true;
+    }
+
+    private bool HasFinishedKiting()
+    {
+        return navAgent == null
+            || !navAgent.enabled
+            || (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
+            || (navAgent.velocity.sqrMagnitude <= 0.01f && !navAgent.pathPending);
     }
 
     protected override void UpdateAnimationState()
