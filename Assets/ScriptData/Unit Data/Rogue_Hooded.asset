@@ -21,3 +21,5 @@ MonoBehaviour:
     amount: 60
   - resourceType: 4
     amount: 30
+  requiredTechnologies:
+  - {fileID: 11400000, guid: 42c87ceea9ab20c428dd5328cf103f7a, type: 2}

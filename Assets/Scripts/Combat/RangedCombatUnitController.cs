@@ -22,6 +22,7 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
     private bool _isKiting;
 
     protected virtual bool UsesArrowProjectile => true;
+    protected virtual bool CanStartKiting() => true;
 
     protected override void Start()
     {
@@ -85,7 +86,7 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
             }
         }
 
-        if (!_isKiting && _kiteMeleeThreats && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
+        if (!_isKiting && CanStartKiting() && _kiteMeleeThreats && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
         {
             if (TryKiteMeleeThreat())
             {
@@ -163,18 +164,13 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
 
     private bool TryKiteMeleeThreat()
     {
-        if (currentTarget == null || currentTarget.currentState == CombatState.Dead || !currentTarget.gameObject.activeInHierarchy)
+        BaseCombatUnitController meleeThreat = FindNearestMeleeThreat();
+        if (meleeThreat == null)
         {
             return false;
         }
 
-        bool isMeleeThreat = currentTarget.attackRange <= _meleeThreatAttackRange;
-        if (!isMeleeThreat || GetDistanceToTarget(currentTarget) > _kiteTriggerDistance)
-        {
-            return false;
-        }
-
-        Vector3 escapeDirection = transform.position - currentTarget.transform.position;
+        Vector3 escapeDirection = transform.position - meleeThreat.transform.position;
         escapeDirection.y = 0f;
         if (escapeDirection.sqrMagnitude <= 0.01f)
         {
@@ -192,6 +188,7 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
             return false;
         }
 
+        currentTarget = meleeThreat;
         _isHoldingAimAfterTargetLost = false;
         _isKiting = true;
         isManualMoveCommand = false;
@@ -201,6 +198,36 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
         ChangeState(CombatState.Moving);
         SetAimAnimatorBool(false);
         return true;
+    }
+
+    private BaseCombatUnitController FindNearestMeleeThreat()
+    {
+        Collider[] colliders = Physics.OverlapSphere(transform.position, _kiteTriggerDistance);
+        BaseCombatUnitController nearestThreat = null;
+        float nearestSqrDistance = float.MaxValue;
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            BaseCombatUnitController unit = colliders[i].GetComponentInParent<BaseCombatUnitController>();
+            if (unit == null
+                || unit == this
+                || unit.currentState == CombatState.Dead
+                || unit.faction == faction
+                || unit.attackRange > _meleeThreatAttackRange
+                || !unit.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            float sqrDistance = (unit.transform.position - transform.position).sqrMagnitude;
+            if (sqrDistance < nearestSqrDistance)
+            {
+                nearestThreat = unit;
+                nearestSqrDistance = sqrDistance;
+            }
+        }
+
+        return nearestThreat;
     }
 
     private bool HasFinishedKiting()

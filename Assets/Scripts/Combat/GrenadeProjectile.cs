@@ -31,6 +31,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
     private float flightDuration;
     private Vector3 startPosition;
     private Vector3 lastPosition;
+    private Vector3 lastTravelDirection = Vector3.forward;
     private bool hasExploded;
     private bool useFixedTargetPosition;
 
@@ -50,6 +51,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         Vector3 targetPosition = GetTargetPosition();
         float distance = Vector3.Distance(startPosition, targetPosition);
         flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
+        CacheTravelDirection(targetPosition - startPosition);
     }
 
     public void LaunchAtPosition(Vector3 newTargetPosition, UnitFaction newOwnerFaction, int newDamage)
@@ -67,6 +69,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
 
         float distance = Vector3.Distance(startPosition, fixedTargetPosition);
         flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
+        CacheTravelDirection(fixedTargetPosition - startPosition);
     }
 
     private void Update()
@@ -94,7 +97,8 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
 
         if (direction.sqrMagnitude > 0.001f)
         {
-            transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+            CacheTravelDirection(direction);
+            transform.rotation = Quaternion.LookRotation(lastTravelDirection, Vector3.up);
         }
 
         if (t >= 1f)
@@ -112,6 +116,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         flightDuration = 0f;
         startPosition = transform.position;
         lastPosition = transform.position;
+        lastTravelDirection = transform.forward;
         hasExploded = false;
         useFixedTargetPosition = false;
         hitUnits.Clear();
@@ -123,6 +128,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         fixedTargetPosition = transform.position;
         damage = 0;
         flightDuration = 0f;
+        lastTravelDirection = transform.forward;
         hasExploded = false;
         useFixedTargetPosition = false;
         hitUnits.Clear();
@@ -164,6 +170,12 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
 
     private void ApplyKnockback(BaseCombatUnitController unit, Vector3 explosionCenter, float falloff)
     {
+        SkeletonMageController skeletonMage = unit.GetComponent<SkeletonMageController>();
+        if (skeletonMage != null && skeletonMage.IsSummonMovementLocked)
+        {
+            return;
+        }
+
         NavMeshAgent agent = unit.GetComponent<NavMeshAgent>();
         if (agent == null || !agent.enabled)
         {
@@ -174,22 +186,52 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         direction.y = 0f;
         if (direction.sqrMagnitude <= 0.01f)
         {
-            direction = unit.transform.forward;
+            direction = lastTravelDirection;
+            direction.y = 0f;
         }
 
+        if (direction.sqrMagnitude <= 0.01f)
+        {
+            direction = explosionCenter - startPosition;
+            direction.y = 0f;
+        }
+
+        if (direction.sqrMagnitude <= 0.01f)
+        {
+            return;
+        }
+
+        direction.Normalize();
         float distance = knockbackDistance * Mathf.Lerp(0.35f, 1f, falloff);
-        Vector3 desiredPosition = unit.transform.position + direction.normalized * distance;
+        Vector3 desiredPosition = unit.transform.position + direction * distance;
+        Vector3 landingPosition = unit.transform.position;
+
         if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit hit, knockbackNavMeshSampleRadius, NavMesh.AllAreas))
         {
-            CombatKnockupMotion knockupMotion = unit.GetComponent<CombatKnockupMotion>();
-            if (knockupMotion == null)
+            Vector3 sampledOffset = hit.position - unit.transform.position;
+            sampledOffset.y = 0f;
+            if (sampledOffset.sqrMagnitude > 0.01f && Vector3.Dot(sampledOffset.normalized, direction) > 0.25f)
             {
-                knockupMotion = unit.gameObject.AddComponent<CombatKnockupMotion>();
+                landingPosition = hit.position;
             }
-
-            float launchHeight = knockupHeight * Mathf.Lerp(0.45f, 1f, falloff);
-            knockupMotion.Play(hit.position, launchHeight, knockupDuration);
+            else if (NavMesh.SamplePosition(unit.transform.position, out NavMeshHit currentHit, 1.5f, NavMesh.AllAreas))
+            {
+                landingPosition = currentHit.position;
+            }
         }
+        else if (NavMesh.SamplePosition(unit.transform.position, out NavMeshHit currentHit, 1.5f, NavMesh.AllAreas))
+        {
+            landingPosition = currentHit.position;
+        }
+
+        CombatKnockupMotion knockupMotion = unit.GetComponent<CombatKnockupMotion>();
+        if (knockupMotion == null)
+        {
+            knockupMotion = unit.gameObject.AddComponent<CombatKnockupMotion>();
+        }
+
+        float launchHeight = knockupHeight * Mathf.Lerp(0.45f, 1f, falloff);
+        knockupMotion.Play(landingPosition, launchHeight, knockupDuration);
     }
 
     private void Release()
@@ -232,6 +274,15 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         }
 
         return target != null ? target.transform.position + targetOffset : transform.position;
+    }
+
+    private void CacheTravelDirection(Vector3 direction)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude > 0.001f)
+        {
+            lastTravelDirection = direction.normalized;
+        }
     }
 
     private static GameObject LoadDefaultExplosionEffect()

@@ -357,11 +357,76 @@ PrefabInstance:
       propertyPath: m_Name
       value: Knight2H
       objectReference: {fileID: 0}
+    - target: {fileID: 3795645226564922642, guid: 2d03f32498caa604b9a448737ac977e6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2d03f32498caa604b9a448737ac977e6, type: 3}
+--- !u!1001 &104676486
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4124591595950808763, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_Name
+      value: Skeleton_Mage
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 386.0814
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.9999978
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 219.20415
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4463986423310986902, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5046667633422415988, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+      propertyPath: maxHealth
+      value: 10000
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
 --- !u!1 &153509769
 GameObject:
   m_ObjectHideFlags: 0
@@ -424,6 +489,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Skeleton_Warrior (4)
       objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 390.41
@@ -480,6 +549,10 @@ PrefabInstance:
     - target: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
       propertyPath: m_Name
       value: Rogue_Hooded (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5934752773998348123, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1251,6 +1324,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EnemyArcher (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_LocalPosition.x
       value: 388.25958
@@ -1991,6 +2068,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Rogue_Hooded
       objectReference: {fileID: 0}
+    - target: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5934752773998348123, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
       propertyPath: m_LocalPosition.x
       value: 397.2568
@@ -2155,6 +2236,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Skeleton_Warrior (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 394.18
@@ -2211,6 +2296,10 @@ PrefabInstance:
     - target: {fileID: 12324393601355489, guid: ea5aeb9a31ec84445a08e415d3c39324, type: 3}
       propertyPath: m_Name
       value: Knight
+      objectReference: {fileID: 0}
+    - target: {fileID: 12324393601355489, guid: ea5aeb9a31ec84445a08e415d3c39324, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1349809318285886046, guid: ea5aeb9a31ec84445a08e415d3c39324, type: 3}
       propertyPath: maxHealth
@@ -2277,6 +2366,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Skeleton_Warrior (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 390.88
@@ -2337,6 +2430,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_Name
       value: Skeleton_Warrior
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2435,6 +2532,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Bomer (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 8583302773672984860, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2451,6 +2552,10 @@ PrefabInstance:
     - target: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
       propertyPath: m_Name
       value: Rogue_Hooded (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5934752773998348123, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2637,6 +2742,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_Name
       value: Skeleton_Warrior (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2835,6 +2944,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_Name
       value: Skeleton_Warrior (6)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3046,6 +3159,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Bomer (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 8583302773672984860, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3188,6 +3305,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_Name
       value: EnemyArcher (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3361,6 +3482,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Skeleton_Warrior (5)
       objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 395.02
@@ -3417,6 +3542,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_Name
       value: EnemyArcher (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3479,6 +3608,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Skeleton_Warrior (7)
       objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 394.65
@@ -3535,6 +3668,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_Name
       value: EnemyArcher
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3596,6 +3733,10 @@ PrefabInstance:
     - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_Name
       value: Skeleton_Warrior (8)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6466964882873924810, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3694,11 +3835,76 @@ PrefabInstance:
       propertyPath: m_Name
       value: Bomer
       objectReference: {fileID: 0}
+    - target: {fileID: 8583302773672984860, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8811302856696776557, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
+      propertyPath: m_Speed
+      value: 5
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
+--- !u!1001 &7706461647360560077
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 378.96964
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.0051057
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 211.86006
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.00000008146034
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 54483659170296879, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 206308313772535697, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+      propertyPath: m_Name
+      value: building_blacksmith
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -3741,3 +3947,5 @@ SceneRoots:
   - {fileID: 1500318285}
   - {fileID: 1940360390}
   - {fileID: 1781826183}
+  - {fileID: 104676486}
+  - {fileID: 7706461647360560077}

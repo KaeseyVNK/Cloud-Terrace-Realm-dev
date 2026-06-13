@@ -296,9 +296,11 @@ public class WatchTowerGarrison : MonoBehaviour
 
     private void FireArrow(BaseCombatUnitController target, int arrowIndex)
     {
+        BaseCombatUnitController myCombatController = GetComponent<BaseCombatUnitController>();
+
         if (arrowPrefab == null)
         {
-            target.TakeDamage(damagePerArrow);
+            target.TakeDamage(damagePerArrow, myCombatController);
             return;
         }
 
@@ -312,7 +314,7 @@ public class WatchTowerGarrison : MonoBehaviour
         ArrowProjectile projectile = PoolManager.Instance.Spawn(arrowPrefab, origin, Quaternion.identity);
         if (projectile != null)
         {
-            projectile.Launch(target, damagePerArrow);
+            projectile.Launch(target, damagePerArrow, myCombatController);
         }
     }
 

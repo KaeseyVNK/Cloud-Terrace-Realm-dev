@@ -28,6 +28,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b8266293286ded145b88c39bfbf93fdd, type: 2}
   producibleUnits:
   - {fileID: 11400000, guid: 884637089d91c3847a9d21925de3da9d, type: 2}
-  - {fileID: 11400000, guid: ae0ea0ce562d08a47b3962b84dca74f3, type: 2}
   - {fileID: 11400000, guid: c0ffee4637089d91c3847a9d25de3da9, type: 2}
-
+  - {fileID: 11400000, guid: ad376142a2d299944897e80a326d295d, type: 2}
+  - {fileID: 11400000, guid: 50f48c722bce76b4baa66684ffbfe25f, type: 2}

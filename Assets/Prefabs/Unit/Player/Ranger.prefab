@@ -811,9 +811,9 @@ MonoBehaviour:
   _buildSpeedMultiplier: 1
   _woodTool: {fileID: 3083329540370419742}
   _miningTool: {fileID: 180978506798760699}
-  _maxCarryCapacity: 5
+  _maxCarryCapacity: 10
   _timeToGather: 3
-  _gatherAmountPerTick: 1
+  _gatherAmountPerTick: 2
   _timeToDeposit: 2
   _autoGatherAfterBuildRadius: 20
   _runtimeAgentRadius: 0.32

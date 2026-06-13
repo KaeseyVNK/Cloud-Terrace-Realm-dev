@@ -27,6 +27,10 @@ int _EnableCulling; // Using int to prevent platform-dependent bool serializatio
 int _NumInteractors;
 float4 _Interactors[128]; // xyz: position, w: radius
 
+// Building grass exclusion zones: xy = XZ center, zw = XZ half extents.
+int _NumBuildingExclusionZones;
+float4 _BuildingExclusionZones[256];
+
 // Fog of War Parameters
 Texture2D<float4> _FogTexture;
 SamplerState sampler_FogTexture;
@@ -101,6 +105,16 @@ void CullAndProcess(uint3 id : SV_DispatchThreadID)
     }
 
     // 3. Fog of War Culling — hide grass blades under dense fog
+    for (int zoneIndex = 0; zoneIndex < _NumBuildingExclusionZones; zoneIndex++)
+    {
+        float4 zone = _BuildingExclusionZones[zoneIndex];
+        float2 delta = abs(blade.position.xz - zone.xy);
+        if (delta.x <= zone.z && delta.y <= zone.w)
+        {
+            return;
+        }
+    }
+
     float fogVisibility = 1.0;
     if (_EnableFogCulling != 0)
     {

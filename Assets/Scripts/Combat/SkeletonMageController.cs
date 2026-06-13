@@ -1,0 +1,491 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
+
+public class SkeletonMageController : EnemyUnitController, IPoolable
+{
+    [Header("Magic Attack")]
+    [SerializeField] private MagicProjectile magicProjectilePrefab;
+    [SerializeField] private Transform castPoint;
+    [SerializeField] private float projectileSpawnHeight = 1.45f;
+    [SerializeField] private int projectilePoolPrewarmCount = 8;
+
+    [Header("Summoning")]
+    [SerializeField] private GameObject normalEnemyPrefab;
+    [SerializeField] private GameObject shieldEnemyPrefab;
+    [SerializeField] private int normalEnemyCount = 2;
+    [SerializeField] private int shieldEnemyCount = 1;
+    [SerializeField] private float summonInterval = 30f;
+    [SerializeField] private float summonRadius = 2.2f;
+    [SerializeField] private float summonWindupDuration = 1.1f;
+    [SerializeField] private float summonedRiseDuration = 1.1f;
+    [SerializeField] private string summonTriggerName = "Summon";
+    [SerializeField] private string isSummoningParameterName = "IsSummoning";
+
+    [Header("Threat Response")]
+    [SerializeField] private bool kiteMeleeThreats = true;
+    [SerializeField] private float kiteTriggerDistance = 5f;
+    [SerializeField] private float kiteRetreatDistance = 4.5f;
+    [SerializeField] private float meleeThreatAttackRange = 3.5f;
+
+    private readonly List<SummonedEnemyRiseController> activeSummons = new List<SummonedEnemyRiseController>(4);
+    private bool isSummoning;
+    private bool isKiting;
+    private float nextSummonTime;
+    private Coroutine summonCoroutine;
+    private Rigidbody mageRigidbody;
+    private bool summonLockActive;
+    private bool restoreRigidbodyKinematic;
+    private bool restoreRigidbodyGravity;
+    private RigidbodyConstraints restoreRigidbodyConstraints;
+
+    public bool IsSummonMovementLocked => summonLockActive || isSummoning;
+
+    public SkeletonMageController()
+    {
+        unitName = "Skeleton Mage";
+        maxHealth = 90;
+        attackDamage = 14;
+        attackRange = 8f;
+        scanRange = 14f;
+        attackCooldown = 2.2f;
+        faction = UnitFaction.Enemy;
+    }
+
+    protected override void Start()
+    {
+        LoadDefaultSummonPrefabsIfNeeded();
+        LoadDefaultMagicProjectileIfNeeded();
+        PrewarmMagicProjectiles();
+        nextSummonTime = Time.time + summonInterval;
+        base.Start();
+    }
+
+    public new void OnSpawnedFromPool()
+    {
+        base.OnSpawnedFromPool();
+        LoadDefaultSummonPrefabsIfNeeded();
+        LoadDefaultMagicProjectileIfNeeded();
+        StopSummoning();
+        nextSummonTime = Time.time + summonInterval;
+    }
+
+    public new void OnReturnedToPool()
+    {
+        StopSummoning();
+        base.OnReturnedToPool();
+    }
+
+    protected override void Update()
+    {
+        if (currentState == CombatState.Dead)
+        {
+            isKiting = false;
+            StopSummoning();
+            return;
+        }
+
+        if (isStunned)
+        {
+            isKiting = false;
+            base.Update();
+            return;
+        }
+
+        if (isSummoning)
+        {
+            isKiting = false;
+            HoldSummonAnimationState();
+            return;
+        }
+
+        if (isKiting)
+        {
+            if (HasFinishedKiting())
+            {
+                isKiting = false;
+                if (currentTarget != null && currentTarget.currentState != CombatState.Dead && currentTarget.gameObject.activeInHierarchy)
+                {
+                    AttackTarget(currentTarget);
+                }
+            }
+            else
+            {
+                UpdateAvoidancePriority();
+                UpdateAnimationState();
+                return;
+            }
+        }
+
+        if (!isKiting && kiteMeleeThreats && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
+        {
+            if (TryKiteMeleeThreat())
+            {
+                return;
+            }
+        }
+
+        if (!isStunned && Time.time >= nextSummonTime && CanStartSummon())
+        {
+            summonCoroutine = StartCoroutine(SummonRoutine());
+            return;
+        }
+
+        base.Update();
+    }
+
+    protected override void PerformAttack()
+    {
+        lastAttackTime = Time.time;
+
+        if (animator != null)
+        {
+            SetAnimatorTriggerIfExists("Attack");
+        }
+
+        if (currentTarget == null || currentTarget.currentState == CombatState.Dead)
+        {
+            return;
+        }
+
+        BaseCombatUnitController attackTarget = currentTarget;
+        Vector3 castTargetPosition = attackTarget.transform.position;
+
+        if (magicProjectilePrefab == null || PoolManager.Instance == null)
+        {
+            attackTarget.TakeDamage(attackDamage, this);
+            return;
+        }
+
+        Vector3 spawnPosition = castPoint != null ? castPoint.position : transform.position + Vector3.up * projectileSpawnHeight;
+        MagicProjectile projectile = PoolManager.Instance.Spawn(magicProjectilePrefab, spawnPosition, Quaternion.identity);
+        if (projectile != null)
+        {
+            projectile.LaunchAtPosition(attackTarget, castTargetPosition, attackDamage, this);
+        }
+    }
+
+    private IEnumerator SummonRoutine()
+    {
+        isSummoning = true;
+        nextSummonTime = Time.time + summonInterval;
+        currentTarget = null;
+        activeSummons.Clear();
+        BeginSummonMovementLock();
+
+        if (animator != null)
+        {
+            SetAnimatorTriggerIfExists(summonTriggerName);
+            SetAnimatorBoolIfExists(isSummoningParameterName, true);
+            SetAnimatorBoolIfExists("IsIdle", false);
+            SetAnimatorBoolIfExists("IsMoving", false);
+            SetAnimatorBoolIfExists("IsAttacking", false);
+        }
+
+        yield return new WaitForSeconds(Mathf.Max(0f, summonWindupDuration));
+
+        SpawnSummonGroup();
+
+        float waitUntil = Time.time + Mathf.Max(0.1f, summonedRiseDuration) + 0.25f;
+        while (Time.time < waitUntil && HasActiveRisingSummons())
+        {
+            yield return null;
+        }
+
+        FinishSummoning();
+    }
+
+    private bool CanStartSummon()
+    {
+        return normalEnemyPrefab != null || shieldEnemyPrefab != null;
+    }
+
+    private bool TryKiteMeleeThreat()
+    {
+        BaseCombatUnitController meleeThreat = FindNearestMeleeThreat();
+        if (meleeThreat == null)
+        {
+            return false;
+        }
+
+        Vector3 escapeDirection = transform.position - meleeThreat.transform.position;
+        escapeDirection.y = 0f;
+        if (escapeDirection.sqrMagnitude <= 0.01f)
+        {
+            escapeDirection = -transform.forward;
+        }
+
+        Vector3 targetKitePosition = transform.position + escapeDirection.normalized * Mathf.Max(0.5f, kiteRetreatDistance);
+        if (!NavMesh.SamplePosition(targetKitePosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        if (!IsNavAgentReady())
+        {
+            return false;
+        }
+
+        currentTarget = meleeThreat;
+        isManualMoveCommand = false;
+        isKiting = true;
+        navAgent.isStopped = false;
+        navAgent.stoppingDistance = 0.2f;
+        navAgent.SetDestination(hit.position);
+        ChangeState(CombatState.Moving);
+        return true;
+    }
+
+    private BaseCombatUnitController FindNearestMeleeThreat()
+    {
+        Collider[] colliders = Physics.OverlapSphere(transform.position, kiteTriggerDistance);
+        BaseCombatUnitController nearestThreat = null;
+        float nearestSqrDistance = float.MaxValue;
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            BaseCombatUnitController unit = colliders[i].GetComponentInParent<BaseCombatUnitController>();
+            if (unit == null
+                || unit == this
+                || unit.currentState == CombatState.Dead
+                || unit.faction == faction
+                || unit.attackRange > meleeThreatAttackRange
+                || !unit.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            float sqrDistance = (unit.transform.position - transform.position).sqrMagnitude;
+            if (sqrDistance < nearestSqrDistance)
+            {
+                nearestThreat = unit;
+                nearestSqrDistance = sqrDistance;
+            }
+        }
+
+        return nearestThreat;
+    }
+
+    private bool HasFinishedKiting()
+    {
+        return navAgent == null
+            || !navAgent.enabled
+            || (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
+            || (navAgent.velocity.sqrMagnitude <= 0.01f && !navAgent.pathPending);
+    }
+
+    private void SpawnSummonGroup()
+    {
+        int slotIndex = 0;
+        for (int i = 0; i < normalEnemyCount; i++)
+        {
+            SpawnSummonedEnemy(normalEnemyPrefab, slotIndex++);
+        }
+
+        for (int i = 0; i < shieldEnemyCount; i++)
+        {
+            SpawnSummonedEnemy(shieldEnemyPrefab, slotIndex++);
+        }
+    }
+
+    private void SpawnSummonedEnemy(GameObject prefab, int slotIndex)
+    {
+        if (prefab == null || PoolManager.Instance == null)
+        {
+            return;
+        }
+
+        Vector3 spawnPosition = GetSummonPosition(slotIndex);
+        GameObject summon = PoolManager.Instance.Spawn(prefab, spawnPosition, Quaternion.LookRotation(transform.forward, Vector3.up));
+        if (summon == null)
+        {
+            return;
+        }
+
+        SummonedEnemyRiseController riseController = summon.GetComponent<SummonedEnemyRiseController>();
+        if (riseController == null)
+        {
+            riseController = summon.AddComponent<SummonedEnemyRiseController>();
+        }
+
+        riseController.PlayRise(summonedRiseDuration);
+        activeSummons.Add(riseController);
+    }
+
+    private Vector3 GetSummonPosition(int slotIndex)
+    {
+        float angle = slotIndex * Mathf.PI * 2f / Mathf.Max(1, normalEnemyCount + shieldEnemyCount);
+        Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * summonRadius;
+        Vector3 desiredPosition = transform.position + offset;
+
+        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            return hit.position;
+        }
+
+        return transform.position;
+    }
+
+    private bool HasActiveRisingSummons()
+    {
+        for (int i = activeSummons.Count - 1; i >= 0; i--)
+        {
+            if (activeSummons[i] == null)
+            {
+                activeSummons.RemoveAt(i);
+                continue;
+            }
+
+            if (activeSummons[i].IsRising)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void FinishSummoning()
+    {
+        isSummoning = false;
+        summonCoroutine = null;
+        activeSummons.Clear();
+
+        if (animator != null)
+        {
+            SetAnimatorBoolIfExists(isSummoningParameterName, false);
+        }
+
+        EndSummonMovementLock();
+        ChangeState(CombatState.Idle);
+    }
+
+    private void StopSummoning()
+    {
+        if (summonCoroutine != null)
+        {
+            StopCoroutine(summonCoroutine);
+            summonCoroutine = null;
+        }
+
+        isSummoning = false;
+        activeSummons.Clear();
+        EndSummonMovementLock();
+
+        if (animator != null)
+        {
+            SetAnimatorBoolIfExists(isSummoningParameterName, false);
+        }
+    }
+
+    private void HoldSummonAnimationState()
+    {
+        if (animator == null)
+        {
+            return;
+        }
+
+        SetAnimatorBoolIfExists("IsDead", false);
+        SetAnimatorBoolIfExists("IsIdle", false);
+        SetAnimatorBoolIfExists("IsMoving", false);
+        SetAnimatorBoolIfExists("IsAttacking", false);
+        SetAnimatorBoolIfExists(isSummoningParameterName, true);
+    }
+
+    private void BeginSummonMovementLock()
+    {
+        if (summonLockActive)
+        {
+            return;
+        }
+
+        summonLockActive = true;
+
+        if (IsNavAgentReady())
+        {
+            navAgent.isStopped = true;
+            navAgent.ResetPath();
+            navAgent.velocity = Vector3.zero;
+        }
+
+        mageRigidbody = GetComponent<Rigidbody>();
+        if (mageRigidbody != null)
+        {
+            restoreRigidbodyKinematic = mageRigidbody.isKinematic;
+            restoreRigidbodyGravity = mageRigidbody.useGravity;
+            restoreRigidbodyConstraints = mageRigidbody.constraints;
+            mageRigidbody.linearVelocity = Vector3.zero;
+            mageRigidbody.angularVelocity = Vector3.zero;
+            mageRigidbody.useGravity = false;
+            mageRigidbody.isKinematic = true;
+            mageRigidbody.constraints = RigidbodyConstraints.FreezeAll;
+        }
+    }
+
+    private void EndSummonMovementLock()
+    {
+        if (!summonLockActive)
+        {
+            return;
+        }
+
+        summonLockActive = false;
+
+        if (IsNavAgentReady())
+        {
+            Vector3 currentPosition = transform.position;
+            if (NavMesh.SamplePosition(currentPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            {
+                transform.position = hit.position;
+                navAgent.Warp(hit.position);
+            }
+
+            navAgent.ResetPath();
+            navAgent.velocity = Vector3.zero;
+            navAgent.isStopped = true;
+        }
+
+        if (mageRigidbody != null)
+        {
+            mageRigidbody.linearVelocity = Vector3.zero;
+            mageRigidbody.angularVelocity = Vector3.zero;
+            mageRigidbody.constraints = restoreRigidbodyConstraints;
+            mageRigidbody.isKinematic = restoreRigidbodyKinematic;
+            mageRigidbody.useGravity = restoreRigidbodyGravity;
+        }
+    }
+
+    private void LoadDefaultSummonPrefabsIfNeeded()
+    {
+#if UNITY_EDITOR
+        if (normalEnemyPrefab == null)
+        {
+            normalEnemyPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Unit/Enemy/Skeleton_Warrior.prefab");
+        }
+
+        if (shieldEnemyPrefab == null)
+        {
+            shieldEnemyPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Unit/Enemy/EnemyKnight2H.prefab");
+        }
+#endif
+    }
+
+    private void LoadDefaultMagicProjectileIfNeeded()
+    {
+#if UNITY_EDITOR
+        if (magicProjectilePrefab == null)
+        {
+            magicProjectilePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<MagicProjectile>("Assets/Prefabs/Projectile/MageMagicProjectile.prefab");
+        }
+#endif
+    }
+
+    private void PrewarmMagicProjectiles()
+    {
+        if (magicProjectilePrefab != null && projectilePoolPrewarmCount > 0 && PoolManager.Instance != null)
+        {
+            PoolManager.Instance.Prewarm(magicProjectilePrefab.gameObject, projectilePoolPrewarmCount);
+        }
+    }
+}

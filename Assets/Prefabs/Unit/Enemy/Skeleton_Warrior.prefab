@@ -1023,6 +1023,7 @@ GameObject:
   - component: {fileID: 6968639637420840433}
   - component: {fileID: 5617713198544590832}
   - component: {fileID: -6109277747834660323}
+  - component: {fileID: 7963825979477932331}
   m_Layer: 8
   m_Name: Skeleton_Warrior
   m_TagString: Untagged
@@ -1119,10 +1120,22 @@ MonoBehaviour:
   attackRange: 2
   attackCooldown: 1.5
   scanRange: 15
+  idleScanInterval: 0.25
+  movingScanInterval: 0.35
   currentState: 0
   autoAggroDuringMove: 1
+  useAutoChaseLeash: 1
+  maxAutoChaseDistance: 12
+  attackRangeExitBuffer: 0.35
+  knockupRecoveryDuration: 0.25
+  movingAnimationVelocityThreshold: 0.08
+  movingAnimationHoldTime: 0.18
   _idleSearchRange: 60
   _chaseRetargetRange: 12
+  _enemyIdleScanInterval: 0.3
+  _enemyMovingScanInterval: 0.25
+  _enemyRetargetScanInterval: 0.45
+  _targetRole: 0
 --- !u!136 &6968639637420840433
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1187,6 +1200,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VisionSource
   visionRadius: 12
   revealWhileInactive: 0
+--- !u!114 &7963825979477932331
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6070211045844620596}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 555157e1a4618524e8349d56eadeebe3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SummonedEnemyRiseController
+  undergroundOffset: 1.2
+  riseTriggerName: Rise
+  riseStateName: Rise
+  isRisingParameterName: IsRising
 --- !u!1 &6382167219035808235
 GameObject:
   m_ObjectHideFlags: 0

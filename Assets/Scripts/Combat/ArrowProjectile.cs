@@ -18,12 +18,14 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
     private Vector3 startPosition;
     private Vector3 lastPosition;
     private bool useFixedTargetPosition;
+    private BaseCombatUnitController launcher;
 
-    public void Launch(BaseCombatUnitController newTarget, int newDamage)
+    public void Launch(BaseCombatUnitController newTarget, int newDamage, BaseCombatUnitController newLauncher = null)
     {
         target = newTarget;
         fixedTargetPosition = transform.position;
         damage = newDamage;
+        launcher = newLauncher;
         spawnTime = Time.time;
         startPosition = transform.position;
         lastPosition = startPosition;
@@ -34,11 +36,12 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
         flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
     }
 
-    public void LaunchAtPosition(BaseCombatUnitController originalTarget, Vector3 targetPosition, int newDamage)
+    public void LaunchAtPosition(BaseCombatUnitController originalTarget, Vector3 targetPosition, int newDamage, BaseCombatUnitController newLauncher = null)
     {
         target = originalTarget;
         fixedTargetPosition = targetPosition + targetOffset;
         damage = newDamage;
+        launcher = newLauncher;
         spawnTime = Time.time;
         startPosition = transform.position;
         lastPosition = startPosition;
@@ -82,6 +85,7 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
     public void OnSpawnedFromPool()
     {
         target = null;
+        launcher = null;
         fixedTargetPosition = transform.position;
         damage = 0;
         spawnTime = Time.time;
@@ -94,6 +98,7 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
     public void OnReturnedToPool()
     {
         target = null;
+        launcher = null;
         fixedTargetPosition = transform.position;
         damage = 0;
         flightDuration = 0f;
@@ -128,6 +133,6 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
             return;
         }
 
-        target.TakeDamage(damage);
+        target.TakeDamage(damage, launcher);
     }
 }

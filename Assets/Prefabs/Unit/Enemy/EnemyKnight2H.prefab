@@ -277,6 +277,7 @@ GameObject:
   - component: {fileID: 2446919973394049151}
   - component: {fileID: 8469881493100869212}
   - component: {fileID: 4294573903874052838}
+  - component: {fileID: 1659873128614381326}
   m_Layer: 8
   m_Name: EnemyKnight2H
   m_TagString: Untagged
@@ -443,6 +444,10 @@ MonoBehaviour:
   autoAggroDuringMove: 1
   useAutoChaseLeash: 1
   maxAutoChaseDistance: 12
+  attackRangeExitBuffer: 0.35
+  knockupRecoveryDuration: 0.25
+  movingAnimationVelocityThreshold: 0.08
+  movingAnimationHoldTime: 0.18
   _idleSearchRange: 60
   _chaseRetargetRange: 12
   _enemyIdleScanInterval: 0.3
@@ -456,6 +461,22 @@ MonoBehaviour:
   _knockbackRange: 3
   _knockbackDistance: 1.1
   _knockbackDuration: 0.18
+--- !u!114 &1659873128614381326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 441517115746933756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 555157e1a4618524e8349d56eadeebe3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SummonedEnemyRiseController
+  undergroundOffset: 1.2
+  riseTriggerName: Rise
+  riseStateName: Rise
+  isRisingParameterName: IsRising
 --- !u!1 &656456877384698540
 GameObject:
   m_ObjectHideFlags: 0

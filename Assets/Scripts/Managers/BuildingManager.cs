@@ -136,6 +136,73 @@ public class BuildingManager : MonoBehaviour
         }
         return null;
     }
+
+    public void CollectOccupiedBuildingCells(HashSet<Vector2Int> cells, int paddingCells = 0)
+    {
+        if (cells == null)
+        {
+            return;
+        }
+
+        int padding = Mathf.Max(0, paddingCells);
+        foreach (var kvp in _builtStructures)
+        {
+            GridCell cell = kvp.Key;
+            if (cell == null || kvp.Value == null)
+            {
+                continue;
+            }
+
+            for (int dx = -padding; dx <= padding; dx++)
+            {
+                for (int dz = -padding; dz <= padding; dz++)
+                {
+                    cells.Add(new Vector2Int(cell.x + dx, cell.z + dz));
+                }
+            }
+        }
+    }
+
+    public int CollectGrassExclusionZones(Vector4[] zones, int paddingCells = 0)
+    {
+        if (zones == null || zones.Length == 0)
+        {
+            return 0;
+        }
+
+        float cellSize = _gridSystem != null ? _gridSystem.GetCellSize() : 2f;
+        float padding = Mathf.Max(0, paddingCells) * cellSize;
+        int count = 0;
+
+        foreach (var kvp in _buildingDataMap)
+        {
+            GameObject building = kvp.Key;
+            BuildingData data = kvp.Value;
+            if (building == null || data == null)
+            {
+                continue;
+            }
+
+            Vector2Int size = data.buildingSize;
+            float normalizedYaw = Mathf.Repeat(building.transform.eulerAngles.y, 180f);
+            if (normalizedYaw > 45f && normalizedYaw < 135f)
+            {
+                size = new Vector2Int(size.y, size.x);
+            }
+
+            float halfX = Mathf.Max(cellSize * 0.5f, size.x * cellSize * 0.5f + padding);
+            float halfZ = Mathf.Max(cellSize * 0.5f, size.y * cellSize * 0.5f + padding);
+            zones[count] = new Vector4(building.transform.position.x, building.transform.position.z, halfX, halfZ);
+            count++;
+
+            if (count >= zones.Length)
+            {
+                break;
+            }
+        }
+
+        return count;
+    }
     
     // Lưu trữ BuildingData tương ứng của mỗi GameObject
     private Dictionary<GameObject, BuildingData> _buildingDataMap = new Dictionary<GameObject, BuildingData>();
@@ -169,22 +236,7 @@ public class BuildingManager : MonoBehaviour
         {
             s_instance = this; 
             DontDestroyOnLoad(gameObject);
-            
-            // Tự động thêm Component UI vào để kích hoạt Plug-and-Play mà không cần kéo thả tay
-            if (GetComponent<BuildingSelectionUI>() == null)
-            {
-                gameObject.AddComponent<BuildingSelectionUI>();
-            }
-
-            if (GetComponent<WatchTowerGarrisonUI>() == null)
-            {
-                gameObject.AddComponent<WatchTowerGarrisonUI>();
-            }
-
-            if (GetComponent<MainBuildingUI>() == null)
-            {
-                gameObject.AddComponent<MainBuildingUI>();
-            }
+            EnsureRuntimeComponents();
         }
         else
         {
@@ -196,6 +248,8 @@ public class BuildingManager : MonoBehaviour
 
     void Start()
     {
+        EnsureRuntimeComponents();
+
         // Tự động gán constructionFencePrefab trong editor nếu chưa gán
 #if UNITY_EDITOR
         if (_constructionFencePrefab == null)
@@ -212,6 +266,30 @@ public class BuildingManager : MonoBehaviour
         if (CurrentSelectedBuilding != null)
         {
             SelectBuilding(CurrentSelectedBuilding);
+        }
+    }
+
+    private void EnsureRuntimeComponents()
+    {
+        // Keep build-related helper UI/overlays plug-and-play on persistent managers.
+        if (GetComponent<BuildingSelectionUI>() == null)
+        {
+            gameObject.AddComponent<BuildingSelectionUI>();
+        }
+
+        if (GetComponent<WatchTowerGarrisonUI>() == null)
+        {
+            gameObject.AddComponent<WatchTowerGarrisonUI>();
+        }
+
+        if (GetComponent<MainBuildingUI>() == null)
+        {
+            gameObject.AddComponent<MainBuildingUI>();
+        }
+
+        if (GetComponent<BuildGridOverlay>() == null)
+        {
+            gameObject.AddComponent<BuildGridOverlay>();
         }
     }
 
@@ -627,6 +705,11 @@ public class BuildingManager : MonoBehaviour
         combatTarget.maxHealth = data != null ? data.maxHealth : 100;
         combatTarget.currentHealth = combatTarget.maxHealth;
         combatTarget.unitName = data != null ? data.buildingName : "Building";
+        combatTarget.attackDamage = 0;
+        combatTarget.attackRange = 0f;
+        combatTarget.attackCooldown = 0f;
+        combatTarget.scanRange = 0f;
+        combatTarget.autoAggroDuringMove = false;
 
         AddShelterComponentIfHouse(newBuilding, data);
 
@@ -926,4 +1009,5 @@ public class BuildingManager : MonoBehaviour
             }
         }
     }
+
 }

@@ -30,6 +30,8 @@ public class BuildingProduction : MonoBehaviour
     private ResourceNode _rallyResource;
     private BaseCombatUnitController _rallyAttackTarget;
     private GameObject _rallyFlagInstance;
+    private bool _populationBlockedLogged;
+    private LineRenderer _lineRenderer;
 
     public BuildingData BuildingData => _buildingData;
     public UnitData CurrentProducingUnit => _currentProducingUnit;
@@ -37,6 +39,27 @@ public class BuildingProduction : MonoBehaviour
     public Transform SpawnPoint => _spawnPoint;
     public bool HasRallyPoint => _rallyPoint.HasValue;
     public Vector3 RallyPoint => _rallyPoint ?? (_spawnPoint != null ? _spawnPoint.position : transform.position);
+    public int QueuedVillagerCount
+    {
+        get
+        {
+            int count = 0;
+            if (_currentProducingUnit != null && PopulationManager.IsVillagerUnit(_currentProducingUnit))
+            {
+                count++;
+            }
+
+            foreach (UnitData queuedUnit in _productionQueue)
+            {
+                if (PopulationManager.IsVillagerUnit(queuedUnit))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
 
     // Được gọi khi khởi tạo công trình (nếu spawnPoint chưa gán, tự tạo)
     void Start()
@@ -59,6 +82,23 @@ public class BuildingProduction : MonoBehaviour
         }
 
         PrewarmProducedCombatUnits();
+
+        // Khởi tạo LineRenderer động phục vụ vẽ điểm tập kết
+        _lineRenderer = gameObject.AddComponent<LineRenderer>();
+        _lineRenderer.startWidth = 0.06f;
+        _lineRenderer.endWidth = 0.06f;
+        _lineRenderer.positionCount = 2;
+        _lineRenderer.useWorldSpace = true;
+        
+        Shader lineShader = Shader.Find("Sprites/Default");
+        if (lineShader == null) lineShader = Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply");
+        if (lineShader != null)
+        {
+            _lineRenderer.material = new Material(lineShader);
+        }
+        _lineRenderer.startColor = new Color(0.15f, 0.85f, 1.0f, 0.85f);
+        _lineRenderer.endColor = new Color(0.15f, 0.85f, 1.0f, 0.1f);
+        _lineRenderer.enabled = false;
     }
 
     private void OnDestroy()
@@ -66,6 +106,11 @@ public class BuildingProduction : MonoBehaviour
         if (_rallyFlagInstance != null)
         {
             Destroy(_rallyFlagInstance);
+        }
+
+        if (_lineRenderer != null && _lineRenderer.material != null)
+        {
+            Destroy(_lineRenderer.material);
         }
     }
 
@@ -80,7 +125,40 @@ public class BuildingProduction : MonoBehaviour
             
             if (_currentProductionTimer <= 0)
             {
+                if (PopulationManager.IsVillagerUnit(_currentProducingUnit)
+                    && PopulationManager.CurrentVillagers >= PopulationManager.MaxVillagers)
+                {
+                    _currentProductionTimer = 0.1f;
+                    if (!_populationBlockedLogged)
+                    {
+                        Debug.LogWarning("Dân làng đã chạm giới hạn nhà dân. Sản xuất sẽ tiếp tục khi có thêm chỗ ở.");
+                        _populationBlockedLogged = true;
+                    }
+                    return;
+                }
+
                 FinishProduction();
+            }
+        }
+    }
+
+    private void LateUpdate()
+    {
+        bool isSelected = (TestProductionUI.Instance != null && TestProductionUI.Instance.SelectedProduction == this);
+        if (isSelected && HasRallyPoint)
+        {
+            if (_lineRenderer != null)
+            {
+                _lineRenderer.enabled = true;
+                _lineRenderer.SetPosition(0, _spawnPoint != null ? _spawnPoint.position : transform.position);
+                _lineRenderer.SetPosition(1, RallyPoint);
+            }
+        }
+        else
+        {
+            if (_lineRenderer != null)
+            {
+                _lineRenderer.enabled = false;
             }
         }
     }
@@ -104,9 +182,21 @@ public class BuildingProduction : MonoBehaviour
         }
 
         // 2. Kiểm tra tài nguyên
+        if (!unit.AreTechnologyRequirementsMet())
+        {
+            Debug.LogWarning("Chưa mở khóa công nghệ để sản xuất " + unit.unitName + ": " + unit.GetMissingTechnologyNames());
+            return;
+        }
+
         if (!ResourceManager.Instance.CanAfford(unit.productionCosts))
         {
             Debug.LogWarning("Không đủ tài nguyên để sản xuất " + unit.unitName);
+            return;
+        }
+
+        if (PopulationManager.IsVillagerUnit(unit) && !PopulationManager.CanQueueVillager(out string populationReason))
+        {
+            Debug.LogWarning(populationReason);
             return;
         }
 
@@ -131,12 +221,14 @@ public class BuildingProduction : MonoBehaviour
             _currentProducingUnit = _productionQueue.Dequeue();
             _currentProductionTimer = _currentProducingUnit.productionTime;
             _isProducing = true;
+            _populationBlockedLogged = false;
             Debug.Log("Đang sản xuất: " + _currentProducingUnit.unitName + "...");
         }
         else
         {
             _isProducing = false;
             _currentProducingUnit = null;
+            _populationBlockedLogged = false;
         }
     }
 

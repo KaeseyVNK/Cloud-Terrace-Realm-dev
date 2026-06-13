@@ -68,7 +68,7 @@ public class EnemyArcherController : EnemyUnitController
 
         if (_projectilePrefab == null)
         {
-            currentTarget.TakeDamage(attackDamage);
+            currentTarget.TakeDamage(attackDamage, this);
             return;
         }
 
@@ -76,7 +76,7 @@ public class EnemyArcherController : EnemyUnitController
         ArrowProjectile projectile = PoolManager.Instance.Spawn(_projectilePrefab, firePosition, Quaternion.identity);
         if (projectile != null)
         {
-            projectile.Launch(currentTarget, attackDamage);
+            projectile.Launch(currentTarget, attackDamage, this);
         }
     }
 

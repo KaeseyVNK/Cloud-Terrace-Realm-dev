@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: blacksmith
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: Blacksmith
+  description: "C\xF4ng tr\xECnh nghi\xEAn c\u1EE9u c\xF4ng ngh\u1EC7 \u0111\u1EC3
+    m\u1EDF kh\xF3a v\xE0 n\xE2ng c\u1EA5p qu\xE2n \u0111\u1ED9i."
+  buildingPrefab: {fileID: 206308313772535697, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
+  buildingSize: {x: 3, y: 3}
+  buildCosts:
+  - resourceType: 0
+    amount: 120
+  - resourceType: 1
+    amount: 80
+  maxHealth: 400
+  maxWorkers: 0
+  buildTime: 25
+  isStorage: 0
+  acceptedResources: 
+  requiredBuildings:
+  - {fileID: 11400000, guid: b8266293286ded145b88c39bfbf93fdd, type: 2}
+  producibleUnits: []

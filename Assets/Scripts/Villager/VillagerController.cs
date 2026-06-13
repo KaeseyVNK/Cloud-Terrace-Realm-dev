@@ -112,6 +112,8 @@ public class VillagerController : MonoBehaviour
     private static readonly List<VillagerController> s_tempIndexGatherers = new(32);
     private static readonly List<VillagerController> s_tempCompletedBuilders = new(32);
 
+    public static readonly List<VillagerController> AllVillagers = new List<VillagerController>();
+
     #endregion
 
     #region Public Properties
@@ -242,6 +244,16 @@ public class VillagerController : MonoBehaviour
     #endregion
 
     #region Unity Lifecycle Methods
+
+    private void OnEnable()
+    {
+        AllVillagers.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        AllVillagers.Remove(this);
+    }
 
     private void Awake()
     {

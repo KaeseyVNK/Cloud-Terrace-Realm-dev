@@ -8,6 +8,7 @@ public class TimeManager : MonoBehaviour
     [Header("Time Settings")]
     public float dayDuration = 120f; // 1 ngày = 120 giây
     public float currentTime = 0f;
+    public int dayCount = 1; // Số ngày sinh tồn
 
     // Sự kiện khi chuyển đổi Ngày / Đêm
     public event Action<bool> OnDayNightChanged;
@@ -33,6 +34,7 @@ public class TimeManager : MonoBehaviour
         if (currentTime >= dayDuration) 
         {
             currentTime = 0f;
+            dayCount++;
         }
 
         // Cập nhật trạng thái Ngày/Đêm

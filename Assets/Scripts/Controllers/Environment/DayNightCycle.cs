@@ -32,6 +32,10 @@ public class DayNightCycle : MonoBehaviour
     [SerializeField] private float nightIntensity = 0.18f;
     [SerializeField] private float moonAmbientIntensity = 0.35f;
 
+    [Header("Golden Hour (Dawn/Dusk)")]
+    [SerializeField] private Color dawnDuskZenith = new Color(0.85f, 0.45f, 0.25f);
+    [SerializeField] private Color dawnDuskHorizon = new Color(0.95f, 0.65f, 0.45f);
+
     [Header("Sun Rotation")]
     [SerializeField] private float minRotationX = -90f;
     [SerializeField] private float baseRotationY = 50f;
@@ -109,9 +113,15 @@ public class DayNightCycle : MonoBehaviour
         _currentRainIntensity = Mathf.MoveTowards(_currentRainIntensity, targetRain, weatherTransitionSpeed * Time.deltaTime);
         _currentBloodMoonIntensity = Mathf.MoveTowards(_currentBloodMoonIntensity, targetBloodMoon, weatherTransitionSpeed * Time.deltaTime);
 
+        // Golden hour: 1 at sunrise/sunset, 0 at midday/midnight
+        float dawnDuskBlend = Mathf.Clamp01(1f - Mathf.Abs(Mathf.Sin(timeRatio * Mathf.PI * 2f)));
+
         // Base sun color and intensity
         float clearSunIntensity = Mathf.Lerp(dayIntensity, nightIntensity, nightBlend);
+        clearSunIntensity = Mathf.Lerp(clearSunIntensity, dayIntensity * 0.6f, dawnDuskBlend);
+
         Color clearSunColor = Color.Lerp(dayHorizon, moonlightColor, nightBlend);
+        clearSunColor = Color.Lerp(clearSunColor, dawnDuskHorizon, dawnDuskBlend);
 
         // Blood Moon targets
         Color bloodRed = new Color(0.85f, 0.08f, 0.08f);
@@ -133,7 +143,7 @@ public class DayNightCycle : MonoBehaviour
         sun.intensity = targetSunIntensity;
         sun.color = targetSunColor;
 
-        float currentXRotation = Mathf.Lerp(minRotationX, minRotationX + 360f, timeRatio);
+        float currentXRotation = timeRatio * 360f;
         transform.rotation = Quaternion.Euler(currentXRotation, baseRotationY, 0f);
 
         ApplyEnvironment(timeRatio, nightBlend, _currentRainIntensity, _currentBloodMoonIntensity);
@@ -141,12 +151,23 @@ public class DayNightCycle : MonoBehaviour
 
     private void ApplyEnvironment(float timeRatio, float nightBlend, float rainIntensity, float bloodMoonIntensity)
     {
+        float dawnDuskBlend = Mathf.Clamp01(1f - Mathf.Abs(Mathf.Sin(timeRatio * Mathf.PI * 2f)));
+
         Color clearZenith = Color.Lerp(dayZenith, nightZenith, nightBlend);
+        clearZenith = Color.Lerp(clearZenith, dawnDuskZenith, dawnDuskBlend);
+
         Color clearHorizon = Color.Lerp(dayHorizon, nightHorizon, nightBlend);
+        clearHorizon = Color.Lerp(clearHorizon, dawnDuskHorizon, dawnDuskBlend);
+
         Color clearTint = Color.Lerp(Color.white, nightZenith, nightBlend);
+        clearTint = Color.Lerp(clearTint, dawnDuskZenith, dawnDuskBlend);
+
         Color clearAmbient = Color.Lerp(dayHorizon * 0.75f, moonlightColor * moonAmbientIntensity, nightBlend);
+        clearAmbient = Color.Lerp(clearAmbient, dawnDuskHorizon * 0.75f, dawnDuskBlend);
+
         float clearReflection = Mathf.Lerp(1f, 0.15f, nightBlend);
         float clearExposure = Mathf.Lerp(1.2f, 0.2f, nightBlend);
+        clearExposure = Mathf.Lerp(clearExposure, 0.8f, dawnDuskBlend);
 
         // Blood Moon targets
         Color bloodRedAmbient = new Color(0.45f, 0.04f, 0.04f);

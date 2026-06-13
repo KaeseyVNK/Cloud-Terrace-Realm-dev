@@ -10,6 +10,12 @@ public class MainBuildingUI : MonoBehaviour
     private static readonly Rect PanelRect = new Rect(10, 10, 320, 200);
     private MainBuildingCombatTarget _selectedMainBuilding;
 
+    // Cache variables for performance optimization
+    private int _cachedTotalVillagers = 0;
+    private int _cachedShelteredVillagers = 0;
+    private float _nextCountRefreshTime = 0f;
+    private const float CountRefreshInterval = 0.5f; // Refresh every 500ms
+
     #endregion
 
     #region Public Properties
@@ -57,66 +63,38 @@ public class MainBuildingUI : MonoBehaviour
                 }
             }
         }
+
+        // Throttle count checks to every 500ms to avoid huge CPU overhead and GC allocations in OnGUI
+        if (_selectedMainBuilding != null && Time.time >= _nextCountRefreshTime)
+        {
+            _nextCountRefreshTime = Time.time + CountRefreshInterval;
+            RefreshVillagerCounts();
+        }
+    }
+
+    private void RefreshVillagerCounts()
+    {
+        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Include);
+        _cachedTotalVillagers = allVillagers != null ? allVillagers.Length : 0;
+        
+        int shelteredCount = 0;
+        HouseShelter[] shelters = FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude);
+        if (shelters != null)
+        {
+            foreach (var shelter in shelters)
+            {
+                if (shelter != null)
+                {
+                    shelteredCount += shelter.OccupantCount;
+                }
+            }
+        }
+        _cachedShelteredVillagers = shelteredCount;
     }
 
     private void OnGUI()
     {
-        if (_selectedMainBuilding == null)
-        {
-            return;
-        }
-
-        GUI.Box(PanelRect, "Nhà Chính Vương Quốc");
-
-        // Count sheltered vs total villagers
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Include);
-        int totalCount = allVillagers.Length;
-        
-        int shelteredCount = 0;
-        HouseShelter[] shelters = FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude);
-        foreach (var shelter in shelters)
-        {
-            if (shelter != null)
-            {
-                shelteredCount += shelter.OccupantCount;
-            }
-        }
-
-        string countText = $"Dân làng đang trú ẩn: {shelteredCount} / {totalCount}";
-        GUI.Label(new Rect(20, 45, 280, 25), countText);
-
-        string weatherText = "Thời tiết: ";
-        if (WeatherManager.Instance != null)
-        {
-            weatherText += WeatherManager.Instance.CurrentWeather.ToString();
-        }
-        else
-        {
-            weatherText += "Clear";
-        }
-
-        if (TimeManager.Instance != null && TimeManager.Instance.IsNight)
-        {
-            weatherText += " (Ban Đêm)";
-        }
-        else
-        {
-            weatherText += " (Ban Ngày)";
-        }
-        GUI.Label(new Rect(20, 70, 280, 25), weatherText);
-
-        string stateText = HouseShelter.IsEmergencyShelterActive ? "TRẠNG THÁI: YÊU CẦU TRÚ ẨN KHẨN CẤP" : "TRẠNG THÁI: Bình thường";
-        GUI.Label(new Rect(20, 95, 280, 25), stateText);
-
-        if (GUI.Button(new Rect(20, 130, 135, 45), "Trú ẩn khẩn cấp\n(Shelter All)"))
-        {
-            _selectedMainBuilding.OrderAllVillagersToShelter();
-        }
-
-        if (GUI.Button(new Rect(165, 130, 135, 45), "Ra ngoài khẩn cấp\n(Evacuate All)"))
-        {
-            _selectedMainBuilding.OrderAllVillagersToEvacuate();
-        }
+        // Giao diện đã được tích hợp trực tiếp vào TestProductionUI để tránh chồng chéo các bảng ở góc trái.
     }
 
     #endregion
@@ -136,6 +114,7 @@ public class MainBuildingUI : MonoBehaviour
         if (productionUI != null)
         {
             productionUI.DeselectProduction();
+            productionUI.DeselectResearch();
         }
 
         WatchTowerGarrisonUI watchTowerUI = FindAnyObjectByType<WatchTowerGarrisonUI>();
@@ -143,6 +122,9 @@ public class MainBuildingUI : MonoBehaviour
         {
             watchTowerUI.DeselectWatchTower();
         }
+        
+        // Refresh counts immediately upon selection
+        RefreshVillagerCounts();
     }
 
     /// <summary>

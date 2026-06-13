@@ -71,7 +71,7 @@ MonoBehaviour:
     m_Value: {x: 0.5, y: 0.5}
   intensity:
     m_OverrideState: 0
-    m_Value: 0.31
+    m_Value: 0
   smoothness:
     m_OverrideState: 1
     m_Value: 0.288
@@ -172,7 +172,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a074ec59f6e910b4e8c49f57e56cf95a, type: 3}
   m_Name: VolumetricFogVolumeComponent
   m_EditorClassIdentifier: com.cqf.urpvolumetricfog.runtime::VolumetricFogVolumeComponent
-  active: 0
+  active: 1
   distance:
     m_OverrideState: 1
     m_Value: 250
@@ -242,10 +242,10 @@ MonoBehaviour:
   active: 1
   postExposure:
     m_OverrideState: 1
-    m_Value: 0.19
+    m_Value: 0.5
   contrast:
     m_OverrideState: 1
-    m_Value: -24.4
+    m_Value: 35.4
   colorFilter:
     m_OverrideState: 0
     m_Value: {r: 1, g: 1, b: 1, a: 1}

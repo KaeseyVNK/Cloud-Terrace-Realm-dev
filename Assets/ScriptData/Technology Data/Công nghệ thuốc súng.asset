@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9daec7148cbaa14f9060fe4bd6562a2, type: 3}
+  m_Name: "C\xF4ng ngh\u1EC7 thu\u1ED1c s\xFAng"
+  m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
+  technologyId: bom_weapon
+  technologyName: "c\xF4ng ngh\u1EC7 thu\u1ED1c s\xFAng"
+  description: 
+  researchTime: 10
+  researchCosts:
+  - resourceType: 4
+    amount: 60

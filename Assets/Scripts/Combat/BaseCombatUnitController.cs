@@ -442,12 +442,12 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         {
             BaseCombatUnitController attackTarget = currentTarget;
             string targetName = attackTarget.unitName;
-            attackTarget.TakeDamage(attackDamage);
+            attackTarget.TakeDamage(attackDamage, this);
             Debug.Log($"[Combat] {unitName} tấn công {targetName} gây {attackDamage} sát thương.");
         }
     }
 
-    public virtual void TakeDamage(int damage)
+    public virtual void TakeDamage(int damage, BaseCombatUnitController attacker = null)
     {
         if (currentState == CombatState.Dead) return;
 
@@ -459,10 +459,19 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         // Kích hoạt nhấp nháy đỏ phản hồi thị giác (không làm gián đoạn hành động/animation)
         TriggerHitFlash();
 
+        if (attacker != null)
+        {
+            OnDamagedBy(attacker);
+        }
+
         if (currentHealth <= 0)
         {
             Die();
         }
+    }
+
+    protected virtual void OnDamagedBy(BaseCombatUnitController attacker)
+    {
     }
 
     protected virtual IEnumerator StaggerCoroutine(float duration)

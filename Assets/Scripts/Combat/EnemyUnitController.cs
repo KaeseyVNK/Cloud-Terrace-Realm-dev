@@ -23,6 +23,32 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
     [Header("Enemy Role")]
     [SerializeField] protected EnemyTargetRole _targetRole = EnemyTargetRole.Assault;
+    [SerializeField] private bool _randomizeRoleOnSpawn = true;
+    [SerializeField] private float _assaultWeight = 0.6f;
+    [SerializeField] private float _raiderWeight = 0.25f;
+    [SerializeField] private float _siegeBreakerWeight = 0.15f;
+
+    private void AssignRandomRole()
+    {
+        if (!_randomizeRoleOnSpawn) return;
+
+        float total = _assaultWeight + _raiderWeight + _siegeBreakerWeight;
+        if (total <= 0f) return;
+
+        float rand = Random.Range(0f, total);
+        if (rand < _assaultWeight)
+        {
+            _targetRole = EnemyTargetRole.Assault;
+        }
+        else if (rand < _assaultWeight + _raiderWeight)
+        {
+            _targetRole = EnemyTargetRole.Raider;
+        }
+        else
+        {
+            _targetRole = EnemyTargetRole.SiegeBreaker;
+        }
+    }
 
     private float _repathTimer = 0f;
     private float _nextIdleTargetScanTime = 0f;
@@ -74,6 +100,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _isRetreating = false;
         _spawnPosition = transform.position;
         ClearScanCache();
+        AssignRandomRole();
 
         navAgent = GetComponent<NavMeshAgent>();
         if (navAgent != null)
@@ -341,16 +368,18 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     {
         if (navAgent == null) return;
 
-        // Chủ động quét tìm kẻ địch trong phạm vi tối đa scanRange
+        float activeMovingScanRange = (_targetRole == EnemyTargetRole.Raider) ? 25f : scanRange;
+
+        // Chủ động quét tìm kẻ địch trong phạm vi tối đa activeMovingScanRange
         BaseCombatUnitController nearestEnemy = GetThrottledPriorityTarget(
-            scanRange,
+            activeMovingScanRange,
             _enemyMovingScanInterval,
             ref _nextMovingTargetScanTime,
             ref _cachedMovingTarget);
         if (nearestEnemy != null)
         {
             float dist = GetDistanceToTarget(nearestEnemy);
-            if (dist <= scanRange)
+            if (dist <= activeMovingScanRange)
             {
                 AttackTarget(nearestEnemy);
                 return;
@@ -529,6 +558,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
         bool isVillager = IsVillagerTarget(unit);
         bool isBuilding = IsBuildingTarget(unit);
+        bool isWatchTower = IsWatchTowerTarget(unit);
         bool isCombatUnit = !isVillager && !isBuilding;
 
         if (IsBloodMoonActive())
@@ -543,19 +573,31 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         {
             if (isVillager) return 1;
             if (isCombatUnit) return 2;
-            return 3;
+            if (isWatchTower) return 3;
+            return 4;
         }
 
         if (_targetRole == EnemyTargetRole.SiegeBreaker)
         {
-            if (isBuilding) return 1;
-            if (isCombatUnit) return 2;
-            return 3;
+            if (isWatchTower) return 1;
+            if (isBuilding) return 2;
+            if (isCombatUnit) return 3;
+            return 4;
         }
 
+        // Assault (mặc định)
         if (isCombatUnit) return 1;
-        if (isVillager) return 2;
-        return 3;
+        if (isWatchTower)
+        {
+            var tower = unit.GetComponent<WatchTowerGarrison>();
+            if (tower != null && tower.OccupantCount > 0)
+            {
+                return 1; // Tháp canh có lính bắn tên đồn trú là mối đe dọa trực tiếp (độ ưu tiên cao nhất)
+            }
+            return 2; // Tháp canh trống ưu tiên cao hơn nhà thường
+        }
+        if (isVillager) return 3;
+        return 4;
     }
 
     protected bool IsVillagerTarget(BaseCombatUnitController unit)
@@ -581,6 +623,18 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     protected bool IsBloodMoonActive()
     {
         return WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.BloodMoon;
+    }
+
+    protected override void OnDamagedBy(BaseCombatUnitController attacker)
+    {
+        if (attacker == null || attacker.currentState == CombatState.Dead) return;
+
+        if (currentTarget == null || 
+            currentTarget.currentState == CombatState.Dead || 
+            IsBuildingTarget(currentTarget))
+        {
+            AttackTarget(attacker);
+        }
     }
 
     private static List<BaseCombatUnitController> GetCachedPlayerBuildingTargets()

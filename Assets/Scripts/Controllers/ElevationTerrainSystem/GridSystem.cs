@@ -77,10 +77,10 @@ public class GridSystem : MonoBehaviour
     [SerializeField] private GameObject _goldPrefab;
 
     [Header("Resource Node Amounts")]
-    [SerializeField] private int _woodNodeAmount = 25;
-    [SerializeField] private int _stoneNodeAmount = 50;
-    [SerializeField] private int _goldNodeAmount = 100;
-    [SerializeField] private int _foodNodeAmount = 15;
+    [SerializeField] private Vector2Int _woodNodeAmountRange = new Vector2Int(200, 300);
+    [SerializeField] private Vector2Int _stoneNodeAmountRange = new Vector2Int(200, 300);
+    [SerializeField] private Vector2Int _goldNodeAmountRange = new Vector2Int(200, 300);
+    [SerializeField] private Vector2Int _foodNodeAmountRange = new Vector2Int(200, 300);
     
     [Header("Resource Noise (Forest/Ore)")]
     [UnityEngine.Serialization.FormerlySerializedAs("resourceNoiseScale")]
@@ -222,7 +222,7 @@ public class GridSystem : MonoBehaviour
                     node = child.gameObject.AddComponent<ResourceNode>();
                 }
 
-                node.Initialize(type, GetResourceNodeAmount(type), cell);
+                node.Initialize(type, GetResourceNodeAmount(type, cell), cell);
                 RegisterResourceNode(node);
             }
         }
@@ -1011,24 +1011,54 @@ public class GridSystem : MonoBehaviour
         {
             node = resObj.AddComponent<ResourceNode>();
         }
-        node.Initialize(type, GetResourceNodeAmount(type), cell);
+        node.Initialize(type, GetResourceNodeAmount(type, cell), cell);
         RegisterResourceNode(node);
     }
 
-    private int GetResourceNodeAmount(ResourceType type)
+    private int GetResourceNodeAmount(ResourceType type, GridCell cell)
+    {
+        Vector2Int range = GetResourceNodeAmountRange(type);
+        int min = Mathf.Max(1, Mathf.Min(range.x, range.y));
+        int max = Mathf.Max(min, Mathf.Max(range.x, range.y));
+        if (cell == null)
+        {
+            return UnityEngine.Random.Range(min, max + 1);
+        }
+
+        return Mathf.RoundToInt(Mathf.Lerp(min, max, GetDeterministic01(cell.x, cell.z, GetResourceAmountSalt(type))));
+    }
+
+    private Vector2Int GetResourceNodeAmountRange(ResourceType type)
     {
         switch (type)
         {
             case ResourceType.Wood:
-                return Mathf.Max(1, _woodNodeAmount);
+                return _woodNodeAmountRange;
             case ResourceType.Stone:
-                return Mathf.Max(1, _stoneNodeAmount);
+                return _stoneNodeAmountRange;
             case ResourceType.Gold:
-                return Mathf.Max(1, _goldNodeAmount);
+                return _goldNodeAmountRange;
             case ResourceType.Food:
-                return Mathf.Max(1, _foodNodeAmount);
+                return _foodNodeAmountRange;
             default:
-                return 1;
+                return Vector2Int.one;
+        }
+    }
+
+    private int GetResourceAmountSalt(ResourceType type)
+    {
+        switch (type)
+        {
+            case ResourceType.Wood:
+                return 1301;
+            case ResourceType.Stone:
+                return 1303;
+            case ResourceType.Gold:
+                return 1307;
+            case ResourceType.Food:
+                return 1319;
+            default:
+                return 1321;
         }
     }
 

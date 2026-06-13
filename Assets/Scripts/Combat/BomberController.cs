@@ -14,6 +14,12 @@ public class BomberController : RangedCombatUnitController, IPoolable
     [SerializeField] private float _throwNormalizedTime = 0.85f;
     [SerializeField] private float _throwEventFallbackDelay = 0.9f;
 
+    [Header("Bomber Kiting")]
+    [SerializeField] private bool _retreatAfterThrowWhenThreatened = true;
+    [SerializeField] private float _postThrowRetreatTriggerDistance = 5f;
+    [SerializeField] private float _postThrowRetreatDistance = 4.5f;
+    [SerializeField] private float _postThrowMeleeThreatAttackRange = 3.5f;
+
     private BaseCombatUnitController _queuedThrowTarget;
     private Vector3 _queuedThrowTargetPosition;
     private int _queuedThrowDamage;
@@ -31,6 +37,7 @@ public class BomberController : RangedCombatUnitController, IPoolable
     }
 
     protected override bool UsesArrowProjectile => false;
+    protected override bool CanStartKiting() => !_hasQueuedThrow;
 
     protected override void Start()
     {
@@ -146,6 +153,8 @@ public class BomberController : RangedCombatUnitController, IPoolable
         {
             projectile.LaunchAtPosition(throwTargetPosition, faction, Mathf.Max(1, throwDamage));
         }
+
+        TryRetreatAfterThrow(throwTarget);
     }
 
     public override void CommandMove(Vector3 position)
@@ -287,6 +296,47 @@ public class BomberController : RangedCombatUnitController, IPoolable
             return false;
         }
 
+        return true;
+    }
+
+    private bool TryRetreatAfterThrow(BaseCombatUnitController threat)
+    {
+        if (!_retreatAfterThrowWhenThreatened || threat == null || threat.currentState == CombatState.Dead || !threat.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        if (threat.attackRange > _postThrowMeleeThreatAttackRange || GetDistanceToTarget(threat) > _postThrowRetreatTriggerDistance)
+        {
+            return false;
+        }
+
+        if (!IsNavAgentReady())
+        {
+            return false;
+        }
+
+        Vector3 escapeDirection = transform.position - threat.transform.position;
+        escapeDirection.y = 0f;
+        if (escapeDirection.sqrMagnitude <= 0.01f)
+        {
+            escapeDirection = -transform.forward;
+        }
+
+        Vector3 retreatPosition = transform.position + escapeDirection.normalized * Mathf.Max(0.5f, _postThrowRetreatDistance);
+        if (!NavMesh.SamplePosition(retreatPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        currentTarget = threat;
+        isManualMoveCommand = false;
+        navAgent.isStopped = false;
+        navAgent.stoppingDistance = 0.2f;
+        navAgent.SetDestination(hit.position);
+        ChangeState(CombatState.Moving);
+        SetAnimatorBoolIfExists("isAiming", false);
+        SetAnimatorBoolIfExists("IsAiming", false);
         return true;
     }
 

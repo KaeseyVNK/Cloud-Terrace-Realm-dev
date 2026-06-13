@@ -76,7 +76,7 @@ public class ShieldKnightController : MilitiaController
         }
     }
 
-    public override void TakeDamage(int damage)
+    public override void TakeDamage(int damage, BaseCombatUnitController attacker = null)
     {
         if (CanBlockIncomingDamage(damage))
         {
@@ -86,7 +86,7 @@ public class ShieldKnightController : MilitiaController
             return;
         }
 
-        base.TakeDamage(damage);
+        base.TakeDamage(damage, attacker);
     }
 
     private bool CanBlockIncomingDamage(int damage)

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
+  m_Name: Bommer
+  m_EditorClassIdentifier: Assembly-CSharp::UnitData
+  unitName: Bommer
+  description: 
+  unitPrefab: {fileID: 8583302773672984860, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
+  productionTime: 5
+  productionCosts:
+  - resourceType: 2
+    amount: 20
+  - resourceType: 4
+    amount: 30
+  requiredTechnologies:
+  - {fileID: 11400000, guid: 046ff2c8df4662a44938502fa37c9ef0, type: 2}
