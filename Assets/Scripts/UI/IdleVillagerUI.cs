@@ -27,8 +27,20 @@ public class IdleVillagerUI : MonoBehaviour
 
     private void Update()
     {
+        if (Keyboard.current == null)
+        {
+            return;
+        }
+
+        if (Keyboard.current.tabKey.wasPressedThisFrame
+            && (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed))
+        {
+            ReturnToPreviousCameraView();
+            return;
+        }
+
         // Nhấn phím Tab để chuyển nhanh qua các dân rảnh rỗi
-        if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
+        if (Keyboard.current.tabKey.wasPressedThisFrame)
         {
             CycleIdleVillager();
         }
@@ -77,7 +89,7 @@ public class IdleVillagerUI : MonoBehaviour
         GUI.Box(new Rect(btnRect.x - 1, btnRect.y - 1, btnRect.width + 2, btnRect.height + 2), "");
         GUI.color = Color.white;
 
-        string text = $"⚠️ DÂN RẢNH RỖI: {idleCount}\n(Bấm phím Tab)";
+        string text = $"⚠️ DÂN RẢNH RỖI: {idleCount}\n(Tab: tới dân | Shift+Tab: về)";
         if (GUI.Button(btnRect, text, _hudButtonStyle))
         {
             CycleIdleVillager();
@@ -149,8 +161,17 @@ public class IdleVillagerUI : MonoBehaviour
         if (camControls != null)
         {
             // Cinemachine Camera theo dõi pivot của transform camControls
-            camControls.transform.position = nextIdle.transform.position;
+            camControls.FocusOnPosition(nextIdle.transform.position, true);
             Debug.Log($"[IdleVillagerUI] Đã dịch chuyển Camera tới Cư dân rảnh rỗi: {nextIdle.gameObject.name}");
+        }
+    }
+
+    private void ReturnToPreviousCameraView()
+    {
+        CameraControls camControls = FindAnyObjectByType<CameraControls>();
+        if (camControls != null && camControls.ReturnToStoredView())
+        {
+            Debug.Log("[IdleVillagerUI] Da dua camera ve vi tri truoc khi focus dan ranh.");
         }
     }
 

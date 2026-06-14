@@ -8,7 +8,7 @@ public class TestProductionUI : MonoBehaviour
     private const float ResearchPanelWidth = 520f;
     private const float PanelMaxBottomPadding = 20f;
     private const float ProductionRowHeight = 56f;
-    private const float ResearchRowHeight = 58f;
+    private const float ResearchRowHeight = 78f;
 
     public static TestProductionUI Instance { get; private set; }
 
@@ -441,10 +441,11 @@ public class TestProductionUI : MonoBehaviour
             GUI.enabled = true;
             GUI.Label(new Rect(210, yPos + 6, content.width - 220, 20), technology.technologyName);
             GUI.Label(new Rect(210, yPos + 28, content.width - 220, 20), "Chi phí: " + GetCostText(technology.researchCosts));
+            GUI.Label(new Rect(210, yPos + 50, content.width - 220, 20), "Tác dụng: " + technology.GetVillagerEffectText());
             if (isResearchingThis)
             {
                 float progress = 1f - (selectedResearch.CurrentResearchTimer / Mathf.Max(0.1f, technology.researchTime));
-                GUI.HorizontalScrollbar(new Rect(330, yPos + 30, 110, 15), 0, progress, 0, 1);
+                GUI.HorizontalScrollbar(new Rect(10, yPos + 48, 190, 15), 0, progress, 0, 1);
             }
 
             yPos += Mathf.RoundToInt(ResearchRowHeight);

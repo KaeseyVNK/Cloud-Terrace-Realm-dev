@@ -6,6 +6,7 @@ public class TechnologyManager : MonoBehaviour
 {
     private static TechnologyManager _instance;
     private readonly HashSet<string> _unlockedTechnologyIds = new HashSet<string>();
+    private readonly List<TechnologyData> _unlockedTechnologies = new List<TechnologyData>();
 
     public static TechnologyManager Instance
     {
@@ -25,7 +26,29 @@ public class TechnologyManager : MonoBehaviour
         }
     }
 
+    public static bool HasInstance => _instance != null;
+
     public event Action<TechnologyData> OnTechnologyUnlocked;
+
+    public int VillagerCarryCapacityBonus
+    {
+        get
+        {
+            int bonus = 0;
+            for (int i = 0; i < _unlockedTechnologies.Count; i++)
+            {
+                TechnologyData technology = _unlockedTechnologies[i];
+                if (technology != null)
+                {
+                    bonus += technology.villagerCarryCapacityBonus;
+                }
+            }
+
+            return bonus;
+        }
+    }
+
+    public float VillagerMoveSpeedMultiplier => GetStackedMultiplier(t => t.villagerMoveSpeedMultiplier);
 
     private void Awake()
     {
@@ -64,8 +87,41 @@ public class TechnologyManager : MonoBehaviour
             return false;
         }
 
+        _unlockedTechnologies.Add(technology);
         OnTechnologyUnlocked?.Invoke(technology);
         Debug.Log("[Tech] Unlocked: " + technology.technologyName);
         return true;
+    }
+
+    public float GetVillagerGatherSpeedMultiplier(ResourceType resourceType)
+    {
+        switch (resourceType)
+        {
+            case ResourceType.Wood:
+                return GetStackedMultiplier(t => t.woodGatherSpeedMultiplier);
+            case ResourceType.Stone:
+                return GetStackedMultiplier(t => t.stoneGatherSpeedMultiplier);
+            case ResourceType.Gold:
+                return GetStackedMultiplier(t => t.goldGatherSpeedMultiplier);
+            case ResourceType.Food:
+                return GetStackedMultiplier(t => t.foodGatherSpeedMultiplier);
+            default:
+                return 1f;
+        }
+    }
+
+    private float GetStackedMultiplier(Func<TechnologyData, float> selector)
+    {
+        float multiplier = 1f;
+        for (int i = 0; i < _unlockedTechnologies.Count; i++)
+        {
+            TechnologyData technology = _unlockedTechnologies[i];
+            if (technology != null)
+            {
+                multiplier *= Mathf.Max(1f, selector(technology));
+            }
+        }
+
+        return multiplier;
     }
 }

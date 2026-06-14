@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 4192216813155134656}
   serializedVersion: 2
   m_LocalRotation: {x: -0.00000008146034, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -27.064737, y: 0.093995824, z: -25.673014}
+  m_LocalPosition: {x: 0, y: 1.219, z: -0}
   m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -81,7 +81,7 @@ Light:
   m_RenderMode: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 183
   m_RenderingLayerMask: 1
   m_Lightmapping: 4
   m_LightShadowCasterMode: 0
@@ -143,7 +143,7 @@ GameObject:
   - component: {fileID: 5134053954993959612}
   - component: {fileID: 2848546189433113640}
   - component: {fileID: 2816207349396816869}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: homeblue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -159,7 +159,7 @@ Transform:
   m_GameObject: {fileID: 6276198275343968975}
   serializedVersion: 2
   m_LocalRotation: {x: 0.00000008146034, y: 0, z: -0, w: 1}
-  m_LocalPosition: {x: 271.34238, y: 1, z: 255.99515}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 7, y: 7, z: 7}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -254,7 +254,7 @@ NavMeshObstacle:
   m_Enabled: 1
   serializedVersion: 3
   m_Shape: 1
-  m_Extents: {x: 0.275, y: 0.935, z: 0.37}
+  m_Extents: {x: 0.425, y: 0.935, z: 0.45}
   m_MoveThreshold: 0.2
   m_Carve: 1
   m_CarveOnlyStationary: 1

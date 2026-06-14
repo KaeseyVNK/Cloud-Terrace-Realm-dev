@@ -12,4 +12,56 @@ public class TechnologyData : ScriptableObject
     [Header("Research Requirements")]
     public float researchTime = 10f;
     public List<ResourceCost> researchCosts;
+
+    [Header("Villager Economy Effects")]
+    public int villagerCarryCapacityBonus = 0;
+    [Min(1f)] public float villagerMoveSpeedMultiplier = 1f;
+    [Min(1f)] public float woodGatherSpeedMultiplier = 1f;
+    [Min(1f)] public float stoneGatherSpeedMultiplier = 1f;
+    [Min(1f)] public float goldGatherSpeedMultiplier = 1f;
+    [Min(1f)] public float foodGatherSpeedMultiplier = 1f;
+
+    public bool HasVillagerEconomyEffects()
+    {
+        return villagerCarryCapacityBonus != 0
+            || villagerMoveSpeedMultiplier > 1.001f
+            || woodGatherSpeedMultiplier > 1.001f
+            || stoneGatherSpeedMultiplier > 1.001f
+            || goldGatherSpeedMultiplier > 1.001f
+            || foodGatherSpeedMultiplier > 1.001f;
+    }
+
+    public string GetVillagerEffectText()
+    {
+        string text = "";
+
+        if (villagerCarryCapacityBonus != 0)
+        {
+            text += "+ " + villagerCarryCapacityBonus + " suc chua";
+        }
+
+        AppendMultiplierEffect(ref text, villagerMoveSpeedMultiplier, "toc chay");
+        AppendMultiplierEffect(ref text, woodGatherSpeedMultiplier, "khai thac go");
+        AppendMultiplierEffect(ref text, stoneGatherSpeedMultiplier, "khai thac da");
+        AppendMultiplierEffect(ref text, goldGatherSpeedMultiplier, "khai thac vang");
+        AppendMultiplierEffect(ref text, foodGatherSpeedMultiplier, "thu thap thuc an");
+
+        return string.IsNullOrEmpty(text) ? description : text;
+    }
+
+    private void AppendMultiplierEffect(ref string text, float multiplier, string label)
+    {
+        if (multiplier <= 1.001f)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            text += ", ";
+        }
+
+        int percent = Mathf.RoundToInt((multiplier - 1f) * 100f);
+        text += "+" + percent + "% " + label;
+    }
 }

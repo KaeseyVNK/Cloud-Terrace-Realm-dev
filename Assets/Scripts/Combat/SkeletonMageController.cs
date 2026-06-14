@@ -22,6 +22,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
     [SerializeField] private float summonedRiseDuration = 1.1f;
     [SerializeField] private string summonTriggerName = "Summon";
     [SerializeField] private string isSummoningParameterName = "IsSummoning";
+    [SerializeField] private int fallbackMaxActiveSummonedEnemies = 18;
 
     [Header("Threat Response")]
     [SerializeField] private bool kiteMeleeThreats = true;
@@ -198,7 +199,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
     private bool CanStartSummon()
     {
-        return normalEnemyPrefab != null || shieldEnemyPrefab != null;
+        return (normalEnemyPrefab != null || shieldEnemyPrefab != null) && GetRemainingSummonSlots() > 0;
     }
 
     private bool TryKiteMeleeThreat()
@@ -277,31 +278,62 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
     private void SpawnSummonGroup()
     {
+        int remainingSlots = GetRemainingSummonSlots();
+        if (remainingSlots <= 0)
+        {
+            Debug.Log("[SkeletonMage] Bỏ qua triệu hồi vì đã đạt giới hạn summoned enemies.");
+            return;
+        }
+
         int slotIndex = 0;
         for (int i = 0; i < normalEnemyCount; i++)
         {
-            SpawnSummonedEnemy(normalEnemyPrefab, slotIndex++);
+            if (remainingSlots <= 0)
+            {
+                return;
+            }
+
+            if (SpawnSummonedEnemy(normalEnemyPrefab, slotIndex++))
+            {
+                remainingSlots--;
+            }
         }
 
         for (int i = 0; i < shieldEnemyCount; i++)
         {
-            SpawnSummonedEnemy(shieldEnemyPrefab, slotIndex++);
+            if (remainingSlots <= 0)
+            {
+                return;
+            }
+
+            if (SpawnSummonedEnemy(shieldEnemyPrefab, slotIndex++))
+            {
+                remainingSlots--;
+            }
         }
     }
 
-    private void SpawnSummonedEnemy(GameObject prefab, int slotIndex)
+    private bool SpawnSummonedEnemy(GameObject prefab, int slotIndex)
     {
         if (prefab == null || PoolManager.Instance == null)
         {
-            return;
+            return false;
         }
 
         Vector3 spawnPosition = GetSummonPosition(slotIndex);
         GameObject summon = PoolManager.Instance.Spawn(prefab, spawnPosition, Quaternion.LookRotation(transform.forward, Vector3.up));
         if (summon == null)
         {
-            return;
+            return false;
         }
+
+        SummonedEnemyTracker tracker = summon.GetComponent<SummonedEnemyTracker>();
+        if (tracker == null)
+        {
+            tracker = summon.AddComponent<SummonedEnemyTracker>();
+        }
+
+        tracker.MarkAsSummoned();
 
         SummonedEnemyRiseController riseController = summon.GetComponent<SummonedEnemyRiseController>();
         if (riseController == null)
@@ -311,6 +343,16 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
         riseController.PlayRise(summonedRiseDuration);
         activeSummons.Add(riseController);
+        return true;
+    }
+
+    private int GetRemainingSummonSlots()
+    {
+        int maxActiveSummons = EnemyManager.Instance != null
+            ? EnemyManager.Instance.MaxActiveSummonedEnemies
+            : fallbackMaxActiveSummonedEnemies;
+
+        return SummonedEnemyTracker.GetRemainingCapacity(maxActiveSummons);
     }
 
     private Vector3 GetSummonPosition(int slotIndex)

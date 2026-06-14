@@ -12,7 +12,7 @@ public class ResourceNode : MonoBehaviour
     }
 
     [UnityEngine.Serialization.FormerlySerializedAs("currentQuantity")]
-    [SerializeField] private int _currentQuantity = 20;
+    [SerializeField] private int _currentQuantity = 250;
     public int CurrentQuantity
     {
         get => _currentQuantity;

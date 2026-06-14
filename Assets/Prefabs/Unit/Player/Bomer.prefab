@@ -1503,7 +1503,7 @@ GameObject:
   - component: {fileID: 3154258452659901649}
   - component: {fileID: 6477847096861618464}
   - component: {fileID: 1661046695883608199}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Bomer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1626,6 +1626,7 @@ MonoBehaviour:
   attackRangeExitBuffer: 0.35
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
+  movingAnimationHoldTime: 0.18
   _projectilePrefab: {fileID: 0}
   _firePoint: {fileID: 0}
   _projectileSpawnHeight: 1.4
@@ -1644,7 +1645,10 @@ MonoBehaviour:
   _throwAnimationStateName: Attack
   _throwNormalizedTime: 0.85
   _throwEventFallbackDelay: 0.9
-  _queuedThrowRangeBuffer: 0.4
+  _retreatAfterThrowWhenThreatened: 1
+  _postThrowRetreatTriggerDistance: 5
+  _postThrowRetreatDistance: 4.5
+  _postThrowMeleeThreatAttackRange: 3.5
 --- !u!95 &3154258452659901649
 Animator:
   serializedVersion: 7

@@ -26,9 +26,13 @@ public class HUDManager : MonoBehaviour
 
     private float _nextPopulationRefreshTime;
 
+    [Header("Đói Lương Thực Warning")]
+    [SerializeField] private TextMeshProUGUI _foodWarningText;
+
     void Start()
     {
         EnsurePopulationText();
+        EnsureFoodWarningText();
 
         // Đăng ký lắng nghe sự kiện tài nguyên thay đổi từ ResourceManager
         if (ResourceManager.Instance != null)
@@ -90,6 +94,20 @@ public class HUDManager : MonoBehaviour
             _nextPopulationRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, _populationRefreshInterval);
             UpdatePopulationUI();
         }
+
+        // Cập nhật trạng thái thiếu lương thực
+        if (HungerSystem.Instance != null)
+        {
+            bool isShortage = HungerSystem.Instance.IsFoodShortage;
+            if (_foodWarningText != null)
+            {
+                _foodWarningText.gameObject.SetActive(isShortage);
+            }
+            if (_foodText != null)
+            {
+                _foodText.color = isShortage ? Color.red : Color.white;
+            }
+        }
     }
 
     private void EnsurePopulationText()
@@ -140,5 +158,42 @@ public class HUDManager : MonoBehaviour
         _populationText.text = reserved > 0
             ? $"Dan: {current}+{reserved}/{max}"
             : $"Dan: {current}/{max}";
+    }
+
+    private void EnsureFoodWarningText()
+    {
+        if (_foodWarningText != null)
+        {
+            return;
+        }
+
+        Transform existing = transform.Find("FoodWarningText");
+        if (existing != null)
+        {
+            _foodWarningText = existing.GetComponent<TextMeshProUGUI>();
+            if (_foodWarningText != null)
+            {
+                return;
+            }
+        }
+
+        GameObject warningObject = new GameObject("FoodWarningText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        warningObject.transform.SetParent(transform, false);
+        warningObject.layer = gameObject.layer;
+
+        RectTransform rectTransform = warningObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(300f, 412f); // Dưới PopulationText
+        rectTransform.sizeDelta = new Vector2(500f, 50f);
+
+        _foodWarningText = warningObject.GetComponent<TextMeshProUGUI>();
+        _foodWarningText.fontSize = 24f;
+        _foodWarningText.alignment = TextAlignmentOptions.Center;
+        _foodWarningText.color = Color.red;
+        _foodWarningText.text = "⚠️ THIẾU LƯƠNG THỰC! CƯ DÂN BỊ ĐÓI!";
+        _foodWarningText.raycastTarget = false;
+        _foodWarningText.gameObject.SetActive(false); // Ẩn mặc định
     }
 }

@@ -12,6 +12,7 @@ public class WatchTowerGarrison : MonoBehaviour
     [SerializeField] private float entryNavMeshSampleRadius = 4f;
     [SerializeField] private float incomingReservationTimeout = 8f;
     [SerializeField] private float ejectSpacing = 1.25f;
+    
 
     [Header("Vision")]
     [SerializeField] private float visionRadius = 32f;
@@ -241,6 +242,13 @@ public class WatchTowerGarrison : MonoBehaviour
             UnitSelectionManager.Instance.DeselectUnit(unit);
         }
 
+        VillagerController villager = unit.GetComponent<VillagerController>();
+        if (villager != null)
+        {
+            villager.ClearAssignedGarrison();
+            villager.ChangeState(VillagerState.Sheltered);
+        }
+
         unit.gameObject.SetActive(false);
     }
 
@@ -252,8 +260,28 @@ public class WatchTowerGarrison : MonoBehaviour
         }
 
         Vector3 offset = Quaternion.Euler(0f, index * 360f / Mathf.Max(1, capacity), 0f) * Vector3.forward * ejectSpacing;
-        unit.transform.position = GetEntryPosition() + offset;
+        Vector3 targetPos = GetEntryPosition() + offset;
+
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+        {
+            targetPos = hit.position;
+        }
+
+        unit.transform.position = targetPos;
         unit.gameObject.SetActive(true);
+
+        NavMeshAgent agent = unit.GetComponent<NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.Warp(targetPos);
+        }
+
+        VillagerController villager = unit.GetComponent<VillagerController>();
+        if (villager != null)
+        {
+            villager.ResumePostShelterState();
+        }
     }
 
     private void TryAttack()

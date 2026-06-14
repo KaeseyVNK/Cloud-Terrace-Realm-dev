@@ -940,13 +940,10 @@ public class BuildingManager : MonoBehaviour
             }
         }
 
-        // Dự phòng: Nếu chưa có kho nào nhận, trả về vị trí gốc của grid hoặc toạ độ giữa bản đồ
+        // Dự phòng: Nếu chưa có kho nào nhận, trả về Vector3.zero để báo hiệu không tìm thấy điểm nộp
         if (!found)
         {
-            if (_gridSystem != null)
-            {
-                bestPos = _gridSystem.GetWorldPosition(_gridSystem.GetWidth() / 2, _gridSystem.GetLength() / 2, 0);
-            }
+            bestPos = Vector3.zero;
         }
 
         return bestPos;

@@ -29,6 +29,10 @@ public class CameraControls : MonoBehaviour
     private CinemachineFollow cinemachineFollow;
     private float targetZoomDistance;
     private float zoomVelocity = 0f; 
+    private bool hasStoredView;
+    private Vector3 storedPosition;
+    private Quaternion storedRotation;
+    private float storedZoomDistance;
 
     private float screenWidth = Screen.width;
     private float screenHeight = Screen.height;
@@ -51,6 +55,40 @@ public class CameraControls : MonoBehaviour
         HandleZoom();
         HandleEdgePan();   
         HandleRotation(); 
+    }
+
+    public void FocusOnPosition(Vector3 position, bool preserveExistingStoredView = true)
+    {
+        if (!hasStoredView || !preserveExistingStoredView)
+        {
+            StoreCurrentView();
+        }
+
+        transform.position = position;
+    }
+
+    public bool ReturnToStoredView()
+    {
+        if (!hasStoredView)
+        {
+            return false;
+        }
+
+        transform.SetPositionAndRotation(storedPosition, storedRotation);
+        targetZoomDistance = storedZoomDistance;
+        zoomVelocity = 0f;
+        hasStoredView = false;
+        return true;
+    }
+
+    public bool HasStoredView => hasStoredView;
+
+    private void StoreCurrentView()
+    {
+        storedPosition = transform.position;
+        storedRotation = transform.rotation;
+        storedZoomDistance = targetZoomDistance;
+        hasStoredView = true;
     }
 
     private void HandleRotation()

@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 2153101639149049035}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.009, y: 1.29, z: -0}
+  m_LocalPosition: {x: 0.009, y: 3.468, z: -0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -81,7 +81,7 @@ Light:
   m_RenderMode: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 183
   m_RenderingLayerMask: 1
   m_Lightmapping: 4
   m_LightShadowCasterMode: 0
@@ -262,7 +262,7 @@ GameObject:
   - component: {fileID: 4401951799062683995}
   - component: {fileID: 4908224100906670324}
   - component: {fileID: 7501596650729813472}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: WatchTower
   m_TagString: Untagged
   m_Icon: {fileID: 0}

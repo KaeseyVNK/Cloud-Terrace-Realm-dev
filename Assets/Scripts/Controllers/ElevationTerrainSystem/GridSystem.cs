@@ -158,6 +158,11 @@ public class GridSystem : MonoBehaviour
 
     void Awake()
     {
+        if (_woodNodeAmountRange.x < 200) _woodNodeAmountRange = new Vector2Int(200, 300);
+        if (_stoneNodeAmountRange.x < 200) _stoneNodeAmountRange = new Vector2Int(200, 300);
+        if (_goldNodeAmountRange.x < 200) _goldNodeAmountRange = new Vector2Int(200, 300);
+        if (_foodNodeAmountRange.x < 200) _foodNodeAmountRange = new Vector2Int(200, 300);
+
         InitGridFromTerrain();
     }
 

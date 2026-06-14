@@ -772,7 +772,7 @@ GameObject:
   - component: {fileID: 3065228670912742657}
   - component: {fileID: 6864289436128823353}
   - component: {fileID: 5046667633422415988}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Skeleton_Mage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -947,6 +947,10 @@ MonoBehaviour:
   _enemyMovingScanInterval: 0.25
   _enemyRetargetScanInterval: 0.45
   _targetRole: 0
+  _randomizeRoleOnSpawn: 1
+  _assaultWeight: 0.6
+  _raiderWeight: 0.25
+  _siegeBreakerWeight: 0.15
   magicProjectilePrefab: {fileID: 3586818473801475032, guid: 590a54aeee291484aa8bf9c65f3bac48, type: 3}
   castPoint: {fileID: 0}
   projectileSpawnHeight: 1.45
@@ -961,6 +965,11 @@ MonoBehaviour:
   summonedRiseDuration: 1.1
   summonTriggerName: Summon
   isSummoningParameterName: IsSummoning
+  fallbackMaxActiveSummonedEnemies: 18
+  kiteMeleeThreats: 1
+  kiteTriggerDistance: 5
+  kiteRetreatDistance: 4.5
+  meleeThreatAttackRange: 3.5
 --- !u!1 &4409844343140804051
 GameObject:
   m_ObjectHideFlags: 0

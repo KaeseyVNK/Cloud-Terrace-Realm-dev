@@ -13,6 +13,9 @@ public class TimeManager : MonoBehaviour
     // Sự kiện khi chuyển đổi Ngày / Đêm
     public event Action<bool> OnDayNightChanged;
     
+    // Sự kiện khi ngày mới bắt đầu
+    public event Action<int> OnDayChanged;
+    
     public bool IsNight { get; private set; } = false;
 
     void Awake()
@@ -35,6 +38,7 @@ public class TimeManager : MonoBehaviour
         {
             currentTime = 0f;
             dayCount++;
+            OnDayChanged?.Invoke(dayCount);
         }
 
         // Cập nhật trạng thái Ngày/Đêm

@@ -36,6 +36,21 @@ public class VillagerCombatTarget : BaseCombatUnitController
         if (currentState == CombatState.Dead) return;
     }
 
+    public override void TakeDamage(int damage, BaseCombatUnitController attacker = null)
+    {
+        if (_villagerController == null)
+        {
+            _villagerController = GetComponent<VillagerController>();
+        }
+
+        if (_villagerController != null)
+        {
+            _villagerController.NotifyUnderAttack(attacker);
+        }
+
+        base.TakeDamage(damage, attacker);
+    }
+
     /// <summary>
     /// Xử lý logic khi dân làng bị tiêu diệt hoàn toàn.
     /// </summary>

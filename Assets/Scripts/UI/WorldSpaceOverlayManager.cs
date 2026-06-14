@@ -29,6 +29,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     private GUIStyle _shelterTextStyle;
     private GUIStyle _watchTowerTextStyle;
     private GUIStyle _resourceTooltipStyle;
+    private GUIStyle _hungerTextStyle;
     private bool _stylesInitialized = false;
 
     // Cache GUIContent để tái sử dụng, tránh new GUIContent mỗi frame
@@ -77,14 +78,30 @@ public class WorldSpaceOverlayManager : MonoBehaviour
             RefreshCachedReferences();
         }
 
-        // Bắn tia Raycast phát hiện ResourceNode dưới chuột
+        // Bắn tia Raycast phát hiện ResourceNode dưới chuột (lọc tài nguyên trong sương mù)
         if (_mainCamera != null && UnityEngine.InputSystem.Mouse.current != null)
         {
             Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
             Ray ray = _mainCamera.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
             if (Physics.Raycast(ray, out RaycastHit hit, 200f))
             {
-                _hoveredResourceNode = hit.collider.GetComponentInParent<ResourceNode>();
+                ResourceNode node = hit.collider.GetComponentInParent<ResourceNode>();
+                if (node != null)
+                {
+                    FogVisibilityTarget visibilityTarget = node.GetComponentInParent<FogVisibilityTarget>();
+                    if (visibilityTarget != null && !visibilityTarget.IsVisible)
+                    {
+                        _hoveredResourceNode = null;
+                    }
+                    else
+                    {
+                        _hoveredResourceNode = node;
+                    }
+                }
+                else
+                {
+                    _hoveredResourceNode = null;
+                }
             }
             else
             {
@@ -186,6 +203,12 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         _resourceTooltipStyle.fontSize = 11;
         _resourceTooltipStyle.fontStyle = FontStyle.Bold;
 
+        _hungerTextStyle = new GUIStyle();
+        _hungerTextStyle.alignment = TextAnchor.MiddleCenter;
+        _hungerTextStyle.normal.textColor = new Color(1.0f, 0.3f, 0.3f); // Đỏ sáng
+        _hungerTextStyle.fontSize = 11;
+        _hungerTextStyle.fontStyle = FontStyle.Bold;
+
         _stylesInitialized = true;
     }
 
@@ -279,6 +302,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         DrawShelterOccupancy();
         DrawWatchTowerOccupancy();
         DrawHoveredResourceTooltip();
+        DrawHungryVillagersBadge();
     }
 
     /// <summary>
@@ -658,5 +682,71 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         GUI.Label(textRect, _tempContent, _resourceTooltipStyle);
 
         GUI.color = originalColor;
+    }
+
+    /// <summary>
+    /// Vẽ nhãn đói cho cư dân bị thiếu lương thực.
+    /// </summary>
+    private void DrawHungryVillagersBadge()
+    {
+        if (VillagerController.AllVillagers == null) return;
+
+        Color originalColor = GUI.color;
+
+        for (int i = 0; i < VillagerController.AllVillagers.Count; i++)
+        {
+            var villager = VillagerController.AllVillagers[i];
+            if (villager == null || !villager.gameObject.activeInHierarchy || villager.CurrentState == VillagerState.Sheltered)
+                continue;
+
+            if (villager.IsHungry)
+            {
+                DrawHungryBadge(villager);
+            }
+        }
+
+        GUI.color = originalColor;
+    }
+
+    private void DrawHungryBadge(VillagerController villager)
+    {
+        float height = GetCachedHeight(villager.gameObject, 2.0f);
+
+        // Đặt ở trên đầu villager, cao hơn thanh máu.
+        Vector3 worldPos = villager.transform.position + Vector3.up * (height + 0.65f);
+        Vector3 screenPos = _mainCamera.WorldToScreenPoint(worldPos);
+
+        if (screenPos.z <= 0) return;
+
+        float guiX = screenPos.x;
+        float guiY = Screen.height - screenPos.y;
+
+        string text = "🍽️ Đói";
+        _tempContent.text = text;
+
+        Vector2 size = _hungerTextStyle.CalcSize(_tempContent);
+        float paddingX = 6f;
+        float paddingY = 2f;
+        float rectWidth = size.x + paddingX * 2;
+        float rectHeight = size.y + paddingY * 2;
+
+        Rect badgeRect = new Rect(guiX - rectWidth / 2f, guiY - rectHeight / 2f, rectWidth, rectHeight);
+
+        // Nền tối
+        GUI.color = new Color(0.15f, 0.05f, 0.05f, 0.9f);
+        GUI.DrawTexture(badgeRect, Texture2D.whiteTexture);
+
+        // Viền đỏ
+        Rect borderRect = new Rect(badgeRect.x - 1, badgeRect.y - 1, badgeRect.width + 2, badgeRect.height + 2);
+        GUI.color = new Color(1.0f, 0.3f, 0.3f, 0.7f);
+        
+        GUI.DrawTexture(new Rect(borderRect.x, borderRect.y, borderRect.width, 1), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(borderRect.x, borderRect.yMax - 1, borderRect.width, 1), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(borderRect.x, borderRect.y, 1, borderRect.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(borderRect.xMax - 1, borderRect.y, 1, borderRect.height), Texture2D.whiteTexture);
+
+        GUI.color = Color.white;
+        Rect textRect = new Rect(badgeRect.x + paddingX, badgeRect.y + paddingY, size.x, size.y);
+        GUI.Label(textRect, _tempContent, _hungerTextStyle);
     }
 }

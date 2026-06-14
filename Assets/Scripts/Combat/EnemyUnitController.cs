@@ -118,6 +118,8 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             navAgent.isStopped = false;
             navAgent.stoppingDistance = 0.2f;
             navAgent.ResetPath();
+            // Ngẫu nhiên hóa avoidancePriority để chúng tự động tránh nhau tốt hơn, không đi hàng một
+            navAgent.avoidancePriority = Random.Range(30, 71);
         }
 
         animator = GetComponentInChildren<Animator>();
@@ -160,7 +162,17 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
     public void SetRallyPoint(Vector3 position)
     {
-        _rallyPosition = position;
+        // Thêm offset ngẫu nhiên nhỏ quanh rally point để quái không đi thành hàng một
+        float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        float distOffset = Random.Range(1.0f, 3.5f);
+        Vector3 offsetPos = position + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distOffset;
+
+        if (NavMesh.SamplePosition(offsetPos, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+        {
+            offsetPos = hit.position;
+        }
+
+        _rallyPosition = offsetPos;
         _isWaitingForRally = true;
         if (navAgent != null && navAgent.enabled)
         {
@@ -323,8 +335,12 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             {
                 navAgent.isStopped = false;
                 
-                // Thử tìm vị trí trên NavMesh gần mục tiêu
+                // Thử tìm vị trí trên NavMesh gần mục tiêu, thêm offset ngẫu nhiên để tránh đi hàng một
                 Vector3 destinationPos = targetPos;
+                float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+                float distOffset = Random.Range(1.0f, 3.5f);
+                destinationPos += new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distOffset;
+
                 if (UnityEngine.AI.NavMesh.SamplePosition(destinationPos, out UnityEngine.AI.NavMeshHit hit, 30f, UnityEngine.AI.NavMesh.AllAreas))
                 {
                     destinationPos = hit.position;
@@ -481,9 +497,19 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         }
 
         int nearbyPriority = GetTargetPriority(nearbyTarget);
-        if (nearbyPriority >= currentPriority)
+        if (nearbyPriority > currentPriority)
         {
             return false;
+        }
+        else if (nearbyPriority == currentPriority)
+        {
+            // Nếu cùng độ ưu tiên, chỉ retarget nếu mục tiêu mới gần hơn mục tiêu cũ ít nhất 4m
+            float currentDist = GetDistanceToTarget(currentTarget);
+            float nearbyDist = GetDistanceToTarget(nearbyTarget);
+            if (nearbyDist + 4.0f >= currentDist)
+            {
+                return false;
+            }
         }
 
         AttackTarget(nearbyTarget);

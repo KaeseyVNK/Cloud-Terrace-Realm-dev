@@ -194,6 +194,14 @@ public class UnitSelectionManager : MonoBehaviour
                             villager.CommandBuild(clickedBuilding);
                             Debug.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi xây dựng {clickedBuilding.gameObject.name}");
                         }
+                        // A.2. Ưu tiên 1.2: Click vào công trình thân thiện bị thương -> Sửa chữa
+                        else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Player &&
+                                 (clickedEnemy.GetComponent<BuildingCombatTarget>() != null || clickedEnemy.GetComponent<MainBuildingCombatTarget>() != null) &&
+                                 clickedEnemy.currentHealth < clickedEnemy.maxHealth)
+                        {
+                            villager.CommandRepair(clickedEnemy);
+                            Debug.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi sửa chữa {clickedEnemy.gameObject.name}");
+                        }
                         // B. Ưu tiên 2: Click vào mỏ tài nguyên -> Đi khai thác
                         else if (clickedNode != null)
                         {

@@ -586,7 +586,7 @@ GameObject:
   - component: {fileID: 153961034636806923}
   - component: {fileID: 2250153551624627703}
   - component: {fileID: -8641387443041071923}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Rogue_Hooded
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -769,6 +769,7 @@ MonoBehaviour:
   attackRangeExitBuffer: 0.35
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
+  movingAnimationHoldTime: 0.18
   _projectilePrefab: {fileID: 3481825871724354573, guid: d18ed97130047074e9f3d09a9e97b11d, type: 3}
   _firePoint: {fileID: 3871655554846381618}
   _projectileSpawnHeight: 1.4

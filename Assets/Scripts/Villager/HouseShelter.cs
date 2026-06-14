@@ -224,6 +224,14 @@ public class HouseShelter : MonoBehaviour
         // Activate and resume state
         villager.transform.position = ejectPos;
         villager.gameObject.SetActive(true);
+
+        NavMeshAgent agent = villager.GetComponent<NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.Warp(ejectPos);
+        }
+
         villager.ResumePostShelterState();
 
         Debug.Log($"[HouseShelter] Ejected villager {villager.gameObject.name} from {gameObject.name}.");

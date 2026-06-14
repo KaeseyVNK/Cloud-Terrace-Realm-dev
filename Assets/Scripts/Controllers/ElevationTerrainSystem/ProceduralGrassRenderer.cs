@@ -203,6 +203,13 @@ public class ProceduralGrassRenderer : MonoBehaviour
     {
         if (_isInitialized) return;
 
+        // Ép cỏ render trên layer "Grass" để tối ưu hóa culling mask của ánh sáng ban đêm
+        int grassLayer = LayerMask.NameToLayer("Grass");
+        if (grassLayer != -1)
+        {
+            _layer = grassLayer;
+        }
+
         bool hasMaterials = _grassMaterial != null;
         if (_grassTypes != null)
         {
@@ -503,7 +510,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
             _propertyBlock.SetFloat("_WindSpeed", _windSpeed);
             _propertyBlock.SetFloat("_WindFrequency", _windFrequency);
             _propertyBlock.SetFloat("_WindStrength", _windStrength);
-            Graphics.DrawMeshInstancedIndirect(_bladeMesh, 0, typeData.material, _bounds, typeData.argsBuffer, 0, _propertyBlock, UnityEngine.Rendering.ShadowCastingMode.On, true, _layer);
+            Graphics.DrawMeshInstancedIndirect(_bladeMesh, 0, typeData.material, _bounds, typeData.argsBuffer, 0, _propertyBlock, UnityEngine.Rendering.ShadowCastingMode.Off, true, _layer);
         }
         if (logDiagnostics) Debug.Log($"[ProceduralGrassRenderer Debug] GPU rendering: {totalRenderedBlades} / {_totalSourceBlades} total blades visible.");
     }

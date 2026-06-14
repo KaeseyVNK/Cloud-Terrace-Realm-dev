@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 431109152200755937}
   - component: {fileID: 261630709580275087}
   - component: {fileID: 1859044173672835247}
+  - component: {fileID: 2878201705969686539}
   m_Layer: 6
   m_Name: Villager
   m_TagString: Untagged
@@ -157,11 +158,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: befd7572bd7ade14d94c36e8dc475439, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VillagerController
-  currentState: 0
-  carryingResource: 0
-  carryAmount: 0
-  maxCarryCapacity: 5
-  timeToGather: 3
+  _currentState: 0
+  _targetBuilding: {fileID: 0}
+  _buildSpeedMultiplier: 1
+  _woodTool: {fileID: 0}
+  _miningTool: {fileID: 0}
+  _maxCarryCapacity: 5
+  _timeToGather: 3
+  _gatherAmountPerTick: 1
+  _timeToDeposit: 2
+  _autoGatherAfterBuildRadius: 40
+  _enableAutoFlee: 1
+  _dangerScanRadius: 12
+  _dangerScanInterval: 0.4
+  _manualCommandProtectionTime: 3
+  _enableSmartIdleSearch: 1
+  _smartIdleScanInterval: 2.5
+  _idleConstructionSearchRadius: 18
+  _idleResourceSearchRadius: 50
+  _runtimeAgentRadius: 0.32
+  _disableAvoidanceNearTargetDistance: 0.9
+  _builderSlotSpacing: 1.25
 --- !u!114 &261630709580275087
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -198,6 +215,27 @@ CapsuleCollider:
   m_Height: 1.9966835
   m_Direction: 1
   m_Center: {x: 0, y: 0.99834174, z: 0}
+--- !u!114 &2878201705969686539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6385512595020126399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0274f2447e96a7c4cb1329c0d201afbd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VillagerCarryVisuals
+  _carryAnchor: {fileID: 0}
+  _defaultAnchorLocalPosition: {x: 0, y: 1.05, z: -0.25}
+  _defaultAnchorLocalEuler: {x: 12, y: 0, z: 0}
+  _woodPrefab: {fileID: 0}
+  _stonePrefab: {fileID: 0}
+  _foodPrefab: {fileID: 0}
+  _goldPrefab: {fileID: 0}
+  _woodScale: {x: 0.32, y: 0.16, z: 0.16}
+  _bagScale: {x: 0.28, y: 0.28, z: 0.22}
 --- !u!1 &8067539815564012639
 GameObject:
   m_ObjectHideFlags: 0

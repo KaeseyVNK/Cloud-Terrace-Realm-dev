@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a299f61e18fb51d48a1940d6663129cb, type: 3}
+  m_Name: EnemyRoster
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyRosterData
+  roster:
+  - name: Skeleton
+    prefab: {fileID: 6070211045844620596, guid: 243e31f08c133924fbc9768c84bc0fc5, type: 3}
+    unlockDay: 1
+    weight: 3.5
+    maxCountPerWave: 24
+  - name: EnemyArcher
+    prefab: {fileID: 6070211045844620596, guid: a89a35136c2b46349925ccbb37a936a2, type: 3}
+    unlockDay: 4
+    weight: 1.15
+    maxCountPerWave: 10
+  - name: EnemyKnight2H
+    prefab: {fileID: 441517115746933756, guid: cecad7e0a09f79d49a3ac88f1a2cc985, type: 3}
+    unlockDay: 7
+    weight: 0.75
+    maxCountPerWave: 8
+  - name: SkeletonMage
+    prefab: {fileID: 4124591595950808763, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
+    unlockDay: 10
+    weight: 0.35
+    maxCountPerWave: 3
