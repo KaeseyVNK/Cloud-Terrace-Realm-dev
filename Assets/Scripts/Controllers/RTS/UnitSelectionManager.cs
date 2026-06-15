@@ -17,6 +17,10 @@ public class UnitSelectionManager : MonoBehaviour
     private float _lastClickTime = 0f;
     private const float DoubleClickTimeThreshold = 0.3f; // 300 ms
 
+    private bool _isAttackMode = false;
+    private bool _isGatherMode = false;
+    private bool _isBuildMode = false;
+
     void Awake()
     {
         if (Instance == null)
@@ -34,9 +38,91 @@ public class UnitSelectionManager : MonoBehaviour
 
     void Update()
     {
+        // Bấm Esc để hủy chế độ ra lệnh chủ động
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (_isAttackMode || _isGatherMode || _isBuildMode)
+            {
+                ClearTargetingModes();
+                Debug.Log("[RTS] Hủy chế độ ra lệnh chỉ định");
+                return;
+            }
+        }
+
+        // Kiểm tra phím tắt ra lệnh chủ động
+        if (selectedUnits.Count > 0)
+        {
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                bool hasCombatUnits = false;
+                foreach (var unit in selectedUnits)
+                {
+                    if (unit != null && unit.GetComponent<BaseCombatUnitController>() != null)
+                    {
+                        hasCombatUnits = true;
+                        break;
+                    }
+                }
+
+                if (hasCombatUnits)
+                {
+                    ClearTargetingModes();
+                    _isAttackMode = true;
+                    if (CursorManager.Instance != null) CursorManager.Instance.IsAttackTargetingMode = true;
+                    Debug.Log("[RTS] Vào chế độ chỉ định Tấn công (Attack targeting mode)");
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.G))
+            {
+                bool hasVillagers = false;
+                foreach (var unit in selectedUnits)
+                {
+                    if (unit != null && unit.GetComponent<VillagerController>() != null)
+                    {
+                        hasVillagers = true;
+                        break;
+                    }
+                }
+
+                if (hasVillagers)
+                {
+                    ClearTargetingModes();
+                    _isGatherMode = true;
+                    if (CursorManager.Instance != null) CursorManager.Instance.IsGatherTargetingMode = true;
+                    Debug.Log("[RTS] Vào chế độ chỉ định Khai thác (Gather targeting mode)");
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.B))
+            {
+                bool hasVillagers = false;
+                foreach (var unit in selectedUnits)
+                {
+                    if (unit != null && unit.GetComponent<VillagerController>() != null)
+                    {
+                        hasVillagers = true;
+                        break;
+                    }
+                }
+
+                if (hasVillagers)
+                {
+                    ClearTargetingModes();
+                    _isBuildMode = true;
+                    if (CursorManager.Instance != null) CursorManager.Instance.IsBuildTargetingMode = true;
+                    Debug.Log("[RTS] Vào chế độ chỉ định Xây dựng (Build targeting mode)");
+                }
+            }
+        }
+
         // Bắt đầu click trái
         if (Input.GetMouseButtonDown(0))
         {
+            if (_isAttackMode || _isGatherMode || _isBuildMode)
+            {
+                ExecuteTargetingCommand();
+                return;
+            }
+
             startMousePos = Input.mousePosition;
             isDragging = true;
         }
@@ -59,7 +145,160 @@ public class UnitSelectionManager : MonoBehaviour
         // Khi click chuột phải ra lệnh
         if (Input.GetMouseButtonDown(1))
         {
-            HandleRightClickCommand();
+            if (_isAttackMode || _isGatherMode || _isBuildMode)
+            {
+                ClearTargetingModes();
+                Debug.Log("[RTS] Hủy chế độ ra lệnh bằng Chuột Phải");
+            }
+            else
+            {
+                HandleRightClickCommand();
+            }
+        }
+    }
+
+    private void ExecuteTargetingCommand()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (TryGetCommandHit(ray, out RaycastHit hit))
+        {
+            if (_isAttackMode)
+            {
+                BaseCombatUnitController clickedEnemy = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+                int moveIndex = 0;
+                foreach (var unit in selectedUnits)
+                {
+                    if (unit != null)
+                    {
+                        BaseCombatUnitController combatUnit = unit.GetComponent<BaseCombatUnitController>();
+                        if (combatUnit != null)
+                        {
+                            if (clickedEnemy != null && clickedEnemy.faction != combatUnit.faction)
+                            {
+                                combatUnit.CommandAttack(clickedEnemy);
+                                Debug.Log($"[RTS] Chỉ định tấn công mục tiêu: {clickedEnemy.unitName}");
+                            }
+                            else
+                            {
+                                Vector3 targetPos = hit.point + GetFormationOffset(moveIndex, 1.5f);
+                                if (Terrain.activeTerrain != null)
+                                {
+                                    targetPos.y = Terrain.activeTerrain.SampleHeight(targetPos) + Terrain.activeTerrain.transform.position.y;
+                                }
+                                else
+                                {
+                                    targetPos.y = 0f;
+                                }
+                                combatUnit.CommandAttackMove(targetPos);
+                                moveIndex++;
+                                Debug.Log($"[RTS] Chỉ định di chuyển tấn công tới: {targetPos}");
+                            }
+                        }
+                    }
+                }
+            }
+            else if (_isGatherMode)
+            {
+                ResourceNode clickedNode = hit.collider.GetComponentInParent<ResourceNode>();
+                BaseCombatUnitController clickedEnemy = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+                WildAnimalController animal = clickedEnemy != null ? clickedEnemy.GetComponent<WildAnimalController>() : null;
+
+                if (animal != null)
+                {
+                    foreach (var unit in selectedUnits)
+                    {
+                        if (unit != null)
+                        {
+                            VillagerController villager = unit.GetComponent<VillagerController>();
+                            if (villager != null)
+                            {
+                                villager.CommandHunt(animal);
+                                Debug.Log($"[RTS] Chỉ định dân làng {unit.gameObject.name} săn thú hoang {animal.unitName}");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (clickedNode == null)
+                    {
+                        GridSystem grid = FindAnyObjectByType<GridSystem>();
+                        if (grid != null)
+                        {
+                            grid.GetXY(hit.point, out int gridX, out int gridZ);
+                            GridCell cell = grid.GetCell(gridX, gridZ);
+                            if (cell != null && cell.hasResource && cell.resourceObject != null)
+                            {
+                                if (!IsHiddenByFog(cell.resourceObject))
+                                {
+                                    clickedNode = cell.resourceObject.GetComponent<ResourceNode>();
+                                }
+                            }
+                        }
+                    }
+
+                    if (clickedNode != null)
+                    {
+                        clickedNode.TriggerBounceEffect();
+                        foreach (var unit in selectedUnits)
+                        {
+                            if (unit != null)
+                            {
+                                VillagerController villager = unit.GetComponent<VillagerController>();
+                                if (villager != null)
+                                {
+                                    villager.CommandGather(clickedNode, null);
+                                    Debug.Log($"[RTS] Chỉ định khai thác tài nguyên: {clickedNode.ResourceType}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (_isBuildMode)
+            {
+                ConstructibleBuilding clickedBuilding = hit.collider.GetComponentInParent<ConstructibleBuilding>();
+                BaseCombatUnitController clickedFriendlyUnit = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+
+                foreach (var unit in selectedUnits)
+                {
+                    if (unit != null)
+                    {
+                        VillagerController villager = unit.GetComponent<VillagerController>();
+                        if (villager != null)
+                        {
+                            if (clickedBuilding != null && !clickedBuilding.IsCompleted)
+                            {
+                                villager.CommandBuild(clickedBuilding);
+                                Debug.Log($"[RTS] Chỉ định xây dựng: {clickedBuilding.gameObject.name}");
+                            }
+                            else if (clickedFriendlyUnit != null && clickedFriendlyUnit.faction == UnitFaction.Player &&
+                                     (clickedFriendlyUnit.GetComponent<BuildingCombatTarget>() != null || clickedFriendlyUnit.GetComponent<MainBuildingCombatTarget>() != null) &&
+                                     clickedFriendlyUnit.currentHealth < clickedFriendlyUnit.maxHealth)
+                            {
+                                villager.CommandRepair(clickedFriendlyUnit);
+                                Debug.Log($"[RTS] Chỉ định sửa chữa: {clickedFriendlyUnit.gameObject.name}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ClearTargetingModes();
+    }
+
+    private void ClearTargetingModes()
+    {
+        _isAttackMode = false;
+        _isGatherMode = false;
+        _isBuildMode = false;
+
+        if (CursorManager.Instance != null)
+        {
+            CursorManager.Instance.IsAttackTargetingMode = false;
+            CursorManager.Instance.IsGatherTargetingMode = false;
+            CursorManager.Instance.IsBuildTargetingMode = false;
         }
     }
 
@@ -207,6 +446,13 @@ public class UnitSelectionManager : MonoBehaviour
                         {
                             villager.CommandGather(clickedNode, null);
                             Debug.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} khai thác {clickedNode.ResourceType}");
+                        }
+                        // B.2. Ưu tiên 2.2: Click vào thú hoang dã -> Đi săn
+                        else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Neutral && clickedEnemy.GetComponent<WildAnimalController>() != null)
+                        {
+                            WildAnimalController animal = clickedEnemy.GetComponent<WildAnimalController>();
+                            villager.CommandHunt(animal);
+                            Debug.Log($"[RTS] Đã ra lệnh cho dân làng {unit.gameObject.name} đi săn thú hoang {clickedEnemy.unitName}");
                         }
                         // C. Ưu tiên 3: Click vào đất trống -> Di chuyển
                         else

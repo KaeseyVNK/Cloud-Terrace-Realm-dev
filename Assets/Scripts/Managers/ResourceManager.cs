@@ -9,7 +9,8 @@ public enum ResourceType
     Stone,
     Food,
     Water,
-    Gold
+    Gold,
+    AncientRelic
 }
 
 public class ResourceManager : MonoBehaviour

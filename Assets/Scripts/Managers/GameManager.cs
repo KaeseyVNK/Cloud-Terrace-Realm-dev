@@ -7,6 +7,42 @@ public class GameManager : MonoBehaviour
     private static GameManager s_instance;
     public static GameManager Instance => s_instance;
 
+    private static Transform _villagersContainer;
+    public static Transform VillagersContainer
+    {
+        get
+        {
+            if (_villagersContainer == null)
+            {
+                GameObject container = GameObject.Find("Villagers");
+                if (container == null)
+                {
+                    container = new GameObject("Villagers");
+                }
+                _villagersContainer = container.transform;
+            }
+            return _villagersContainer;
+        }
+    }
+
+    private static Transform _combatUnitsContainer;
+    public static Transform CombatUnitsContainer
+    {
+        get
+        {
+            if (_combatUnitsContainer == null)
+            {
+                GameObject container = GameObject.Find("CombatUnits");
+                if (container == null)
+                {
+                    container = new GameObject("CombatUnits");
+                }
+                _combatUnitsContainer = container.transform;
+            }
+            return _combatUnitsContainer;
+        }
+    }
+
     private GridSystem _gridSystem;
     private BuildingManager _buildingManager;
 
@@ -19,6 +55,15 @@ public class GameManager : MonoBehaviour
     
     [UnityEngine.Serialization.FormerlySerializedAs("flatAreaRadius")]
     [SerializeField] private int _flatAreaRadius = 5;
+
+    [Header("Cursor Settings")]
+    [SerializeField] private Texture2D _customCursorTexture;
+    [SerializeField] private Vector2 _cursorHotspot = Vector2.zero;
+
+    [Header("Wildlife Settings")]
+    [SerializeField] private GameObject _chickenPrefab;
+    [SerializeField] private GameObject _deerPrefab;
+    [SerializeField] private GameObject _foodPrefab;
 
     void Awake()
     {
@@ -35,12 +80,86 @@ public class GameManager : MonoBehaviour
 
         _gridSystem = FindAnyObjectByType<GridSystem>();
         _buildingManager = FindAnyObjectByType<BuildingManager>();
+
+        // Dynamically setup WildlifeManager
+        WildlifeManager wildlife = gameObject.GetComponent<WildlifeManager>();
+        if (wildlife == null)
+        {
+            wildlife = gameObject.AddComponent<WildlifeManager>();
+        }
+        wildlife.SetPrefabs(_chickenPrefab, _deerPrefab, _foodPrefab);
+
+        // Dynamically setup CursorManager
+        CursorManager cursorManager = gameObject.GetComponent<CursorManager>();
+        if (cursorManager == null)
+        {
+            cursorManager = gameObject.AddComponent<CursorManager>();
+        }
     }
 
     void Start()
     {
         InitGame();
+        SetupCursor();
     }
+
+    private void SetupCursor()
+    {
+        Cursor.lockState = CursorLockMode.Confined;
+        Cursor.visible = true;
+
+        if (CursorManager.Instance != null)
+        {
+            CursorManager.Instance.SetCursorType(CursorType.Default);
+        }
+        else if (_customCursorTexture != null)
+        {
+            Cursor.SetCursor(_customCursorTexture, _cursorHotspot, CursorMode.Auto);
+        }
+    }
+
+    void Update()
+    {
+        if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+        {
+            if (Cursor.lockState != CursorLockMode.Confined)
+            {
+                Cursor.lockState = CursorLockMode.Confined;
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+        }
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (_customCursorTexture == null)
+        {
+            _customCursorTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ThirdAssets/StoneCursorWenrexa/PNG/01.png");
+            if (_customCursorTexture != null)
+            {
+                Debug.Log("[GameManager] Tu dong gan texture chuot tuy chinh tu StoneCursorWenrexa.");
+            }
+        }
+
+        if (_chickenPrefab == null)
+        {
+            _chickenPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Resource/Chicken_001.prefab");
+        }
+        if (_deerPrefab == null)
+        {
+            _deerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Resource/Deer_001.prefab");
+        }
+        if (_foodPrefab == null)
+        {
+            _foodPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/ResourceCaple/Food.prefab");
+        }
+    }
+#endif
 
     public void InitGame()
     {
@@ -96,7 +215,11 @@ public class GameManager : MonoBehaviour
                     Vector3 spawnPos = _gridSystem.GetWorldPosition(x, z);
                     // Dân làng có Pivot ở dưới chân nên không cần nâng Y
                     
-                    Instantiate(_villagerPrefab, spawnPos, Quaternion.identity);
+                    GameObject villagerObj = Instantiate(_villagerPrefab, spawnPos, Quaternion.identity);
+                    if (villagerObj != null)
+                    {
+                        villagerObj.transform.SetParent(VillagersContainer);
+                    }
                     spawnedCount++;
                 }
             }

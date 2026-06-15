@@ -13,6 +13,36 @@ public class BlacksmithResearch : MonoBehaviour
     public float CurrentResearchTimer => currentResearchTimer;
     public bool IsResearching => currentResearch != null;
 
+    private void Start()
+    {
+        CreateAndRegisterAncientTech();
+    }
+
+    private void CreateAndRegisterAncientTech()
+    {
+        for (int i = 0; i < availableTechnologies.Count; i++)
+        {
+            if (availableTechnologies[i] != null && availableTechnologies[i].technologyId == "ancient_weaponry")
+            {
+                return;
+            }
+        }
+
+        TechnologyData ancientTech = ScriptableObject.CreateInstance<TechnologyData>();
+        ancientTech.technologyId = "ancient_weaponry";
+        ancientTech.technologyName = "Ancient Weaponry";
+        ancientTech.description = "+30% Sat thuong va Mau toi da cho toan bo Binh linh phe ta.";
+        ancientTech.researchTime = 15f;
+        
+        ancientTech.researchCosts = new List<ResourceCost>
+        {
+            new ResourceCost { resourceType = ResourceType.AncientRelic, amount = 1 }
+        };
+        
+        availableTechnologies.Add(ancientTech);
+        Debug.Log("[Tech] Da dang ky dong cong nghe Ancient Weaponry thanh cong.");
+    }
+
     private void Update()
     {
         if (currentResearch == null)

@@ -69,6 +69,14 @@ public class WeatherManager : MonoBehaviour
             if (_nightCount % _bloodMoonCycle == 0)
             {
                 SetWeather(WeatherState.BloodMoon);
+                if (HUDManager.Instance != null)
+                {
+                    HUDManager.Instance.ShowBloodMoonAlert(
+                        "⚠️ ĐÊM TRĂNG MÁU BẮT ĐẦU ⚠️",
+                        "Kẻ địch trở nên to lớn hơn, di chuyển nhanh hơn và cực kỳ hung dữ!",
+                        5f
+                    );
+                }
             }
             else
             {
@@ -77,6 +85,12 @@ public class WeatherManager : MonoBehaviour
         }
         else
         {
+            // Kết thúc đêm: Nếu đêm vừa qua là Trăng Máu -> Trao thưởng
+            if (_currentWeather == WeatherState.BloodMoon)
+            {
+                AwardBloodMoonSurvivalReward();
+            }
+
             // Ban ngày: Có tỉ lệ đổ mưa
             if (UnityEngine.Random.value <= _rainChance)
             {
@@ -85,6 +99,37 @@ public class WeatherManager : MonoBehaviour
             else
             {
                 SetWeather(WeatherState.Clear);
+            }
+
+            // Cảnh báo sớm nếu đêm tiếp theo là Trăng Máu
+            if ((_nightCount + 1) % _bloodMoonCycle == 0)
+            {
+                if (HUDManager.Instance != null)
+                {
+                    HUDManager.Instance.ShowBloodMoonAlert(
+                        "CẢNH BÁO TRĂNG MÁU",
+                        "Đêm nay Trăng Máu sẽ xuất hiện! Hãy chuẩn bị tháp canh và lính phòng thủ ngay lập tức!",
+                        6f
+                    );
+                }
+            }
+        }
+    }
+
+    private void AwardBloodMoonSurvivalReward()
+    {
+        if (ResourceManager.Instance != null)
+        {
+            ResourceManager.Instance.AddResource(ResourceType.AncientRelic, 1);
+            Debug.Log("[WeatherManager] Đã sống sót qua Trăng Máu! Nhận 1 Cổ vật Cổ đại.");
+            
+            if (HUDManager.Instance != null)
+            {
+                HUDManager.Instance.ShowBloodMoonAlert(
+                    "SỐNG SÓT THÀNH CÔNG",
+                    "Bạn đã vượt qua đêm Trăng Máu và nhận được 1 Cổ Vật Cổ Đại! 🏆",
+                    5f
+                );
             }
         }
     }

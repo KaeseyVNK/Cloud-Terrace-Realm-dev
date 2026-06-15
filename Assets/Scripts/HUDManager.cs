@@ -1,8 +1,16 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 public class HUDManager : MonoBehaviour
 {
+    public static HUDManager Instance { get; private set; }
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
     [Header("Tài nguyên")]
     [UnityEngine.Serialization.FormerlySerializedAs("woodText")]
     [SerializeField] private TextMeshProUGUI _woodText;
@@ -29,10 +37,22 @@ public class HUDManager : MonoBehaviour
     [Header("Đói Lương Thực Warning")]
     [SerializeField] private TextMeshProUGUI _foodWarningText;
 
+    [Header("Ancient Relics")]
+    [SerializeField] private TextMeshProUGUI _relicText;
+
+    [Header("Blood Moon UI")]
+    [SerializeField] private TextMeshProUGUI _bloodMoonBannerText;
+
+    [Header("Instructions UI")]
+    [SerializeField] private GameObject _instructionsPanel;
+
     void Start()
     {
         EnsurePopulationText();
         EnsureFoodWarningText();
+        EnsureRelicText();
+        EnsureBloodMoonBannerText();
+        EnsureInstructionsUI();
 
         // Đăng ký lắng nghe sự kiện tài nguyên thay đổi từ ResourceManager
         if (ResourceManager.Instance != null)
@@ -44,6 +64,7 @@ public class HUDManager : MonoBehaviour
             UpdateResourceUI(ResourceType.Stone, ResourceManager.Instance.GetResourceAmount(ResourceType.Stone));
             UpdateResourceUI(ResourceType.Food, ResourceManager.Instance.GetResourceAmount(ResourceType.Food));
             UpdateResourceUI(ResourceType.Gold, ResourceManager.Instance.GetResourceAmount(ResourceType.Gold));
+            UpdateResourceUI(ResourceType.AncientRelic, ResourceManager.Instance.GetResourceAmount(ResourceType.AncientRelic));
         }
 
         UpdatePopulationUI();
@@ -72,6 +93,9 @@ public class HUDManager : MonoBehaviour
                 break;
             case ResourceType.Gold:
                 if (_goldText != null) _goldText.text = "Vang: " + newAmount;
+                break;
+            case ResourceType.AncientRelic:
+                if (_relicText != null) _relicText.text = "Co vat: " + newAmount;
                 break;
         }
     }
@@ -195,5 +219,190 @@ public class HUDManager : MonoBehaviour
         _foodWarningText.text = "⚠️ THIẾU LƯƠNG THỰC! CƯ DÂN BỊ ĐÓI!";
         _foodWarningText.raycastTarget = false;
         _foodWarningText.gameObject.SetActive(false); // Ẩn mặc định
+    }
+
+    private void EnsureRelicText()
+    {
+        if (_relicText != null)
+        {
+            return;
+        }
+
+        Transform existing = transform.Find("RelicText");
+        if (existing != null)
+        {
+            _relicText = existing.GetComponent<TextMeshProUGUI>();
+            if (_relicText != null)
+            {
+                return;
+            }
+        }
+
+        GameObject relicObject = new GameObject("RelicText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        relicObject.transform.SetParent(transform, false);
+        relicObject.layer = gameObject.layer;
+
+        RectTransform rectTransform = relicObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(300f, 442f); // Ở giữa PopulationText và FoodWarningText
+        rectTransform.sizeDelta = new Vector2(260f, 50f);
+
+        _relicText = relicObject.GetComponent<TextMeshProUGUI>();
+        _relicText.fontSize = 24f;
+        _relicText.alignment = TextAlignmentOptions.Center;
+        _relicText.color = new Color(1f, 0.84f, 0f); // Màu vàng Gold nổi bật
+        _relicText.raycastTarget = false;
+        _relicText.text = "Co vat: 0";
+    }
+
+    private void EnsureBloodMoonBannerText()
+    {
+        if (_bloodMoonBannerText != null)
+        {
+            return;
+        }
+
+        Transform existing = transform.Find("BloodMoonBannerText");
+        if (existing != null)
+        {
+            _bloodMoonBannerText = existing.GetComponent<TextMeshProUGUI>();
+            if (_bloodMoonBannerText != null)
+            {
+                return;
+            }
+        }
+
+        GameObject bannerObj = new GameObject("BloodMoonBannerText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        bannerObj.transform.SetParent(transform, false);
+        bannerObj.layer = gameObject.layer;
+
+        RectTransform rectTransform = bannerObj.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(0f, 120f); // Giữa trên màn hình
+        rectTransform.sizeDelta = new Vector2(800f, 150f);
+
+        _bloodMoonBannerText = bannerObj.GetComponent<TextMeshProUGUI>();
+        _bloodMoonBannerText.fontSize = 24f;
+        _bloodMoonBannerText.alignment = TextAlignmentOptions.Center;
+        _bloodMoonBannerText.color = Color.white;
+        _bloodMoonBannerText.raycastTarget = false;
+        _bloodMoonBannerText.gameObject.SetActive(false);
+    }
+
+    public void ShowBloodMoonAlert(string title, string subtitle, float duration)
+    {
+        StartCoroutine(BloodMoonAlertRoutine(title, subtitle, duration));
+    }
+
+    private IEnumerator BloodMoonAlertRoutine(string title, string subtitle, float duration)
+    {
+        EnsureBloodMoonBannerText();
+        if (_bloodMoonBannerText != null)
+        {
+            _bloodMoonBannerText.text = $"<color=red><size=42><b>{title}</b></size></color>\n<size=22>{subtitle}</size>";
+            _bloodMoonBannerText.alpha = 1f;
+            _bloodMoonBannerText.gameObject.SetActive(true);
+            
+            // Hiệu ứng phóng to nhẹ (Punch scale)
+            RectTransform rect = _bloodMoonBannerText.GetComponent<RectTransform>();
+            rect.localScale = Vector3.one * 0.8f;
+            float elapsed = 0f;
+            while (elapsed < 0.2f)
+            {
+                elapsed += Time.deltaTime;
+                rect.localScale = Vector3.Lerp(Vector3.one * 0.8f, Vector3.one, elapsed / 0.2f);
+                yield return null;
+            }
+            rect.localScale = Vector3.one;
+
+            yield return new WaitForSeconds(duration);
+
+            // Hiệu ứng mờ dần (Fade out)
+            elapsed = 0f;
+            while (elapsed < 0.5f)
+            {
+                elapsed += Time.deltaTime;
+                _bloodMoonBannerText.alpha = Mathf.Lerp(1f, 0f, elapsed / 0.5f);
+                yield return null;
+            }
+            _bloodMoonBannerText.gameObject.SetActive(false);
+            _bloodMoonBannerText.alpha = 1f;
+        }
+    }
+
+    private void EnsureInstructionsUI()
+    {
+        if (_instructionsPanel != null)
+        {
+            return;
+        }
+
+        Transform existing = transform.Find("InstructionsPanel");
+        if (existing != null)
+        {
+            _instructionsPanel = existing.gameObject;
+            return;
+        }
+
+        // Tạo InstructionsPanel
+        GameObject panelObj = new GameObject("InstructionsPanel", typeof(RectTransform));
+        panelObj.transform.SetParent(transform, false);
+        panelObj.layer = gameObject.layer;
+
+        RectTransform panelRect = panelObj.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(1f, 0f); // Góc dưới bên phải
+        panelRect.anchorMax = new Vector2(1f, 0f);
+        panelRect.pivot = new Vector2(1f, 0f);     // Điểm neo dưới phải
+        panelRect.anchoredPosition = new Vector2(-20f, 20f); // Lùi vào 20 pixel
+        panelRect.sizeDelta = new Vector2(320f, 210f);       // Kích thước bảng hướng dẫn
+
+        // Thêm hình nền Panel bán trong suốt
+        UnityEngine.UI.Image bgImage = panelObj.AddComponent<UnityEngine.UI.Image>();
+        bgImage.color = new Color(0f, 0f, 0f, 0.75f); // Màu đen mờ sang trọng
+
+        // Thêm viền mỏng
+        UnityEngine.UI.Outline outline = panelObj.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        // Tạo Text bên trong Panel
+        GameObject textObj = new GameObject("InstructionsText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        textObj.transform.SetParent(panelObj.transform, false);
+        textObj.layer = gameObject.layer;
+
+        RectTransform textRect = textObj.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.sizeDelta = Vector2.zero; // Stretch
+        textRect.anchoredPosition = Vector2.zero;
+
+        // Thêm padding cho text
+        textRect.offsetMin = new Vector2(12f, 12f);
+        textRect.offsetMax = new Vector2(-12f, -12f);
+
+        TextMeshProUGUI text = textObj.GetComponent<TextMeshProUGUI>();
+        text.fontSize = 13f;
+        text.alignment = TextAlignmentOptions.TopLeft;
+        text.color = Color.white;
+        text.lineSpacing = 6f; // Thu nhỏ khoảng cách dòng một chút để vừa vặn
+        text.raycastTarget = false;
+
+        text.text = "<b>HƯỚNG DẪN ĐIỀU KHIỂN</b>\n" +
+                    "<color=#c8c8c8>" +
+                    "• <b>W/S/A/D / Mũi tên:</b> Di chuyển camera\n" +
+                    "• <b>Chuột Trái:</b> Chọn đơn vị / Hộp chọn\n" +
+                    "• <b>Chuột Phải:</b> Di chuyển / Chỉ định nhanh\n" +
+                    "• <b>Phím T + L-Click:</b> Di chuyển Tấn công\n" +
+                    "• <b>Phím G + L-Click:</b> Chỉ định Khai thác\n" +
+                    "• <b>Phím B + L-Click:</b> Chỉ định Xây/Sửa\n" +
+                    "• <b>Phím Tab:</b> Chọn nhanh dân rảnh rỗi\n" +
+                    "• <b>Phím Esc:</b> Hủy lệnh / Bỏ chọn" +
+                    "</color>";
+
+        _instructionsPanel = panelObj;
     }
 }

@@ -35,6 +35,7 @@ public class WatchTowerGarrison : MonoBehaviour
     private ConstructibleBuilding constructibleBuilding;
     private float lastAttackTime;
     private Coroutine attackBurstCoroutine;
+    private static readonly Collider[] s_overlapCache = new Collider[128];
 
     public int Capacity => capacity;
     public int OccupantCount => garrisonedUnits.Count;
@@ -348,12 +349,13 @@ public class WatchTowerGarrison : MonoBehaviour
 
     private BaseCombatUnitController FindNearestEnemy()
     {
-        Collider[] colliders = Physics.OverlapSphere(transform.position, attackRange, targetLayers);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, attackRange, s_overlapCache, targetLayers);
         BaseCombatUnitController nearest = null;
         float nearestDistanceSqr = float.MaxValue;
 
-        foreach (Collider col in colliders)
+        for (int i = 0; i < count; i++)
         {
+            Collider col = s_overlapCache[i];
             if (col == null)
             {
                 continue;
@@ -373,6 +375,7 @@ public class WatchTowerGarrison : MonoBehaviour
             }
         }
 
+        System.Array.Clear(s_overlapCache, 0, count);
         return nearest;
     }
 

@@ -85,6 +85,7 @@ public class VillagerController : MonoBehaviour
     private int _assignedBuildSlotIndex = -1;
     private BaseCombatUnitController _repairTarget;
     private float _repairResourceTimer = 0f;
+    private bool _isManualMove = false;
 
     // Cache Animator parameter status
     private bool _hasBuildingParam;
@@ -92,6 +93,8 @@ public class VillagerController : MonoBehaviour
     private bool _hasDepositingParam;
     private bool _hasIdleParam;
     private bool _hasMovingParam;
+
+    private WildAnimalController _huntTarget;
 
     private int _pathRetryCount = 0;
     private float _stuckTimer = 0f;
@@ -751,6 +754,22 @@ public class VillagerController : MonoBehaviour
     {
         if (_navAgent == null) return;
 
+        if (_huntTarget != null)
+        {
+            if (_huntTarget.currentState == CombatState.Dead)
+            {
+                _navAgent.ResetPath();
+                OnReachedDestination();
+                return;
+            }
+
+            float distToTargetDest = Vector3.Distance(_navAgent.destination, _huntTarget.transform.position);
+            if (distToTargetDest > 0.5f)
+            {
+                SetPathToTarget(_huntTarget.transform.position);
+            }
+        }
+
         // Stuck Solver (AOE/SC2 Style)
         if (_navAgent.hasPath && _navAgent.velocity.sqrMagnitude < 0.05f)
         {
@@ -873,6 +892,22 @@ public class VillagerController : MonoBehaviour
 
     private void OnReachedDestination()
     {
+        if (_isManualMove)
+        {
+            _isManualMove = false;
+            _pathRetryCount = 0;
+            ChangeState(VillagerState.Idle);
+            return;
+        }
+
+        if (_huntTarget != null)
+        {
+            _pathRetryCount = 0;
+            _gatherTimer = 0f;
+            ChangeState(VillagerState.Gathering);
+            return;
+        }
+
         // Tình huống 4: Đến nhà trú ẩn (Phải được kiểm tra ĐẦU TIÊN để tránh bị đè bởi các trạng thái khác)
         if (_assignedShelter != null)
         {
@@ -923,6 +958,32 @@ public class VillagerController : MonoBehaviour
         // Tình huống 2: Nộp tài nguyên vào kho
         else if (GetTotalCarryAmount() > 0 && _targetBuilding == null)
         {
+            if (_storageDropoffTarget == Vector3.zero)
+            {
+                // Xác định loại tài nguyên đang mang theo người
+                ResourceType carriedType = ResourceType.Wood;
+                foreach (var kvp in _inventory)
+                {
+                    if (kvp.Value > 0)
+                    {
+                        carriedType = kvp.Key;
+                        break;
+                    }
+                }
+                _targetResource = carriedType;
+                _storageDropoffTarget = BuildingManager.Instance != null 
+                    ? BuildingManager.Instance.FindNearestDropoff(transform.position, _targetResource)
+                    : Vector3.zero;
+            }
+
+            if (_storageDropoffTarget == Vector3.zero)
+            {
+                // Vẫn không tìm thấy kho nào hợp lệ -> Đứng yên
+                _pathRetryCount = 0;
+                ChangeState(VillagerState.Idle);
+                return;
+            }
+
             float distToStorageSqr = (transform.position - _storageDropoffTarget).sqrMagnitude;
             if (distToStorageSqr > 12.25f)
             {
@@ -1047,6 +1108,73 @@ public class VillagerController : MonoBehaviour
 
     private void HandleGathering()
     {
+        if (_huntTarget != null)
+        {
+            if (_huntTarget.currentState == CombatState.Dead)
+            {
+                // Thú hoang đã chết! Tìm mỏ Food vừa rơi ra gần đó để khai thác.
+                ResourceNode spawnedFood = null;
+                float minD = float.MaxValue;
+                ResourceNode[] nodes = FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+                foreach (var n in nodes)
+                {
+                    if (n.ResourceType == ResourceType.Food)
+                    {
+                        float d = Vector3.Distance(transform.position, n.transform.position);
+                        if (d < 6f && d < minD)
+                        {
+                            minD = d;
+                            spawnedFood = n;
+                        }
+                    }
+                }
+                _huntTarget = null;
+                if (spawnedFood != null)
+                {
+                    CommandGather(spawnedFood, null);
+                }
+                else
+                {
+                    ChangeState(VillagerState.Idle);
+                }
+                return;
+            }
+
+            // Quay mặt về phía con thú
+            Vector3 dirToBeast = (_huntTarget.transform.position - transform.position).normalized;
+            dirToBeast.y = 0;
+            if (dirToBeast.sqrMagnitude > 0.01f)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dirToBeast), Time.deltaTime * 5f);
+            }
+
+            // Kiểm tra khoảng cách để săn
+            float dist = Vector3.Distance(transform.position, _huntTarget.transform.position);
+            if (dist > 2.5f)
+            {
+                // Đuổi theo nếu thú chạy trốn
+                if (_navAgent != null && _navAgent.enabled)
+                {
+                    _navAgent.isStopped = false;
+                    _navAgent.SetDestination(_huntTarget.transform.position);
+                }
+                ChangeState(VillagerState.Moving);
+                return;
+            }
+
+            // Săn/tấn công thú hoang
+            float progressFactor = Time.deltaTime;
+            if (_isHungry) progressFactor *= 0.7f;
+            _gatherTimer += progressFactor;
+
+            if (_gatherTimer >= 1.0f) // Mỗi 1 giây chém/gõ 1 phát
+            {
+                _gatherTimer = 0f;
+                _huntTarget.TakeDamage(15, null); // Dân làng gây 15 sát thương
+            }
+            return;
+        }
+
         if (_currentJob != null)
         {
             Vector3 direction = (_currentJob.position - transform.position).normalized;
@@ -1642,6 +1770,8 @@ public class VillagerController : MonoBehaviour
         TargetBuilding = null;
         _currentJob = null;
         _repairTarget = null;
+        _huntTarget = null;
+        _isManualMove = true;
         
         if (SetPathToTarget(destination))
         {
@@ -1668,6 +1798,8 @@ public class VillagerController : MonoBehaviour
         
         TargetBuilding = null;
         _repairTarget = null;
+        _huntTarget = null;
+        _isManualMove = false;
         
         _currentJob = new Job(ZoneType.None, node.ResourceType, node.transform.position)
         {
@@ -1678,6 +1810,44 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(GetHarvestPositionAroundNode(node.transform.position)))
         {
             ChangeState(VillagerState.Moving);
+        }
+    }
+
+    /// <summary>
+    /// Ra lệnh đi săn một con thú hoang cụ thể.
+    /// </summary>
+    public void CommandHunt(WildAnimalController animal)
+    {
+        if (animal == null || animal.currentState == CombatState.Dead) return;
+
+        _overrideShelter = true;
+        CancelAssignedGarrison();
+        if (_assignedShelter != null)
+        {
+            _assignedShelter.CancelReservation(this);
+            _assignedShelter = null;
+        }
+
+        _autoGatherBuildingAfterDeposit = null;
+        _failedResourcePositions.Clear();
+        _pathRetryCount = 0;
+        ReleaseReservedSlot();
+
+        TargetBuilding = null;
+        _repairTarget = null;
+        _huntTarget = animal;
+        _currentJob = null;
+        _isManualMove = false;
+
+        _targetResource = ResourceType.Food;
+
+        if (SetPathToTarget(animal.transform.position))
+        {
+            ChangeState(VillagerState.Moving);
+        }
+        else
+        {
+            ChangeState(VillagerState.Idle);
         }
     }
 
@@ -1702,6 +1872,8 @@ public class VillagerController : MonoBehaviour
         TargetBuilding = building;
         _currentJob = null; // Hủy job khai thác cũ
         _repairTarget = null;
+        _huntTarget = null;
+        _isManualMove = false;
 
         if (SetPathToTarget(_buildTargetPos))
         {
@@ -1736,6 +1908,8 @@ public class VillagerController : MonoBehaviour
         _currentJob = null;
         _repairTarget = target;
         _repairResourceTimer = 0f;
+        _huntTarget = null;
+        _isManualMove = false;
 
         if (SetPathToTarget(target.transform.position))
         {
@@ -1771,6 +1945,7 @@ public class VillagerController : MonoBehaviour
         _repairTarget = null;
         
         _currentJob = newJob;
+        _isManualMove = false;
         
         if (_currentJob.zoneType == ZoneType.Logging) _targetResource = ResourceType.Wood;
         else if (_currentJob.zoneType == ZoneType.Mining) _targetResource = ResourceType.Stone;

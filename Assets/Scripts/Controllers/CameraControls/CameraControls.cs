@@ -14,8 +14,6 @@ public class CameraControls : MonoBehaviour
     [SerializeField] private float edgePanSpeed = 20f;  
     [SerializeField] private bool enableEdgePan = true;
 
-
-
     [Header("Zoom Settings")]
     [SerializeField] private float minZoomDistance = 5f;
     [SerializeField] private float maxZoomDistance = 40f;   
@@ -36,8 +34,6 @@ public class CameraControls : MonoBehaviour
 
     private float screenWidth = Screen.width;
     private float screenHeight = Screen.height;
-
-
 
     void Awake()
     {
@@ -143,14 +139,11 @@ public class CameraControls : MonoBehaviour
         }
 
         transform.Translate(moveDirection.normalized * edgePanSpeed * Time.deltaTime, Space.World);
-
-
     }
 
     private void HandleZoom()
     {
         if (cinemachineFollow == null) return;
-
 
         float scrollY = Mouse.current.scroll.ReadValue().y;
         if(scrollY != 0)
@@ -181,19 +174,21 @@ public class CameraControls : MonoBehaviour
         right.y = 0;
         right.Normalize();
 
-        if (Keyboard.current.wKey.isPressed)
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
         {
             moveDirection += forward;
         }
-        if (Keyboard.current.sKey.isPressed)
+        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
         {
             moveDirection -= forward;
         }
-        if (Keyboard.current.aKey.isPressed)
+
+        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
         {
             moveDirection -= right;
         }
-        if (Keyboard.current.dKey.isPressed)
+
+        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
         {
             moveDirection += right;
         }

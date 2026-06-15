@@ -202,13 +202,16 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
 
     private BaseCombatUnitController FindNearestMeleeThreat()
     {
-        Collider[] colliders = Physics.OverlapSphere(transform.position, _kiteTriggerDistance);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, _kiteTriggerDistance, s_overlapCache);
         BaseCombatUnitController nearestThreat = null;
         float nearestSqrDistance = float.MaxValue;
 
-        for (int i = 0; i < colliders.Length; i++)
+        for (int i = 0; i < count; i++)
         {
-            BaseCombatUnitController unit = colliders[i].GetComponentInParent<BaseCombatUnitController>();
+            Collider col = s_overlapCache[i];
+            if (col == null) continue;
+
+            BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
             if (unit == null
                 || unit == this
                 || unit.currentState == CombatState.Dead
@@ -227,6 +230,7 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
             }
         }
 
+        System.Array.Clear(s_overlapCache, 0, count);
         return nearestThreat;
     }
 

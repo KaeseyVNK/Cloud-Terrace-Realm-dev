@@ -23,6 +23,10 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
     [Header("Enemy Role")]
     [SerializeField] protected EnemyTargetRole _targetRole = EnemyTargetRole.Assault;
+
+    [Header("Blood Moon Scaling")]
+    private Vector3 _defaultScale = Vector3.zero;
+    private string _originalUnitName = null;
     [SerializeField] private bool _randomizeRoleOnSpawn = true;
     [SerializeField] private float _assaultWeight = 0.6f;
     [SerializeField] private float _raiderWeight = 0.25f;
@@ -88,7 +92,28 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         RestoreBaseStats();
         returnToPoolOnDeath = true;
         faction = UnitFaction.Enemy;
-        unitName = string.IsNullOrEmpty(unitName) ? "Enemy Soldier" : unitName;
+
+        if (_originalUnitName == null)
+        {
+            _originalUnitName = string.IsNullOrEmpty(unitName) ? "Enemy Soldier" : unitName;
+        }
+
+        if (_defaultScale == Vector3.zero)
+        {
+            _defaultScale = transform.localScale;
+        }
+
+        if (IsBloodMoonActive())
+        {
+            unitName = $"[Mutant] {_originalUnitName}";
+            transform.localScale = _defaultScale * 1.35f;
+        }
+        else
+        {
+            unitName = _originalUnitName;
+            transform.localScale = _defaultScale;
+        }
+
         currentHealth = maxHealth;
         currentTarget = null;
         lastAttackTime = 0f;
@@ -209,9 +234,12 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         {
             int playerUnitsCount = 0;
             int alliedUnitsCount = 0;
-            Collider[] colliders = Physics.OverlapSphere(transform.position, 15f);
-            foreach (var col in colliders)
+            int count = Physics.OverlapSphereNonAlloc(transform.position, 15f, s_overlapCache);
+            for (int i = 0; i < count; i++)
             {
+                Collider col = s_overlapCache[i];
+                if (col == null) continue;
+
                 BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
                 if (unit != null && unit.currentState != CombatState.Dead)
                 {
@@ -221,6 +249,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                         playerUnitsCount++;
                 }
             }
+            System.Array.Clear(s_overlapCache, 0, count);
             if (playerUnitsCount > alliedUnitsCount)
             {
                 _isRetreating = true;
@@ -447,13 +476,16 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
     private BaseCombatUnitController ScanForNearestEnemy(float searchRange)
     {
-        Collider[] colliders = Physics.OverlapSphere(transform.position, searchRange);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, searchRange, s_overlapCache);
         BaseCombatUnitController bestTarget = null;
         int bestPriority = int.MaxValue; // Càng nhỏ càng ưu tiên (1: Lính, 2: Dân làng, 3: Công trình)
         float minDistance = float.MaxValue;
 
-        foreach (var col in colliders)
+        for (int i = 0; i < count; i++)
         {
+            Collider col = s_overlapCache[i];
+            if (col == null) continue;
+
             BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
             if (unit != null && unit.currentState != CombatState.Dead && unit.faction != this.faction)
             {
@@ -475,6 +507,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             }
         }
 
+        System.Array.Clear(s_overlapCache, 0, count);
         return bestTarget;
     }
 
@@ -581,6 +614,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     protected virtual int GetTargetPriority(BaseCombatUnitController unit)
     {
         if (unit == null) return 99;
+        if (unit.faction == UnitFaction.Neutral) return 5;
 
         bool isVillager = IsVillagerTarget(unit);
         bool isBuilding = IsBuildingTarget(unit);

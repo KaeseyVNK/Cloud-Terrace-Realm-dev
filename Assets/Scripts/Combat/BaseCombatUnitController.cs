@@ -59,6 +59,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     private float knockupRecoveryUntil;
     private float movingAnimationHoldUntil;
 
+    // Cache tĩnh dùng chung cho các hàm Physics.OverlapSphereNonAlloc
+    protected static readonly Collider[] s_overlapCache = new Collider[256];
+    // Cache Avoidance mặc định của NavMeshAgent
+    private ObstacleAvoidanceType _defaultAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+
     // Base stats caching to avoid accumulated multipliers on pool recycle
     protected int baseMaxHealth = -1;
     protected int baseAttackDamage = -1;
@@ -123,7 +128,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         // Cấu hình ban đầu cho NavMeshAgent
         if (navAgent != null)
         {
-            navAgent.avoidancePriority = Random.Range(30, 45);
+            _defaultAvoidanceType = navAgent.obstacleAvoidanceType;
+            navAgent.avoidancePriority = Random.Range(30, 71);
         }
 
         // Tự động gắn đèn cho unit của người chơi
@@ -134,6 +140,58 @@ public abstract class BaseCombatUnitController : MonoBehaviour
                 gameObject.AddComponent<UnitLightController>();
             }
         }
+
+        ApplyPlayerTechnologyStats();
+    }
+
+    public void ApplyPlayerTechnologyStats()
+    {
+        if (faction != UnitFaction.Player) return;
+        InitializeBaseStatsIfNeeded();
+
+        float healthMult = 1f;
+        float damageMult = 1f;
+
+        if (TechnologyManager.HasInstance)
+        {
+            if (TechnologyManager.Instance.IsUnlocked("ancient_weaponry"))
+            {
+                healthMult += 0.3f;
+                damageMult += 0.3f;
+            }
+        }
+
+        int prevMaxHealth = maxHealth;
+        maxHealth = Mathf.RoundToInt(baseMaxHealth * healthMult);
+        attackDamage = Mathf.RoundToInt(baseAttackDamage * damageMult);
+
+        if (maxHealth != prevMaxHealth)
+        {
+            float hpRatio = prevMaxHealth > 0 ? (float)currentHealth / prevMaxHealth : 1f;
+            currentHealth = Mathf.Clamp(Mathf.RoundToInt(maxHealth * hpRatio), 1, maxHealth);
+        }
+    }
+
+    protected virtual void OnEnable()
+    {
+        if (faction == UnitFaction.Player && TechnologyManager.HasInstance)
+        {
+            TechnologyManager.Instance.OnTechnologyUnlocked += HandleTechnologyUnlocked;
+        }
+        ApplyPlayerTechnologyStats();
+    }
+
+    protected virtual void OnDisable()
+    {
+        if (faction == UnitFaction.Player && TechnologyManager.HasInstance)
+        {
+            TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+        }
+    }
+
+    private void HandleTechnologyUnlocked(TechnologyData tech)
+    {
+        ApplyPlayerTechnologyStats();
     }
 
     protected virtual void Update()
@@ -674,6 +732,31 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         ChangeState(CombatState.Moving);
     }
 
+    public virtual void CommandAttackMove(Vector3 position)
+    {
+        if (currentState == CombatState.Dead) return;
+
+        currentTarget = null;
+        isManualMoveCommand = false; // Set to false to allow auto-aggro during movement (Attack Move)
+        isManualAttackTarget = false;
+        hasChaseAnchor = false;
+        blockedTimer = 0f;
+
+        if (animator != null)
+        {
+            ResetAnimatorTriggerIfExists("Attack");
+            SetAnimatorBoolIfExists("IsAttacking", false);
+        }
+
+        if (IsNavAgentReady())
+        {
+            navAgent.stoppingDistance = 0.2f;
+            navAgent.isStopped = false;
+            navAgent.SetDestination(position);
+        }
+        ChangeState(CombatState.Moving);
+    }
+
     public virtual void CommandAttack(BaseCombatUnitController target)
     {
         if (currentState == CombatState.Dead) return;
@@ -715,28 +798,45 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     protected virtual BaseCombatUnitController ScanForNearestEnemy()
     {
-        // Quét tất cả các Collider trong bán kính scanRange
-        Collider[] colliders = Physics.OverlapSphere(transform.position, scanRange);
+        // Quét tất cả các Collider trong bán kính scanRange dùng NonAlloc để tránh rác GC
+        int count = Physics.OverlapSphereNonAlloc(transform.position, scanRange, s_overlapCache);
         BaseCombatUnitController nearest = null;
         float minDistance = float.MaxValue;
         int bestPenalty = int.MaxValue;
 
-        foreach (var col in colliders)
+        for (int i = 0; i < count; i++)
         {
+            Collider col = s_overlapCache[i];
+            if (col == null) continue;
+
             BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit != null && unit.currentState != CombatState.Dead && unit.faction != this.faction)
+            if (unit != null && unit.currentState != CombatState.Dead)
             {
-                float dist = GetDistanceToTarget(unit);
-                int penalty = Mathf.Max(0, unit.TargetPriorityPenalty);
-                if (penalty < bestPenalty || (penalty == bestPenalty && dist < minDistance))
+                bool isHostile = false;
+                if (this.faction == UnitFaction.Player)
                 {
-                    bestPenalty = penalty;
-                    minDistance = dist;
-                    nearest = unit;
+                    isHostile = (unit.faction == UnitFaction.Enemy);
+                }
+                else if (this.faction == UnitFaction.Enemy)
+                {
+                    isHostile = (unit.faction == UnitFaction.Player || unit.faction == UnitFaction.Neutral);
+                }
+
+                if (isHostile)
+                {
+                    float dist = GetDistanceToTarget(unit);
+                    int penalty = Mathf.Max(0, unit.TargetPriorityPenalty);
+                    if (penalty < bestPenalty || (penalty == bestPenalty && dist < minDistance))
+                    {
+                        bestPenalty = penalty;
+                        minDistance = dist;
+                        nearest = unit;
+                    }
                 }
             }
         }
 
+        System.Array.Clear(s_overlapCache, 0, count);
         return nearest;
     }
 
@@ -825,12 +925,27 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     protected bool IsValidScanTarget(BaseCombatUnitController target, float maxRange)
     {
-        if (target == null || target == this || target.currentState == CombatState.Dead || target.faction == faction)
+        if (target == null || target == this || target.currentState == CombatState.Dead)
         {
             return false;
         }
 
         if (!target.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        bool isHostile = false;
+        if (this.faction == UnitFaction.Player)
+        {
+            isHostile = (target.faction == UnitFaction.Enemy);
+        }
+        else if (this.faction == UnitFaction.Enemy)
+        {
+            isHostile = (target.faction == UnitFaction.Player || target.faction == UnitFaction.Neutral);
+        }
+
+        if (!isHostile)
         {
             return false;
         }
@@ -861,11 +976,13 @@ public abstract class BaseCombatUnitController : MonoBehaviour
                 navAgent.isStopped = true;
                 navAgent.ResetPath();
                 navAgent.updateRotation = false; // Tắt tự động xoay của NavMesh khi không di chuyển
+                navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance; // Tắt avoidance khi đứng yên hoặc chết
             }
             else
             {
                 navAgent.isStopped = false;
                 navAgent.updateRotation = true;  // Bật lại tự động xoay khi di chuyển/đuổi theo mục tiêu
+                navAgent.obstacleAvoidanceType = _defaultAvoidanceType; // Bật lại avoidance mặc định khi di chuyển
             }
         }
 

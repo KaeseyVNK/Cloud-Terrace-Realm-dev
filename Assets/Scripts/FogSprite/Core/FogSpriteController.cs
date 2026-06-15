@@ -68,7 +68,6 @@ public class FogSpriteController : MonoBehaviour
 
     public bool IsInLight()
     {
-        return Physics.OverlapSphere(
-            transform.position, lightDetectRadius, lightSourceLayer).Length > 0;
+        return Physics.CheckSphere(transform.position, lightDetectRadius, lightSourceLayer);
     }
 }

@@ -269,6 +269,21 @@ public class BuildingProduction : MonoBehaviour
             GameObject spawnedUnit = ShouldUsePoolForUnit(_currentProducingUnit.unitPrefab)
                 ? PoolManager.Instance.Spawn(_currentProducingUnit.unitPrefab, _spawnPoint.position, _spawnPoint.rotation)
                 : Instantiate(_currentProducingUnit.unitPrefab, _spawnPoint.position, _spawnPoint.rotation);
+            
+            if (spawnedUnit != null)
+            {
+                bool isVillager = spawnedUnit.GetComponent<VillagerController>() != null ||
+                                  spawnedUnit.GetComponentInChildren<VillagerController>(true) != null;
+                if (isVillager)
+                {
+                    spawnedUnit.transform.SetParent(GameManager.VillagersContainer);
+                }
+                else
+                {
+                    spawnedUnit.transform.SetParent(GameManager.CombatUnitsContainer);
+                }
+            }
+
             ApplyRallyOrder(spawnedUnit);
         }
 
