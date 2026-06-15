@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: HomeShelter
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: Home Shelter
-  description: 
+  buildingName: "Nhà Dân"
+  description: "Nhà ở cung cấp thêm 5 chỗ ở, giúp tăng giới hạn dân số tối đa cho bộ tộc."
   buildingPrefab: {fileID: 6276198275343968975, guid: 7c75131138a80964c9ebb7988f1ac612, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:

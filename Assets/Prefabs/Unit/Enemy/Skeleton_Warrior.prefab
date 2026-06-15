@@ -1116,7 +1116,7 @@ MonoBehaviour:
   unitName: Combat Unit
   maxHealth: 100
   currentHealth: 0
-  attackDamage: 15
+  attackDamage: 10
   attackRange: 2
   attackCooldown: 1.5
   scanRange: 15
@@ -1136,6 +1136,10 @@ MonoBehaviour:
   _enemyMovingScanInterval: 0.25
   _enemyRetargetScanInterval: 0.45
   _targetRole: 0
+  _randomizeRoleOnSpawn: 1
+  _assaultWeight: 0.6
+  _raiderWeight: 0.25
+  _siegeBreakerWeight: 0.15
 --- !u!136 &6968639637420840433
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1216,6 +1220,8 @@ MonoBehaviour:
   riseTriggerName: Rise
   riseStateName: Rise
   isRisingParameterName: IsRising
+  waitForRiseAnimationEvent: 1
+  riseEventFallbackDuration: 4
 --- !u!1 &6382167219035808235
 GameObject:
   m_ObjectHideFlags: 0

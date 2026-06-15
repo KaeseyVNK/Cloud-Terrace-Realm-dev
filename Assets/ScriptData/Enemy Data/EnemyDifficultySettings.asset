@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 001666f9b41fe594d80aead0f62dac8c, type: 3}
   m_Name: EnemyDifficultySettings
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDifficultySettings
-  baseEnemyCount: 4
+  baseEnemyCount: 2
   enemyIncreasePerNight: 2
   maxEnemiesPerWave: 24
   maxActiveEnemies: 70
   waveIncreaseEveryNights: 3
   maxAutoWavesPerNight: 6
-  autoWaveStartTimeRatio: 0.55
-  autoWaveEndTimeRatio: 0.9
+  autoWaveStartTimeRatio: 0.516
+  autoWaveEndTimeRatio: 0.873
   bloodMoonWaveMultiplier: 1.6
   bloodMoonCountMultiplier: 1.45
   enemyScalingStartNight: 10

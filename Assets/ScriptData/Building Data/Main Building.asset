@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: Main Building
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: Main Building
-  description: 
+  buildingName: "Nhà Chính"
+  description: "Trung tâm chỉ huy bộ tộc. Dùng để sinh sản dân làng, nhận tài nguyên và là công trình quan trọng nhất cần bảo vệ."
   buildingPrefab: {fileID: 6673023864783920064, guid: e3166afbf9457cd4699625a48ef1aa43, type: 3}
   buildingSize: {x: 4, y: 4}
   buildCosts:
@@ -21,7 +21,7 @@ MonoBehaviour:
     amount: 500
   - resourceType: 1
     amount: 500
-  maxHealth: 1000
+  maxHealth: 10000
   maxWorkers: 0
   buildTime: 60
   isStorage: 1

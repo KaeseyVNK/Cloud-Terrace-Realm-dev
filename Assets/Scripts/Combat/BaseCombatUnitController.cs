@@ -118,6 +118,25 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Overrides the max health and base max health of this unit (e.g. for buildings with dynamic data).
+    /// </summary>
+    public void SetMaxHealth(int newMaxHealth)
+    {
+        baseMaxHealth = newMaxHealth;
+        maxHealth = newMaxHealth;
+        currentHealth = newMaxHealth;
+    }
+
+    /// <summary>
+    /// Overrides the attack damage and base attack damage of this unit.
+    /// </summary>
+    public void SetAttackDamage(int newDamage)
+    {
+        baseAttackDamage = newDamage;
+        attackDamage = newDamage;
+    }
+
     protected virtual void Start()
     {
         InitializeBaseStatsIfNeeded();

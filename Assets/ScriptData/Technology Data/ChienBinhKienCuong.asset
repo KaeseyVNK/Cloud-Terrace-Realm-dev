@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: ChienBinhKienCuong
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: resilient_warriors
-  technologyName: Chien Binh Kien Cuong
-  description: Mo khoa cac don vi chien dau nang cao nhu Bommer.
+  technologyName: "Chiến Binh Kiên Cường"
+  description: "Mở khóa các đơn vị chiến đấu cận chiến hạng nặng như Lính Quăng Bom."
   researchTime: 16
   researchCosts:
   - resourceType: 1

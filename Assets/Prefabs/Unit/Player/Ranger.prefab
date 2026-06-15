@@ -832,6 +832,7 @@ MonoBehaviour:
   _arrowPrefab: {fileID: 6256128693373046020, guid: d18ed97130047074e9f3d09a9e97b11d, type: 3}
   _bowFirePoint: {fileID: 5773423250125960624}
   _huntDamage: 5
+  _huntGatherMultiplier: 3
   _faceTargetSpeed: 10
 --- !u!114 &1532878227699842124
 MonoBehaviour:

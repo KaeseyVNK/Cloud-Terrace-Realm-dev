@@ -12,10 +12,15 @@ public class UnitLightController : MonoBehaviour
     private Coroutine _fadeCoroutine;
     private bool _isLightOn = false;
 
-    private void Start()
+    private void Awake()
     {
         InitializeLight();
+    }
+
+    private void Start()
+    {
         RegisterEvents();
+        RefreshLightStateInstant();
     }
 
     private void OnEnable()

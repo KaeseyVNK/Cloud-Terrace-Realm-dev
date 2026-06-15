@@ -694,18 +694,29 @@ public class BuildingManager : MonoBehaviour
         GameObject newBuilding = Instantiate(data.buildingPrefab, finalCenterPos, Quaternion.Euler(0, _currentRotationIndex * 90f, 0));
         _buildingDataMap[newBuilding] = data;
 
+        // Áp dụng BuildingData trực tiếp cho BuildingProduction nếu có để tránh lỗi thứ tự khởi tạo
+        BuildingProduction prod = newBuilding.GetComponent<BuildingProduction>();
+        if (prod == null) prod = newBuilding.GetComponentInChildren<BuildingProduction>();
+        if (prod != null)
+        {
+            prod.SetBuildingData(data);
+        }
+
         // Thêm component ConstructibleBuilding để kích hoạt tính năng xây dựng từ từ trồi từ dưới đất lên
         ConstructibleBuilding cb = newBuilding.AddComponent<ConstructibleBuilding>();
         cb.TotalBuildTime = data.buildTime;
         cb.buildingGridSize = data.buildingSize;
         cb.ConstructionFencePrefab = _constructionFencePrefab;
 
-        // Tự động gắn thành phần chiến đấu để công trình có thể nhận sát thương và bị tiêu diệt
-        BuildingCombatTarget combatTarget = newBuilding.AddComponent<BuildingCombatTarget>();
-        combatTarget.maxHealth = data != null ? data.maxHealth : 100;
-        combatTarget.currentHealth = combatTarget.maxHealth;
+        // Tự động gắn thành phần chiến đấu nếu chưa có để công trình có thể nhận sát thương và bị tiêu diệt
+        BuildingCombatTarget combatTarget = newBuilding.GetComponent<BuildingCombatTarget>();
+        if (combatTarget == null)
+        {
+            combatTarget = newBuilding.AddComponent<BuildingCombatTarget>();
+        }
+        combatTarget.SetMaxHealth(data != null ? data.maxHealth : 100);
         combatTarget.unitName = data != null ? data.buildingName : "Building";
-        combatTarget.attackDamage = 0;
+        combatTarget.SetAttackDamage(0);
         combatTarget.attackRange = 0f;
         combatTarget.attackCooldown = 0f;
         combatTarget.scanRange = 0f;
@@ -829,14 +840,21 @@ public class BuildingManager : MonoBehaviour
         _buildingDataMap[newBuilding] = _mainBuildingData;
         _mainBuildingInstance = newBuilding;
 
+        // Áp dụng BuildingData trực tiếp cho BuildingProduction nếu có trên nhà chính
+        BuildingProduction prod = newBuilding.GetComponent<BuildingProduction>();
+        if (prod == null) prod = newBuilding.GetComponentInChildren<BuildingProduction>();
+        if (prod != null)
+        {
+            prod.SetBuildingData(_mainBuildingData);
+        }
+
         // Tự động gắn và cấu hình thành phần chiến đấu cho Nhà chính để kẻ địch có thể tấn công
         MainBuildingCombatTarget combatTarget = newBuilding.GetComponent<MainBuildingCombatTarget>();
         if (combatTarget == null)
         {
             combatTarget = newBuilding.AddComponent<MainBuildingCombatTarget>();
         }
-        combatTarget.maxHealth = _mainBuildingData != null ? _mainBuildingData.maxHealth : 500;
-        combatTarget.currentHealth = combatTarget.maxHealth;
+        combatTarget.SetMaxHealth(_mainBuildingData != null ? _mainBuildingData.maxHealth : 500);
 
 
         foreach (var cell in cellsToOccupy)

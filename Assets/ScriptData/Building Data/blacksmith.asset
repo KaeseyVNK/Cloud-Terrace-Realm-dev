@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: blacksmith
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: Blacksmith
-  description: "C\xF4ng tr\xECnh nghi\xEAn c\u1EE9u c\xF4ng ngh\u1EC7 \u0111\u1EC3
-    m\u1EDF kh\xF3a v\xE0 n\xE2ng c\u1EA5p qu\xE2n \u0111\u1ED9i."
+  buildingName: "Nhà Rèn"
+  description: "Công trình nghiên cứu công nghệ để mở khóa và nâng cấp quân đội."
   buildingPrefab: {fileID: 206308313772535697, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:

@@ -39,6 +39,12 @@ public class BuildingProduction : MonoBehaviour
     public Transform SpawnPoint => _spawnPoint;
     public bool HasRallyPoint => _rallyPoint.HasValue;
     public Vector3 RallyPoint => _rallyPoint ?? (_spawnPoint != null ? _spawnPoint.position : transform.position);
+    public void SetBuildingData(BuildingData data)
+    {
+        _buildingData = data;
+        PrewarmProducedCombatUnits();
+    }
+
     public int QueuedVillagerCount
     {
         get
@@ -75,10 +81,19 @@ public class BuildingProduction : MonoBehaviour
             _spawnPoint = sp.transform;
         }
 
-        // Lấy BuildingData từ BuildingManager
-        if (BuildingManager.Instance != null && BuildingManager.Instance.BuildingDataMap.ContainsKey(gameObject))
+        // Lấy BuildingData từ BuildingManager nếu chưa có (hỗ trợ tra cứu ngược lên các parent của GameObject)
+        if (_buildingData == null && BuildingManager.Instance != null)
         {
-            _buildingData = BuildingManager.Instance.BuildingDataMap[gameObject];
+            Transform curr = transform;
+            while (curr != null)
+            {
+                if (BuildingManager.Instance.BuildingDataMap.TryGetValue(curr.gameObject, out var foundData))
+                {
+                    _buildingData = foundData;
+                    break;
+                }
+                curr = curr.parent;
+            }
         }
 
         PrewarmProducedCombatUnits();
@@ -252,7 +267,7 @@ public class BuildingProduction : MonoBehaviour
             bool isCombatUnit = unit.unitPrefab.GetComponent<BaseCombatUnitController>() != null ||
                                 unit.unitPrefab.GetComponentInChildren<BaseCombatUnitController>(true) != null;
 
-            if (isCombatUnit && !isVillager)
+            if (isCombatUnit && !isVillager && PoolManager.Instance != null)
             {
                 PoolManager.Instance.Prewarm(unit.unitPrefab, _combatUnitPoolPrewarmCount);
             }

@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Rogue_Hooded
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: Rogue Hooded
-  description: A swift rogue capable of firing arrows and dealing high damage.
+  unitName: "Sát Thủ Bóng Đêm"
+  description: "Đơn vị cơ động bắn tên nhanh, sát thương cao và có khả năng tránh né tốt."
   unitPrefab: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
   productionTime: 10
   productionCosts:

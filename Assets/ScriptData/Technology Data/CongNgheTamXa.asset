@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: CongNgheTamXa
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: ranged_weapons
-  technologyName: Cong Nghe Tam Xa
-  description: Mo khoa cac don vi tan cong tam xa nhu Archer.
+  technologyName: "Công Nghệ Tầm Xa"
+  description: "Mở khóa các đơn vị tấn công tầm xa như Cung Thủ."
   researchTime: 12
   researchCosts:
   - resourceType: 0

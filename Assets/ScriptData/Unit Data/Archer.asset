@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Archer
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: Archer
-  description: Ranged unit that attacks enemies with arrows from a safe distance.
+  unitName: "Cung Thủ"
+  description: "Binh lính tấn công tầm xa từ khoảng cách an toàn."
   unitPrefab: {fileID: 2983170981788088436, guid: 95bce1260ad008649954c7ce7462971d, type: 3}
   productionTime: 8
   productionCosts:

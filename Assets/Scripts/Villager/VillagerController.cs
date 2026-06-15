@@ -77,6 +77,9 @@ public class VillagerController : MonoBehaviour
     [Tooltip("Sát thương mỗi lần bắn trúng khi đi săn")]
     [SerializeField] private int _huntDamage = 15;
 
+    [Tooltip("Hệ số nhân số lượng tài nguyên khai thác mỗi chu kỳ khi thu hoạch xác thú hoang dã (so với khai thác gỗ/đá thông thường)")]
+    [SerializeField] private int _huntGatherMultiplier = 3;
+
     #endregion
 
     #region Private Fields
@@ -117,6 +120,7 @@ public class VillagerController : MonoBehaviour
     private bool _hasAttackTriggerParam;
 
     private WildAnimalController _huntTarget;
+    private bool _wasFarmingWildAnimals = false;
 
     private int _pathRetryCount = 0;
     private float _stuckTimer = 0f;
@@ -1159,7 +1163,10 @@ public class VillagerController : MonoBehaviour
                     _animator.SetBool("isAiming", false);
                 }
 
-                // Thú hoang đã chết! Tìm mỏ Food vừa rơi ra gần đó để khai thác.
+                // Thú hoang đã chết! Đánh dấu chế độ săn bắn để tự động tìm con thú tiếp theo.
+                _wasFarmingWildAnimals = true;
+
+                // Tìm mỏ Food vừa rơi ra gần đó để khai thác.
                 ResourceNode spawnedFood = null;
                 float minD = float.MaxValue;
                 Vector3 targetDeathPos = _huntTarget.transform.position;
@@ -1183,7 +1190,8 @@ public class VillagerController : MonoBehaviour
                 }
                 else
                 {
-                    ChangeState(VillagerState.Idle);
+                    // Không tìm thấy xác thú, thử tìm thú sống tiếp trong tầm
+                    TryContinueHuntingWildAnimals();
                 }
                 return;
             }
@@ -1307,7 +1315,13 @@ public class VillagerController : MonoBehaviour
             if (node != null)
             {
                 int spaceLeft = MaxCarryCapacity - _totalCarryAmount;
-                int toExtract = Mathf.Min(spaceLeft, _gatherAmountPerTick);
+                // Khi thu hoạch xác thú hoang dã (Food Carcass), nhân hệ số _huntGatherMultiplier
+                int effectiveGatherAmount = _gatherAmountPerTick;
+                if (_wasFarmingWildAnimals && node.ResourceType == ResourceType.Food)
+                {
+                    effectiveGatherAmount = _gatherAmountPerTick * _huntGatherMultiplier;
+                }
+                int toExtract = Mathf.Min(spaceLeft, effectiveGatherAmount);
                 int extracted = node.ExtractResource(toExtract);
                 
                 if (extracted > 0)
@@ -1392,16 +1406,45 @@ public class VillagerController : MonoBehaviour
                 {
                     if (isCurrentResourceDepleted)
                     {
-                        _pathRetryCount = 0;
-                        if (SetPathToTarget(GetHarvestPositionAroundNode(_currentJob.position))) 
-                            ChangeState(VillagerState.Moving);
-                        else 
-                            ChangeState(VillagerState.Idle);
+                        // Mỏ hiện tại cạn kiệt: nếu đang ở chế độ săn thú và không còn xác thú khác, tìm thú sống tiếp
+                        if (_wasFarmingWildAnimals && _currentJob == null)
+                        {
+                            TryContinueHuntingWildAnimals();
+                        }
+                        else
+                        {
+                            _pathRetryCount = 0;
+                            if (SetPathToTarget(GetHarvestPositionAroundNode(_currentJob.position))) 
+                                ChangeState(VillagerState.Moving);
+                            else 
+                                ChangeState(VillagerState.Idle);
+                        }
                     }
                 }
                 else
                 {
-                    if (_totalCarryAmount > 0)
+                    // Không còn job nào (mỏ cũng cạn): thử tiếp tục đi săn nếu đang ở chế độ săn thú
+                    if (_wasFarmingWildAnimals)
+                    {
+                        if (_totalCarryAmount > 0)
+                        {
+                            // Mang thịt về kho trước rồi mới đi săn tiếp
+                            _pathRetryCount = 0;
+                            if (BuildingManager.Instance != null)
+                            {
+                                _storageDropoffTarget = BuildingManager.Instance.FindNearestDropoff(transform.position, _targetResource);
+                            }
+                            if (_storageDropoffTarget != Vector3.zero && SetPathToTarget(_storageDropoffTarget))
+                                ChangeState(VillagerState.Moving);
+                            else
+                                TryContinueHuntingWildAnimals();
+                        }
+                        else
+                        {
+                            TryContinueHuntingWildAnimals();
+                        }
+                    }
+                    else if (_totalCarryAmount > 0)
                     {
                         _pathRetryCount = 0;
                         if (BuildingManager.Instance != null)
@@ -1499,6 +1542,55 @@ public class VillagerController : MonoBehaviour
 
         FogVisibilityTarget visibilityTarget = node.GetComponentInParent<FogVisibilityTarget>();
         return visibilityTarget != null && !visibilityTarget.IsVisible;
+    }
+
+    /// <summary>
+    /// Tìm kiếm động vật hoang dã gần nhất còn sống trong bán kính cho trước.
+    /// </summary>
+    private WildAnimalController FindNearbyWildAnimal(Vector3 searchCenter, float radius)
+    {
+        WildAnimalController closest = null;
+        float closestDistSqr = radius * radius;
+
+        WildAnimalController[] animals = FindObjectsByType<WildAnimalController>(FindObjectsSortMode.None);
+        foreach (var animal in animals)
+        {
+            if (animal == null || animal.currentState == CombatState.Dead) continue;
+
+            float distSqr = (searchCenter - animal.transform.position).sqrMagnitude;
+            if (distSqr < closestDistSqr)
+            {
+                closestDistSqr = distSqr;
+                closest = animal;
+            }
+        }
+
+        return closest;
+    }
+
+    /// <summary>
+    /// Thử tự động tìm và săn bắn con thú hoang dã tiếp theo trong tầm.
+    /// Nếu không tìm thấy thú nào, chuyển về trạng thái nhàn rỗi.
+    /// </summary>
+    private void TryContinueHuntingWildAnimals()
+    {
+        if (!_wasFarmingWildAnimals)
+        {
+            ChangeState(VillagerState.Idle);
+            return;
+        }
+
+        WildAnimalController nextAnimal = FindNearbyWildAnimal(transform.position, _autoGatherAfterBuildRadius);
+        if (nextAnimal != null)
+        {
+            Debug.Log($"[Villager] {name} tự động đi săn con thú tiếp theo: {nextAnimal.unitName}");
+            CommandHunt(nextAnimal);
+        }
+        else
+        {
+            _wasFarmingWildAnimals = false;
+            ChangeState(VillagerState.Idle);
+        }
     }
 
     private void TryAutoGatherNearCompletedBuilding(ConstructibleBuilding completedBuilding)
@@ -1694,7 +1786,15 @@ public class VillagerController : MonoBehaviour
 
         if (_currentJob == null)
         {
-            ChangeState(VillagerState.Idle);
+            // Không có job cũ: nếu đang ở chế độ săn thú, tìm thú hoang tiếp theo
+            if (_wasFarmingWildAnimals)
+            {
+                TryContinueHuntingWildAnimals();
+            }
+            else
+            {
+                ChangeState(VillagerState.Idle);
+            }
             return;
         }
 
@@ -1717,7 +1817,15 @@ public class VillagerController : MonoBehaviour
             {
                 if (JobBroker.Instance != null) JobBroker.Instance.RemoveJob(_currentJob);
                 _currentJob = null;
-                ChangeState(VillagerState.Idle);
+                // Mỏ cạn kiệt và không tìm thấy mỏ thay thế: thử đi săn tiếp nếu đang ở chế độ săn thú
+                if (_wasFarmingWildAnimals)
+                {
+                    TryContinueHuntingWildAnimals();
+                }
+                else
+                {
+                    ChangeState(VillagerState.Idle);
+                }
             }
         }
         else
@@ -1873,6 +1981,7 @@ public class VillagerController : MonoBehaviour
         _repairTarget = null;
         _huntTarget = null;
         _isManualMove = true;
+        _wasFarmingWildAnimals = false;
         
         if (SetPathToTarget(destination))
         {
@@ -1901,6 +2010,16 @@ public class VillagerController : MonoBehaviour
         _repairTarget = null;
         _huntTarget = null;
         _isManualMove = false;
+
+        // Giữ cờ _wasFarmingWildAnimals nếu đang thu hoạch xác thú (Food Carcass)
+        if (node.ResourceType == ResourceType.Food && node.gameObject.name.Contains("Carcass"))
+        {
+            _wasFarmingWildAnimals = true;
+        }
+        else if (!_wasFarmingWildAnimals)
+        {
+            _wasFarmingWildAnimals = false;
+        }
         
         _currentJob = new Job(ZoneType.None, node.ResourceType, node.transform.position)
         {
@@ -1939,6 +2058,7 @@ public class VillagerController : MonoBehaviour
         _huntTarget = animal;
         _currentJob = null;
         _isManualMove = false;
+        _wasFarmingWildAnimals = true;
 
         _targetResource = ResourceType.Food;
 
@@ -1975,6 +2095,7 @@ public class VillagerController : MonoBehaviour
         _repairTarget = null;
         _huntTarget = null;
         _isManualMove = false;
+        _wasFarmingWildAnimals = false;
 
         if (SetPathToTarget(_buildTargetPos))
         {
@@ -2011,6 +2132,7 @@ public class VillagerController : MonoBehaviour
         _repairResourceTimer = 0f;
         _huntTarget = null;
         _isManualMove = false;
+        _wasFarmingWildAnimals = false;
 
         if (SetPathToTarget(target.transform.position))
         {
@@ -2044,6 +2166,7 @@ public class VillagerController : MonoBehaviour
         
         TargetBuilding = null;
         _repairTarget = null;
+        _wasFarmingWildAnimals = false;
         
         _currentJob = newJob;
         _isManualMove = false;

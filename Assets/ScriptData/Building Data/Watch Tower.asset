@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: Watch Tower
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: Watch Tower
-  description: Defensive tower with large vision. Garrison units inside to fire arrows.
+  buildingName: "Tháp Canh"
+  description: "Tháp phòng thủ tầm nhìn xa. Cho phép đưa tối đa 4 dân thường hoặc binh lính vào trú ẩn để bắn tên bảo vệ."
   buildingPrefab: {fileID: 6327034547306236624, guid: 7ba1447bd7660ca4f9360dc8c213bff5, type: 3}
   buildingSize: {x: 2, y: 2}
   buildCosts:
@@ -21,7 +21,7 @@ MonoBehaviour:
     amount: 150
   - resourceType: 1
     amount: 50
-  maxHealth: 500
+  maxHealth: 1000
   maxWorkers: 0
   buildTime: 25
   isStorage: 0
