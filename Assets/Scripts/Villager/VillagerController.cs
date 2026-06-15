@@ -30,6 +30,9 @@ public class VillagerController : MonoBehaviour
     [Tooltip("Cuốc đào đá")]
     [SerializeField] private GameObject _miningTool;
 
+    [Tooltip("Cây cung đi săn")]
+    [SerializeField] private GameObject _bowTool;
+
     [Header("Chuỗi Cung Ứng (Inventory)")]
     [Tooltip("Sức chứa tối đa của dân làng")]
     [SerializeField] private int _maxCarryCapacity = 5;
@@ -57,6 +60,22 @@ public class VillagerController : MonoBehaviour
 
     [Tooltip("Minimum spacing between villagers standing around the same construction site.")]
     [SerializeField] private float _builderSlotSpacing = 1.25f;
+
+    [Header("Bắn cung đi săn")]
+    [Tooltip("Tầm bắn cung khi đi săn thú/quái")]
+    [SerializeField] private float _huntRange = 8f;
+
+    [Tooltip("Thời gian nạp/ngắm bắn cung")]
+    [SerializeField] private float _aimDuration = 1.2f;
+
+    [Tooltip("Prefab mũi tên bắn đi")]
+    [SerializeField] private GameObject _arrowPrefab;
+
+    [Tooltip("Điểm xuất phát bắn tên trên người dân làng")]
+    [SerializeField] private Transform _bowFirePoint;
+
+    [Tooltip("Sát thương mỗi lần bắn trúng khi đi săn")]
+    [SerializeField] private int _huntDamage = 15;
 
     #endregion
 
@@ -93,6 +112,9 @@ public class VillagerController : MonoBehaviour
     private bool _hasDepositingParam;
     private bool _hasIdleParam;
     private bool _hasMovingParam;
+    private bool _hasInteractTypeParam;
+    private bool _hasIsAimingParam;
+    private bool _hasAttackTriggerParam;
 
     private WildAnimalController _huntTarget;
 
@@ -318,6 +340,9 @@ public class VillagerController : MonoBehaviour
             _hasDepositingParam = HasParameter("IsDepositing");
             _hasIdleParam = HasParameter("IsIdle");
             _hasMovingParam = HasParameter("IsMoving");
+            _hasInteractTypeParam = HasParameter("InteractType");
+            _hasIsAimingParam = HasParameter("isAiming");
+            _hasAttackTriggerParam = HasParameter("Attack");
         }
 
         _carryVisuals = GetComponent<VillagerCarryVisuals>();
@@ -624,6 +649,14 @@ public class VillagerController : MonoBehaviour
         _currentState = newState;
         _stuckTimer = 0f;
 
+        if (_currentState != VillagerState.Gathering)
+        {
+            if (_animator != null && _hasIsAimingParam)
+            {
+                _animator.SetBool("isAiming", false);
+            }
+        }
+
         if (_currentState == VillagerState.Gathering)
         {
             _failedResourcePositions.Clear();
@@ -757,6 +790,15 @@ public class VillagerController : MonoBehaviour
         if (_huntTarget != null)
         {
             if (_huntTarget.currentState == CombatState.Dead)
+            {
+                _navAgent.ResetPath();
+                OnReachedDestination();
+                return;
+            }
+
+            // Nếu đang đi săn và đã lọt vào tầm bắn _huntRange, cho dừng lại và bắn
+            float distToTarget = Vector3.Distance(transform.position, _huntTarget.transform.position);
+            if (distToTarget <= _huntRange)
             {
                 _navAgent.ResetPath();
                 OnReachedDestination();
@@ -1112,16 +1154,22 @@ public class VillagerController : MonoBehaviour
         {
             if (_huntTarget.currentState == CombatState.Dead)
             {
+                if (_animator != null && _hasIsAimingParam)
+                {
+                    _animator.SetBool("isAiming", false);
+                }
+
                 // Thú hoang đã chết! Tìm mỏ Food vừa rơi ra gần đó để khai thác.
                 ResourceNode spawnedFood = null;
                 float minD = float.MaxValue;
+                Vector3 targetDeathPos = _huntTarget.transform.position;
                 ResourceNode[] nodes = FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
                 foreach (var n in nodes)
                 {
                     if (n.ResourceType == ResourceType.Food)
                     {
-                        float d = Vector3.Distance(transform.position, n.transform.position);
-                        if (d < 6f && d < minD)
+                        float d = Vector3.Distance(targetDeathPos, n.transform.position);
+                        if (d < 4f && d < minD)
                         {
                             minD = d;
                             spawnedFood = n;
@@ -1140,19 +1188,31 @@ public class VillagerController : MonoBehaviour
                 return;
             }
 
+            // Đảm bảo agent dừng đứng yên khi ngắm bắn
+            if (_navAgent != null && _navAgent.enabled && !_navAgent.isStopped)
+            {
+                _navAgent.isStopped = true;
+                _navAgent.velocity = Vector3.zero;
+            }
+
             // Quay mặt về phía con thú
             Vector3 dirToBeast = (_huntTarget.transform.position - transform.position).normalized;
             dirToBeast.y = 0;
             if (dirToBeast.sqrMagnitude > 0.01f)
             {
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dirToBeast), Time.deltaTime * 5f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dirToBeast), Time.deltaTime * _faceTargetSpeed);
             }
 
             // Kiểm tra khoảng cách để săn
             float dist = Vector3.Distance(transform.position, _huntTarget.transform.position);
-            if (dist > 2.5f)
+            if (dist > _huntRange + 2.0f)
             {
-                // Đuổi theo nếu thú chạy trốn
+                if (_animator != null && _hasIsAimingParam)
+                {
+                    _animator.SetBool("isAiming", false);
+                }
+
+                // Đuổi theo nếu thú chạy trốn ra ngoài tầm bắn
                 if (_navAgent != null && _navAgent.enabled)
                 {
                     _navAgent.isStopped = false;
@@ -1162,15 +1222,56 @@ public class VillagerController : MonoBehaviour
                 return;
             }
 
-            // Săn/tấn công thú hoang
+            // Kích hoạt ngắm bắn
+            if (_animator != null && _hasIsAimingParam)
+            {
+                _animator.SetBool("isAiming", true);
+            }
+
+            // Săn/tấn công thú hoang bằng cung tên
             float progressFactor = Time.deltaTime;
             if (_isHungry) progressFactor *= 0.7f;
             _gatherTimer += progressFactor;
 
-            if (_gatherTimer >= 1.0f) // Mỗi 1 giây chém/gõ 1 phát
+            if (_gatherTimer >= _aimDuration)
             {
                 _gatherTimer = 0f;
-                _huntTarget.TakeDamage(15, null); // Dân làng gây 15 sát thương
+
+                if (_animator != null && _hasAttackTriggerParam)
+                {
+                    _animator.SetTrigger("Attack");
+                }
+
+                // Sinh mũi tên bay tới mục tiêu
+                Vector3 firePos = _bowFirePoint != null ? _bowFirePoint.position : transform.position + Vector3.up * 1.4f;
+                ArrowProjectile arrowProj = null;
+                if (_arrowPrefab != null)
+                {
+                    arrowProj = _arrowPrefab.GetComponent<ArrowProjectile>();
+                }
+                if (arrowProj == null)
+                {
+                    var defaultArrow = LoadDefaultArrowProjectile();
+                    if (defaultArrow != null)
+                    {
+                        arrowProj = defaultArrow.GetComponent<ArrowProjectile>();
+                    }
+                }
+
+                if (arrowProj != null)
+                {
+                    ArrowProjectile spawnedArrow = PoolManager.Instance.Spawn(arrowProj, firePos, Quaternion.identity);
+                    if (spawnedArrow != null)
+                    {
+                        BaseCombatUnitController combatCtrl = GetComponent<VillagerCombatTarget>();
+                        spawnedArrow.LaunchAtPosition(_huntTarget, _huntTarget.transform.position, _huntDamage, combatCtrl);
+                    }
+                }
+                else
+                {
+                    BaseCombatUnitController combatCtrl = GetComponent<VillagerCombatTarget>();
+                    _huntTarget.TakeDamage(_huntDamage, combatCtrl);
+                }
             }
             return;
         }
@@ -2106,6 +2207,7 @@ public class VillagerController : MonoBehaviour
     {
         if (_woodTool != null) _woodTool.SetActive(false);
         if (_miningTool != null) _miningTool.SetActive(false);
+        if (_bowTool != null) _bowTool.SetActive(false);
 
         if (_currentState == VillagerState.Building || (_currentState == VillagerState.Moving && _targetBuilding != null))
         {
@@ -2119,9 +2221,17 @@ public class VillagerController : MonoBehaviour
             {
                 if (_woodTool != null) _woodTool.SetActive(true);
             }
-            else if (_targetResource == ResourceType.Stone)
+            else if (_targetResource == ResourceType.Stone || _targetResource == ResourceType.Gold)
             {
                 if (_miningTool != null) _miningTool.SetActive(true);
+            }
+        }
+
+        if (_huntTarget != null)
+        {
+            if (_currentState == VillagerState.Gathering || (_currentState == VillagerState.Moving && GetTotalCarryAmount() == 0))
+            {
+                if (_bowTool != null) _bowTool.SetActive(true);
             }
         }
     }
@@ -2187,6 +2297,47 @@ public class VillagerController : MonoBehaviour
         else
         {
             if (_hasGatheringParam) _animator.SetBool("IsGathering", _currentState == VillagerState.Gathering || _currentState == VillagerState.Depositing || isBuildingState);
+        }
+
+        if (_hasIsAimingParam)
+        {
+            _animator.SetBool("isAiming", _currentState == VillagerState.Gathering && _huntTarget != null);
+        }
+
+        // Cập nhật InteractType động
+        if (_hasInteractTypeParam)
+        {
+            int typeVal = 0; // Mặc định: Chặt gỗ
+            if (isBuildingState || _repairTarget != null)
+            {
+                typeVal = 3; // Xây dựng / Sửa chữa
+            }
+            else if (_currentState == VillagerState.Gathering || _currentState == VillagerState.Moving)
+            {
+                if (_huntTarget != null)
+                {
+                    typeVal = 2; // Thu hoạch / Săn bắn
+                }
+                else
+                {
+                    switch (_targetResource)
+                    {
+                        case ResourceType.Wood:
+                            typeVal = 0;
+                            break;
+                        case ResourceType.Stone:
+                        case ResourceType.Gold:
+                        case ResourceType.AncientRelic:
+                            typeVal = 1;
+                            break;
+                        case ResourceType.Food:
+                        case ResourceType.Water:
+                            typeVal = 2;
+                            break;
+                    }
+                }
+            }
+            _animator.SetInteger("InteractType", typeVal);
         }
     }
 
@@ -2332,6 +2483,18 @@ public class VillagerController : MonoBehaviour
             baseTime /= techMultiplier;
         }
         return baseTime;
+    }
+
+    [Header("Ranged Hunt Rotation")]
+    [SerializeField] private float _faceTargetSpeed = 10f;
+
+    private ArrowProjectile LoadDefaultArrowProjectile()
+    {
+    #if UNITY_EDITOR
+        return UnityEditor.AssetDatabase.LoadAssetAtPath<ArrowProjectile>("Assets/Prefabs/Projectile/ArrowProjectile.prefab");
+    #else
+        return null;
+    #endif
     }
 
     #endregion

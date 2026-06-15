@@ -489,7 +489,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WildAnimalController
   faction: 2
   unitName: Chicken_001
-  maxHealth: 100
+  maxHealth: 20
   currentHealth: 100
   attackDamage: 15
   attackRange: 2
@@ -506,8 +506,8 @@ MonoBehaviour:
   movingAnimationVelocityThreshold: 0.08
   movingAnimationHoldTime: 0.18
   _foodAmount: 100
-  _fleeRange: 12
-  _fleeDistance: 12
+  _fleeRange: 6
+  _fleeDistance: 6
   _walkSpeed: 1.5
   _fleeSpeed: 5
   _wanderRadius: 8

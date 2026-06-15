@@ -239,6 +239,22 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
         }
     }
 
+    protected override void OnDamagedBy(BaseCombatUnitController attacker)
+    {
+        base.OnDamagedBy(attacker);
+        if (attacker != null && currentState != CombatState.Dead)
+        {
+            _currentThreat = attacker.transform;
+            _isFleeing = true;
+            _fleeEndTime = Time.time + 3f; // Hoảng loạn trong 3 giây
+            if (navAgent != null && navAgent.enabled)
+            {
+                navAgent.speed = _fleeSpeed;
+            }
+            HandleFleeMovement();
+        }
+    }
+
     /// <summary>
     /// Chọn ngẫu nhiên một điểm di chuyển lang thang.
     /// </summary>

@@ -162,6 +162,32 @@ public class UnitSelectionManager : MonoBehaviour
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
+            // Spawn Indicator cho chế độ Chỉ định ra lệnh
+            if (_isAttackMode)
+            {
+                BaseCombatUnitController clickedEnemy = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+                if (clickedEnemy != null && clickedEnemy.faction != UnitFaction.Player)
+                    MyGame.UI.MoveIndicator.Spawn(clickedEnemy.transform.position, Vector3.up, Color.red, 1.3f, 0.45f);
+                else
+                    MyGame.UI.MoveIndicator.Spawn(hit.point, hit.normal, Color.red, 1.2f, 0.4f);
+            }
+            else if (_isGatherMode)
+            {
+                ResourceNode clickedNode = hit.collider.GetComponentInParent<ResourceNode>();
+                if (clickedNode != null)
+                    MyGame.UI.MoveIndicator.Spawn(clickedNode.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+                else
+                    MyGame.UI.MoveIndicator.Spawn(hit.point, hit.normal, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+            }
+            else if (_isBuildMode)
+            {
+                ConstructibleBuilding clickedBuilding = hit.collider.GetComponentInParent<ConstructibleBuilding>();
+                if (clickedBuilding != null)
+                    MyGame.UI.MoveIndicator.Spawn(clickedBuilding.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
+                else
+                    MyGame.UI.MoveIndicator.Spawn(hit.point, hit.normal, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+            }
+
             if (_isAttackMode)
             {
                 BaseCombatUnitController clickedEnemy = hit.collider.GetComponentInParent<BaseCombatUnitController>();
@@ -408,9 +434,31 @@ public class UnitSelectionManager : MonoBehaviour
 
             // 4. Kiểm tra xem click vào Combat Unit đối thủ không
             BaseCombatUnitController clickedEnemy = hit.collider.GetComponentInParent<BaseCombatUnitController>();
-
-            // Chỉ số dùng để tính toán điểm đội hình di chuyển thường
-            int moveIndex = 0;
+ 
+            // Spawn Move/Attack Indicator (Chỉ spawn 1 cái duy nhất cho mỗi lượt click chuột phải)
+            if (clickedEnemy != null && clickedEnemy.faction != UnitFaction.Player)
+            {
+                // Click vào kẻ địch hoặc thú rừng trung lập -> Indicator màu đỏ tấn công
+                MyGame.UI.MoveIndicator.Spawn(clickedEnemy.transform.position, Vector3.up, Color.red, 1.3f, 0.45f);
+            }
+            else if (clickedNode != null)
+            {
+                // Click vào mỏ tài nguyên -> Indicator màu xanh lá cây
+                MyGame.UI.MoveIndicator.Spawn(clickedNode.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+            }
+            else if (clickedBuilding != null && !clickedBuilding.IsCompleted)
+            {
+                // Click vào công trình xây dựng -> Indicator màu xanh lá cây
+                MyGame.UI.MoveIndicator.Spawn(clickedBuilding.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
+            }
+            else
+            {
+                // Click di chuyển thường hoặc hành động thân thiện khác -> Indicator màu xanh lá cây tại điểm click và góc dốc của địa hình
+                MyGame.UI.MoveIndicator.Spawn(hit.point, hit.normal, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+            }
+ 
+             // Chỉ số dùng để tính toán điểm đội hình di chuyển thường
+             int moveIndex = 0;
 
             foreach (var unit in selectedUnits)
             {
@@ -508,6 +556,38 @@ public class UnitSelectionManager : MonoBehaviour
 
     private bool TryGetCommandHit(Ray ray, out RaycastHit commandHit)
     {
+        // 1. Thử dùng SphereCast để quét diện rộng tìm đối tượng tương tác (Unit, Thú, Tài nguyên, Nhà)
+        // Giúp người chơi dễ dàng click trúng các mục tiêu nhỏ hoặc đang di chuyển nhanh (như gà)
+        RaycastHit[] sphereHits = Physics.SphereCastAll(ray, 0.75f, 1000f);
+        System.Array.Sort(sphereHits, (a, b) => a.distance.CompareTo(b.distance));
+
+        for (int i = 0; i < sphereHits.Length; i++)
+        {
+            Collider col = sphereHits[i].collider;
+            if (col == null)
+            {
+                continue;
+            }
+
+            if (IsHiddenByFog(col.gameObject))
+            {
+                continue;
+            }
+
+            // Kiểm tra xem đối tượng va chạm có thành phần tương tác được không
+            bool isInteractable = col.GetComponentInParent<BaseCombatUnitController>() != null ||
+                                  col.GetComponentInParent<ResourceNode>() != null ||
+                                  col.GetComponentInParent<ConstructibleBuilding>() != null ||
+                                  col.GetComponentInParent<WatchTowerGarrison>() != null;
+
+            if (isInteractable)
+            {
+                commandHit = sphereHits[i];
+                return true;
+            }
+        }
+
+        // 2. Dự phòng: Dùng Raycast chính xác thông thường (cho click di chuyển mặt đất, vv.)
         RaycastHit[] hits = Physics.RaycastAll(ray, 1000f);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
