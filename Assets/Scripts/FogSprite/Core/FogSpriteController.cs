@@ -25,6 +25,10 @@ public class FogSpriteController : MonoBehaviour
     private Vector3 _destination;
     private bool _isMoving;
 
+    // Cache for IsInLight throttling
+    private float _lightCheckTimer = -1f;
+    private bool _cachedIsInLight;
+
     public void MoveTo(Vector3 destination)
     {
         _destination = destination;
@@ -68,6 +72,11 @@ public class FogSpriteController : MonoBehaviour
 
     public bool IsInLight()
     {
-        return Physics.CheckSphere(transform.position, lightDetectRadius, lightSourceLayer);
+        if (Time.time - _lightCheckTimer > 0.15f)
+        {
+            _lightCheckTimer = Time.time;
+            _cachedIsInLight = Physics.CheckSphere(transform.position, lightDetectRadius, lightSourceLayer);
+        }
+        return _cachedIsInLight;
     }
 }

@@ -254,7 +254,7 @@ public class BuildingManager : MonoBehaviour
 #if UNITY_EDITOR
         if (_constructionFencePrefab == null)
         {
-            _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/mongsnhaf.prefab");
+            _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Building/mongsnhaf.prefab");
             if (_constructionFencePrefab != null)
             {
                 Debug.Log($"[BuildingManager] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
@@ -291,7 +291,58 @@ public class BuildingManager : MonoBehaviour
         {
             gameObject.AddComponent<BuildGridOverlay>();
         }
+
+        if (GetComponent<MarketUI>() == null)
+        {
+            gameObject.AddComponent<MarketUI>();
+        }
     }
+
+    /// <summary>
+    /// Registers a building that was spawned directly in the world (e.g., at game start).
+    /// </summary>
+    public void RegisterSpawnedBuilding(GameObject building, BuildingData data, int startX, int startZ, int rotationIndex = 0)
+    {
+        if (building == null || data == null || _gridSystem == null) return;
+
+        Vector2Int size = data.buildingSize;
+        if (rotationIndex % 2 != 0)
+        {
+            size = new Vector2Int(size.y, size.x);
+        }
+
+        _buildingDataMap[building] = data;
+
+        // Populate cells
+        for (int x = startX; x < startX + size.x; x++)
+        {
+            for (int z = startZ; z < startZ + size.y; z++)
+            {
+                GridCell cell = _gridSystem.GetCell(x, z);
+                if (cell != null)
+                {
+                    _builtStructures[cell] = building;
+                    cell.isBuildable = false;
+                    cell.isWalkable = false;
+                }
+            }
+        }
+
+        // Ensure ConstructibleBuilding is completed and registered
+        ConstructibleBuilding cb = building.GetComponent<ConstructibleBuilding>();
+        if (cb == null)
+        {
+            cb = building.AddComponent<ConstructibleBuilding>();
+        }
+        cb.TotalBuildTime = data.buildTime;
+        cb.buildingGridSize = data.buildingSize;
+        cb.IsInstantBuild = true;
+        cb.IsCompleted = true;
+        cb.CurrentProgress = 1f;
+
+        OnBuildingCompleted(cb);
+    }
+
 
     // Hàm gọi khi người dùng muốn đổi loại nhà sẽ xây
     public void SelectBuilding(BuildingData buildingData)
@@ -702,11 +753,40 @@ public class BuildingManager : MonoBehaviour
             prod.SetBuildingData(data);
         }
 
-        // Thêm component ConstructibleBuilding để kích hoạt tính năng xây dựng từ từ trồi từ dưới đất lên
-        ConstructibleBuilding cb = newBuilding.AddComponent<ConstructibleBuilding>();
+        // Thêm component ConstructibleBuilding nếu chưa có để kích hoạt tính năng xây dựng từ từ trồi từ dưới đất lên
+        ConstructibleBuilding cb = newBuilding.GetComponent<ConstructibleBuilding>();
+        if (cb == null)
+        {
+            cb = newBuilding.AddComponent<ConstructibleBuilding>();
+        }
         cb.TotalBuildTime = data.buildTime;
         cb.buildingGridSize = data.buildingSize;
         cb.ConstructionFencePrefab = _constructionFencePrefab;
+
+        bool isInstant = data.isInstantBuild || 
+                         (data.buildingPrefab != null && (data.buildingPrefab.name.ToLower().Contains("torch") || data.buildingPrefab.name.ToLower().Contains("đoốc") || data.buildingPrefab.name.ToLower().Contains("đuốc") || data.buildingPrefab.name.ToLower().Contains("duoc"))) ||
+                         (data.buildingName != null && (data.buildingName.ToLower().Contains("torch") || data.buildingName.ToLower().Contains("đoốc") || data.buildingName.ToLower().Contains("đuốc") || data.buildingName.ToLower().Contains("duoc")));
+
+        if (isInstant)
+        {
+            cb.IsInstantBuild = true;
+            cb.IsCompleted = true;
+            cb.CurrentProgress = 1f;
+
+            // Đảm bảo visual container không bị lún (phòng trường hợp Awake của cb chạy trước khi ta gán cờ)
+            Transform visualContainer = newBuilding.transform.Find("_VisualContainer");
+            if (visualContainer != null)
+            {
+                visualContainer.localPosition = Vector3.zero;
+            }
+
+            // Đảm bảo NavMeshObstacle được bật ngay lập tức
+            UnityEngine.AI.NavMeshObstacle obstacle = newBuilding.GetComponentInChildren<UnityEngine.AI.NavMeshObstacle>();
+            if (obstacle != null)
+            {
+                obstacle.enabled = true;
+            }
+        }
 
         // Tự động gắn thành phần chiến đấu nếu chưa có để công trình có thể nhận sát thương và bị tiêu diệt
         BuildingCombatTarget combatTarget = newBuilding.GetComponent<BuildingCombatTarget>();
@@ -731,8 +811,16 @@ public class BuildingManager : MonoBehaviour
             cell.isWalkable = false;                 // Nhà che đường 
         }
 
-        // Ghi nhận nhà đã bắt đầu đặt móng (chưa tăng builtBuildingCounts vì chưa hoàn thành)
-        Debug.Log($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
+        if (isInstant)
+        {
+            OnBuildingCompleted(cb);
+            Debug.Log($"[BuildingManager] Xây dựng xong ngay lập tức công trình {data.buildingName} tại [{startX}, {startZ}]!");
+        }
+        else
+        {
+            // Ghi nhận nhà đã bắt đầu đặt móng (chưa tăng builtBuildingCounts vì chưa hoàn thành)
+            Debug.Log($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
+        }
     }
 
     /// <summary>
@@ -1023,6 +1111,28 @@ public class BuildingManager : MonoBehaviour
                 Debug.Log($"[BuildingManager] Đã gắn HouseShelter cho {building.name} với sức chứa {capacity} dân.");
             }
         }
+    }
+
+    /// <summary>
+    /// Đếm số lượng kho chứa Storage đã được xây dựng hoàn tất.
+    /// </summary>
+    public int GetCompletedStorageCount()
+    {
+        int count = 0;
+        foreach (var kvp in _builtBuildingCounts)
+        {
+            BuildingData data = kvp.Key;
+            int activeCount = kvp.Value;
+            if (data != null && activeCount > 0)
+            {
+                string prefabNameLower = data.buildingPrefab != null ? data.buildingPrefab.name.ToLower() : "";
+                if (prefabNameLower == "storage" || (prefabNameLower.Contains("storage") && !prefabNameLower.Contains("food")))
+                {
+                    count += activeCount;
+                }
+            }
+        }
+        return count;
     }
 
 }

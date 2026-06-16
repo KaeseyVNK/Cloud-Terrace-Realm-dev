@@ -5,6 +5,8 @@ using System.Collections.Generic;
 
 public class ConstructibleBuilding : MonoBehaviour
 {
+    public static readonly List<ConstructibleBuilding> Registry = new List<ConstructibleBuilding>();
+
     [Header("Construction Stats")]
     [UnityEngine.Serialization.FormerlySerializedAs("totalBuildTime")]
     [SerializeField] private float _totalBuildTime = 15f;    // Tổng thời gian cần để hoàn tất (giây)
@@ -28,6 +30,15 @@ public class ConstructibleBuilding : MonoBehaviour
     {
         get => _isCompleted;
         set => _isCompleted = value;
+    }
+
+    [Header("Special Settings")]
+    [UnityEngine.Serialization.FormerlySerializedAs("isInstantBuild")]
+    [SerializeField] private bool _isInstantBuild = false;
+    public bool IsInstantBuild
+    {
+        get => _isInstantBuild;
+        set => _isInstantBuild = value;
     }
 
     [Header("Visual Effects")]
@@ -70,8 +81,43 @@ public class ConstructibleBuilding : MonoBehaviour
     private NavMeshObstacle _navObstacle;
     private GameObject _constructionFenceInstance;
 
+    private void OnEnable()
+    {
+        Registry.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        Registry.Remove(this);
+    }
+
     void Awake()
     {
+        // Fallback: Tự động nhận dạng qua tên đối tượng hoặc component MarketController trung lập
+        if (!_isInstantBuild)
+        {
+            string nameLower = gameObject.name.ToLower();
+            if (nameLower.Contains("torch") || nameLower.Contains("đoốc") || nameLower.Contains("đuốc") || nameLower.Contains("duoc") || nameLower.Contains("neutral"))
+            {
+                _isInstantBuild = true;
+            }
+            else
+            {
+                MarketController mc = GetComponent<MarketController>();
+                if (mc == null) mc = GetComponentInChildren<MarketController>();
+                if (mc != null && mc.isNeutral)
+                {
+                    _isInstantBuild = true;
+                }
+            }
+        }
+
+        if (_isInstantBuild)
+        {
+            _isCompleted = true;
+            _currentProgress = 1f;
+        }
+
         Debug.Log($"[ConstructibleBuilding] Khởi tạo trên {gameObject.name}. Số lượng đối tượng con gốc: {transform.childCount}");
 
         // 1. Kiểm tra và trích xuất Mesh ở ROOT (nếu có) sang đối tượng con phụ
@@ -161,22 +207,41 @@ public class ConstructibleBuilding : MonoBehaviour
         _navObstacle = GetComponentInChildren<NavMeshObstacle>();
         if (_navObstacle != null)
         {
-            _navObstacle.enabled = false;
-            Debug.Log($"   -> Đã tạm thời tắt NavMeshObstacle trên {gameObject.name}");
+            if (_isInstantBuild)
+            {
+                _navObstacle.enabled = true;
+                Debug.Log($"   -> Giữ nguyên NavMeshObstacle bật cho công trình xây ngay trên {gameObject.name}");
+            }
+            else
+            {
+                _navObstacle.enabled = false;
+                Debug.Log($"   -> Đã tạm thời tắt NavMeshObstacle trên {gameObject.name}");
+            }
         }
 
         // 7. Lún toàn bộ phần mô hình xuống đất để chuẩn bị hiệu ứng trồi lên
-        _visualContainer.localPosition = new Vector3(0f, _initialSunkHeight, 0f);
-        Debug.Log($"   -> Đã lún _VisualContainer xuống Y = {_initialSunkHeight}. Vị trí cục bộ mới: {_visualContainer.localPosition}");
+        if (_isInstantBuild)
+        {
+            _visualContainer.localPosition = Vector3.zero;
+        }
+        else
+        {
+            _visualContainer.localPosition = new Vector3(0f, _initialSunkHeight, 0f);
+            Debug.Log($"   -> Đã lún _VisualContainer xuống Y = {_initialSunkHeight}. Vị trí cục bộ mới: {_visualContainer.localPosition}");
+        }
     }
 
     void Start()
     {
+        if (_isInstantBuild || _isCompleted)
+        {
+            return;
+        }
         // 1. Tự động tải prefab hàng rào nếu chưa được gán
         if (_constructionFencePrefab == null)
         {
             #if UNITY_EDITOR
-            _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/mongsnhaf.prefab");
+            _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Building/mongsnhaf.prefab");
             if (_constructionFencePrefab != null)
             {
                 Debug.Log($"[ConstructibleBuilding] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");

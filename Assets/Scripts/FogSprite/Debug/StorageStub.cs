@@ -13,5 +13,15 @@ public class StorageStub : MonoBehaviour, IResourceStorage
         return taken;
     }
 
+    private void OnEnable()
+    {
+        ResourceStorageRegistry.Instances.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        ResourceStorageRegistry.Instances.Remove(this);
+    }
+
     public Vector3 GetPosition() => transform.position;
 }

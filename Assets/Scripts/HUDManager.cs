@@ -80,23 +80,30 @@ public class HUDManager : MonoBehaviour
 
     private void UpdateResourceUI(ResourceType type, int newAmount)
     {
+        int gatherers = VillagerController.GetGathererCount(type);
+
         switch (type)
         {
             case ResourceType.Wood:
-                if (_woodText != null) _woodText.text = "Go: " + newAmount;
+                if (_woodText != null) _woodText.text = $"Go: {newAmount}/{gatherers}";
                 break;
             case ResourceType.Stone:
-                if (_stoneText != null) _stoneText.text = "Da: " + newAmount;
+                if (_stoneText != null) _stoneText.text = $"Da: {newAmount}/{gatherers}";
                 break;
             case ResourceType.Food:
-                if (_foodText != null) _foodText.text = "Luong: " + newAmount;
+                if (_foodText != null) _foodText.text = $"Luong: {newAmount}/{gatherers}";
                 break;
             case ResourceType.Gold:
-                if (_goldText != null) _goldText.text = "Vang: " + newAmount;
+                if (_goldText != null) _goldText.text = $"Vang: {newAmount}/{gatherers}";
                 break;
             case ResourceType.AncientRelic:
                 if (_relicText != null) _relicText.text = "Co vat: " + newAmount;
                 break;
+        }
+
+        if (ResourceManager.Instance != null)
+        {
+            UpdateCapacityUI(ResourceManager.Instance.GetTotalPrimaryResources(), ResourceManager.Instance.GetMaxResourceCapacity());
         }
     }
 
@@ -117,6 +124,14 @@ public class HUDManager : MonoBehaviour
         {
             _nextPopulationRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, _populationRefreshInterval);
             UpdatePopulationUI();
+
+            if (ResourceManager.Instance != null)
+            {
+                UpdateResourceUI(ResourceType.Wood, ResourceManager.Instance.GetResourceAmount(ResourceType.Wood));
+                UpdateResourceUI(ResourceType.Stone, ResourceManager.Instance.GetResourceAmount(ResourceType.Stone));
+                UpdateResourceUI(ResourceType.Food, ResourceManager.Instance.GetResourceAmount(ResourceType.Food));
+                UpdateResourceUI(ResourceType.Gold, ResourceManager.Instance.GetResourceAmount(ResourceType.Gold));
+            }
         }
 
         // Cập nhật trạng thái thiếu lương thực
@@ -404,5 +419,124 @@ public class HUDManager : MonoBehaviour
                     "</color>";
 
         _instructionsPanel = panelObj;
+    }
+
+    [Header("Capacity UI")]
+    [SerializeField] private TextMeshProUGUI _capacityText;
+
+    private void EnsureCapacityText()
+    {
+        if (_capacityText != null) return;
+
+        Transform existing = transform.Find("CapacityText");
+        if (existing != null)
+        {
+            _capacityText = existing.GetComponent<TextMeshProUGUI>();
+            if (_capacityText != null) return;
+        }
+
+        GameObject capObject = new GameObject("CapacityText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        capObject.transform.SetParent(transform, false);
+        capObject.layer = gameObject.layer;
+
+        RectTransform rectTransform = capObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(150f, 472f); // Ở giữa Food (-6) và Population (300)
+        rectTransform.sizeDelta = new Vector2(200f, 50f);
+
+        _capacityText = capObject.GetComponent<TextMeshProUGUI>();
+        _capacityText.fontSize = 24f;
+        _capacityText.alignment = TextAlignmentOptions.Center;
+        _capacityText.color = Color.white;
+        _capacityText.raycastTarget = false;
+        _capacityText.text = "Kho: 0/1000";
+    }
+
+    public void UpdateCapacityUI(int current, int max)
+    {
+        EnsureCapacityText();
+        if (_capacityText != null)
+        {
+            _capacityText.text = $"Kho: {current}/{max}";
+            _capacityText.color = current >= max ? Color.red : Color.white;
+        }
+    }
+
+    [Header("Kho đầy Warning")]
+    [SerializeField] private TextMeshProUGUI _storageFullWarningText;
+    private Coroutine _warningFadeCoroutine;
+
+    private void EnsureStorageFullWarningText()
+    {
+        if (_storageFullWarningText != null) return;
+
+        Transform existing = transform.Find("StorageFullWarningText");
+        if (existing != null)
+        {
+            _storageFullWarningText = existing.GetComponent<TextMeshProUGUI>();
+            if (_storageFullWarningText != null) return;
+        }
+
+        GameObject warningObject = new GameObject("StorageFullWarningText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        warningObject.transform.SetParent(transform, false);
+        warningObject.layer = gameObject.layer;
+
+        RectTransform rectTransform = warningObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(0f, 250f); // Ở giữa màn hình phía trên
+        rectTransform.sizeDelta = new Vector2(700f, 50f);
+
+        _storageFullWarningText = warningObject.GetComponent<TextMeshProUGUI>();
+        _storageFullWarningText.fontSize = 24f;
+        _storageFullWarningText.alignment = TextAlignmentOptions.Center;
+        _storageFullWarningText.color = Color.red;
+        _storageFullWarningText.text = "⚠️ KHO ĐẦY! CẦN XÂY DỰNG STORAGE MỚI ĐỂ TIẾP TỤC NỘP!";
+        _storageFullWarningText.raycastTarget = false;
+        _storageFullWarningText.gameObject.SetActive(false);
+    }
+
+    public void TriggerStorageFullWarning()
+    {
+        EnsureStorageFullWarningText();
+        if (_storageFullWarningText == null) return;
+
+        if (_warningFadeCoroutine != null)
+        {
+            StopCoroutine(_warningFadeCoroutine);
+        }
+        _warningFadeCoroutine = StartCoroutine(ShowWarningRoutine());
+    }
+
+    private IEnumerator ShowWarningRoutine()
+    {
+        _storageFullWarningText.gameObject.SetActive(true);
+        _storageFullWarningText.alpha = 1f;
+
+        // Nhấp nháy màu đỏ/vàng
+        for (int i = 0; i < 3; i++)
+        {
+            _storageFullWarningText.color = Color.yellow;
+            yield return new WaitForSeconds(0.2f);
+            _storageFullWarningText.color = Color.red;
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        yield return new WaitForSeconds(2.0f);
+
+        // Mờ dần
+        float elapsed = 0f;
+        while (elapsed < 0.5f)
+        {
+            elapsed += Time.deltaTime;
+            _storageFullWarningText.alpha = Mathf.Lerp(1f, 0f, elapsed / 0.5f);
+            yield return null;
+        }
+
+        _storageFullWarningText.gameObject.SetActive(false);
+        _warningFadeCoroutine = null;
     }
 }

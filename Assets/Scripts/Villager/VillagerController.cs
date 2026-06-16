@@ -362,11 +362,13 @@ public class VillagerController : MonoBehaviour
         UpdateActiveTools();
         UpdateCarryVisuals();
 
-        // Tự động gắn đèn cho dân làng
+        // Tự động gắn đèn cho dân làng (Tắt đi để tránh lag do point light)
+        /*
         if (gameObject.GetComponent<UnitLightController>() == null)
         {
             gameObject.AddComponent<UnitLightController>();
         }
+        */
 
         if (TechnologyManager.HasInstance)
         {
@@ -462,12 +464,12 @@ public class VillagerController : MonoBehaviour
 
     private HouseShelter FindClosestAvailableShelter()
     {
-        HouseShelter[] shelters = FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude);
         HouseShelter closest = null;
         float closestDistSqr = float.MaxValue;
 
-        foreach (HouseShelter shelter in shelters)
+        for (int i = 0; i < HouseShelter.Registry.Count; i++)
         {
+            HouseShelter shelter = HouseShelter.Registry[i];
             if (shelter == null || !shelter.IsOperational() || !shelter.HasSpace) continue;
 
             float distSqr = (transform.position - shelter.transform.position).sqrMagnitude;
@@ -483,12 +485,12 @@ public class VillagerController : MonoBehaviour
 
     private WatchTowerGarrison FindClosestAvailableGarrison()
     {
-        WatchTowerGarrison[] garrisons = FindObjectsByType<WatchTowerGarrison>(FindObjectsInactive.Exclude);
         WatchTowerGarrison closest = null;
         float closestDistSqr = float.MaxValue;
 
-        foreach (WatchTowerGarrison garrison in garrisons)
+        for (int i = 0; i < WatchTowerGarrison.Registry.Count; i++)
         {
+            WatchTowerGarrison garrison = WatchTowerGarrison.Registry[i];
             if (garrison == null || !garrison.IsOperational() || !garrison.HasSpace) continue;
 
             float distSqr = (transform.position - garrison.transform.position).sqrMagnitude;
@@ -1118,7 +1120,8 @@ public class VillagerController : MonoBehaviour
                 float boundsRadius = 2.0f;
                 if (col != null)
                 {
-                    boundsRadius = Mathf.Max(boundsRadius, col.bounds.extents.x + 1.2f);
+                    float maxExtent = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
+                    boundsRadius = Mathf.Max(boundsRadius, maxExtent + 2.0f);
                 }
 
                 float distToBuilding = Vector3.Distance(transform.position, buildingPos);
@@ -1170,10 +1173,10 @@ public class VillagerController : MonoBehaviour
                 ResourceNode spawnedFood = null;
                 float minD = float.MaxValue;
                 Vector3 targetDeathPos = _huntTarget.transform.position;
-                ResourceNode[] nodes = FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
-                foreach (var n in nodes)
+                for (int i = 0; i < ResourceNode.Registry.Count; i++)
                 {
-                    if (n.ResourceType == ResourceType.Food)
+                    ResourceNode n = ResourceNode.Registry[i];
+                    if (n != null && n.ResourceType == ResourceType.Food)
                     {
                         float d = Vector3.Distance(targetDeathPos, n.transform.position);
                         if (d < 4f && d < minD)
@@ -1334,6 +1337,9 @@ public class VillagerController : MonoBehaviour
                     _totalCarryAmount += extracted; // Tải trọng lưu trữ cục bộ (Không phân bổ bộ nhớ)
                     UpdateCarryVisuals();
 
+                    // Hiển thị số nổi tài nguyên vừa thu hoạch
+                    MyGame.UI.FloatingText.Spawn(transform.position, $"+{extracted} {GetResourceName(node.ResourceType)}", GetResourceColor(node.ResourceType));
+
                     // Kiểm tra và thu hoạch tài nguyên phụ (ví dụ: lương thực từ cây gỗ)
                     if (node.HasSecondaryResource)
                     {
@@ -1351,6 +1357,9 @@ public class VillagerController : MonoBehaviour
                             _totalCarryAmount += secondaryAmount;
                             UpdateCarryVisuals();
                             Debug.Log($"[Logistics] Thu hoạch thêm {secondaryAmount} {node.SecondaryResourceType} (Tài nguyên phụ từ {node.ResourceType}).");
+
+                            // Hiển thị số nổi tài nguyên phụ vừa thu hoạch
+                            MyGame.UI.FloatingText.Spawn(transform.position + Vector3.right * 0.5f, $"+{secondaryAmount} {GetResourceName(node.SecondaryResourceType)}", GetResourceColor(node.SecondaryResourceType));
                         }
                     }
                 }
@@ -1729,6 +1738,35 @@ public class VillagerController : MonoBehaviour
         s_tempCompletedBuilders.Clear();
     }
 
+    /// <summary>
+    /// Đếm số dân đang tham gia khai thác loại tài nguyên tương ứng.
+    /// </summary>
+    public static int GetGathererCount(ResourceType type)
+    {
+        int count = 0;
+        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        for (int i = 0; i < allVillagers.Length; i++)
+        {
+            VillagerController v = allVillagers[i];
+            if (v != null)
+            {
+                if (v._currentState == VillagerState.Gathering && v._targetResource == type)
+                {
+                    count++;
+                }
+                else if (v._currentState == VillagerState.Depositing && v._targetResource == type)
+                {
+                    count++;
+                }
+                else if (v._currentState == VillagerState.Moving && v._currentJob != null && v._targetResource == type)
+                {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     #endregion
 
     #region Job Execution: Depositing
@@ -1761,12 +1799,38 @@ public class VillagerController : MonoBehaviour
     {
         if (ResourceManager.Instance != null)
         {
+            int currentTotal = ResourceManager.Instance.GetTotalPrimaryResources();
+            int maxCapacity = ResourceManager.Instance.GetMaxResourceCapacity();
+            
+            int depositAmount = 0;
+            foreach (var kvp in _inventory)
+            {
+                if (kvp.Value > 0)
+                {
+                    depositAmount += kvp.Value;
+                }
+            }
+
+            if (currentTotal + depositAmount > maxCapacity)
+            {
+                if (HUDManager.Instance != null)
+                {
+                    HUDManager.Instance.TriggerStorageFullWarning();
+                }
+                Debug.LogWarning($"[Logistics] Kho chứa đầy ({currentTotal}/{maxCapacity}). Dân làng không thể nộp thêm {depositAmount} tài nguyên!");
+                ChangeState(VillagerState.Idle);
+                return;
+            }
+
             foreach (var kvp in _inventory)
             {
                 if (kvp.Value > 0)
                 {
                     ResourceManager.Instance.AddResource(kvp.Key, kvp.Value);
                     Debug.Log($"[Logistics] Villager đã nộp {kvp.Value} {kvp.Key} vào kho lúc {Time.time}");
+
+                    // Hiển thị số nổi tài nguyên khi nộp vào kho
+                    MyGame.UI.FloatingText.Spawn(transform.position, $"+{kvp.Value} {GetResourceName(kvp.Key)}", GetResourceColor(kvp.Key));
                 }
             }
         }
@@ -1865,7 +1929,8 @@ public class VillagerController : MonoBehaviour
             float boundsRadius = 2.0f;
             if (col != null)
             {
-                boundsRadius = Mathf.Max(boundsRadius, col.bounds.extents.x + 1.2f);
+                float maxExtent = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
+                boundsRadius = Mathf.Max(boundsRadius, maxExtent + 2.0f);
             }
 
             float distToBuilding = Vector3.Distance(transform.position, _repairTarget.transform.position);
@@ -2618,6 +2683,32 @@ public class VillagerController : MonoBehaviour
     #else
         return null;
     #endif
+    }
+
+    private Color GetResourceColor(ResourceType type)
+    {
+        switch (type)
+        {
+            case ResourceType.Wood: return new Color(0.4f, 0.8f, 0.4f); // Light Green
+            case ResourceType.Stone: return new Color(0.7f, 0.7f, 0.7f); // Gray
+            case ResourceType.Food: return new Color(1.0f, 0.8f, 0.3f); // Warm Yellow/Orange
+            case ResourceType.Gold: return new Color(1.0f, 0.9f, 0.1f); // Bright Gold
+            case ResourceType.Water: return new Color(0.3f, 0.6f, 1.0f); // Blue
+            default: return Color.white;
+        }
+    }
+
+    private string GetResourceName(ResourceType type)
+    {
+        switch (type)
+        {
+            case ResourceType.Wood: return "Gỗ";
+            case ResourceType.Stone: return "Đá";
+            case ResourceType.Food: return "Lương Thực";
+            case ResourceType.Gold: return "Vàng";
+            case ResourceType.Water: return "Nước";
+            default: return type.ToString();
+        }
     }
 
     #endregion

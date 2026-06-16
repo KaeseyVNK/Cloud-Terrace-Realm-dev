@@ -5,6 +5,8 @@ using UnityEngine.AI;
 
 public class WatchTowerGarrison : MonoBehaviour
 {
+    public static readonly List<WatchTowerGarrison> Registry = new List<WatchTowerGarrison>();
+
     [Header("Garrison")]
     [SerializeField] private int capacity = 4;
     [SerializeField] private Transform entryPoint;
@@ -41,6 +43,11 @@ public class WatchTowerGarrison : MonoBehaviour
     public int OccupantCount => garrisonedUnits.Count;
     public bool HasSpace => GetReservedSlotCount() < capacity;
     public float VisionRadius => visionRadius;
+
+    private void OnEnable()
+    {
+        Registry.Add(this);
+    }
 
     private void Awake()
     {
@@ -381,6 +388,7 @@ public class WatchTowerGarrison : MonoBehaviour
 
     private void OnDisable()
     {
+        Registry.Remove(this);
         if (attackBurstCoroutine != null)
         {
             StopCoroutine(attackBurstCoroutine);

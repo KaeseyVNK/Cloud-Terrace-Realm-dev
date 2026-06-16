@@ -29,8 +29,8 @@ public class DayNightCycle : MonoBehaviour
     [SerializeField] private Color nightZenith = new Color(0.01f, 0.01f, 0.07f);
     [SerializeField] private Color nightHorizon = new Color(0.01f, 0.01f, 0.05f);
     [SerializeField] private Color moonlightColor = new Color(0.55f, 0.65f, 1f);
-    [SerializeField] private float nightIntensity = 0.18f;
-    [SerializeField] private float moonAmbientIntensity = 0.35f;
+    [SerializeField] private float nightIntensity = 0.32f; // Tăng từ 0.18f để đêm sáng hơn
+    [SerializeField] private float moonAmbientIntensity = 0.52f; // Tăng từ 0.35f để shadow bớt tối đen
 
     [Header("Golden Hour (Dawn/Dusk)")]
     [SerializeField] private Color dawnDuskZenith = new Color(0.85f, 0.45f, 0.25f);
@@ -143,8 +143,20 @@ public class DayNightCycle : MonoBehaviour
         sun.intensity = targetSunIntensity;
         sun.color = targetSunColor;
 
-        float currentXRotation = timeRatio * 360f;
-        transform.rotation = Quaternion.Euler(currentXRotation, baseRotationY, 0f);
+        float currentXRotation;
+        float currentYRotation = baseRotationY;
+        if (timeRatio < 0.5f)
+        {
+            // Ban ngày: Mặt trời mọc từ 0 đến 180 độ
+            currentXRotation = timeRatio * 2f * 180f;
+        }
+        else
+        {
+            // Ban đêm: Mặt trăng mọc từ 0 đến 180 độ, chiếu từ góc đối diện (baseRotationY + 180)
+            currentXRotation = (timeRatio - 0.5f) * 2f * 180f;
+            currentYRotation = baseRotationY + 180f;
+        }
+        transform.rotation = Quaternion.Euler(currentXRotation, currentYRotation, 0f);
 
         ApplyEnvironment(timeRatio, nightBlend, _currentRainIntensity, _currentBloodMoonIntensity);
     }

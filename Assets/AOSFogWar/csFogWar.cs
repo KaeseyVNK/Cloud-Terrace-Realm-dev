@@ -195,6 +195,7 @@ namespace FischlWorks_FogWar
         [SerializeField]
         private Transform levelMidPoint = null;
         public Transform _LevelMidPoint => levelMidPoint;
+        public Transform LevelMidPoint { get => levelMidPoint; set => levelMidPoint = value; }
         [SerializeField]
         [Range(1, 30)]
         private float FogRefreshRate = 10;
@@ -207,9 +208,11 @@ namespace FischlWorks_FogWar
         private Material fogPlaneMaterial = null;
         [SerializeField]
         private Color fogColor = new Color32(5, 15, 25, 255);
+        public Color FogColor { get => fogColor; set => fogColor = value; }
         [SerializeField]
         [Range(0, 1)]
         private float fogPlaneAlpha = 1;
+        public float FogPlaneAlpha { get => fogPlaneAlpha; set => fogPlaneAlpha = value; }
         [SerializeField]
         [Range(1, 5)]
         private float fogLerpSpeed = 2.5f;
@@ -222,6 +225,7 @@ namespace FischlWorks_FogWar
         private Texture2D fogPlaneTextureLerpTarget = null;
         [SerializeField]
         private Texture2D fogPlaneTextureLerpBuffer = null;
+        public Texture2D FogPlaneTextureLerpBuffer => fogPlaneTextureLerpBuffer;
         private Color[] fogPlaneTextureTargetPixels = null;
         private Color[] fogPlaneTextureBufferPixels = null;
 
@@ -239,13 +243,16 @@ namespace FischlWorks_FogWar
         [Range(1, 128)]
         [Tooltip("If you need more than 128 units, consider using raycasting-based fog modules instead.")]
         private int levelDimensionX = 11;
+        public int LevelDimensionX { get => levelDimensionX; set => levelDimensionX = value; }
         [SerializeField]
         [Range(1, 128)]
         [Tooltip("If you need more than 128 units, consider using raycasting-based fog modules instead.")]
         private int levelDimensionY = 11;
+        public int LevelDimensionY { get => levelDimensionY; set => levelDimensionY = value; }
         [SerializeField]
         private float unitScale = 1;
         public float _UnitScale => unitScale;
+        public float UnitScale { get => unitScale; set => unitScale = value; }
         [SerializeField]
         private float scanSpacingPerUnit = 0.25f;
         [SerializeField]

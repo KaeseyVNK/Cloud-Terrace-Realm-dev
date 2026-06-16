@@ -98,7 +98,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 8353225005662577125, guid: 899c1cc4c76e0ae48a7c9663d80680c4, type: 3}
+  - {fileID: 2100000, guid: 8c5d81e94e04d1545b9105e3df0c7cfb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -170,4 +170,7 @@ MonoBehaviour:
   speed: 32
   hitDistance: 0.4
   maxLifetime: 4
+  arcHeight: 2.5
+  minFlightDuration: 0.25
+  maxFlightDuration: 2.4
   targetOffset: {x: 1, y: 1, z: 0}

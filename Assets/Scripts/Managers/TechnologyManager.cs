@@ -48,6 +48,23 @@ public class TechnologyManager : MonoBehaviour
         }
     }
 
+    public int StorageCapacityBonus
+    {
+        get
+        {
+            int bonus = 0;
+            for (int i = 0; i < _unlockedTechnologies.Count; i++)
+            {
+                TechnologyData technology = _unlockedTechnologies[i];
+                if (technology != null)
+                {
+                    bonus += technology.storageCapacityBonus;
+                }
+            }
+            return bonus;
+        }
+    }
+
     public float VillagerMoveSpeedMultiplier => GetStackedMultiplier(t => t.villagerMoveSpeedMultiplier);
 
     private void Awake()

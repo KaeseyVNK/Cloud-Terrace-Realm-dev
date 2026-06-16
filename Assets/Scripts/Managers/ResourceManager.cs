@@ -104,4 +104,36 @@ public class ResourceManager : MonoBehaviour
             TryConsumeResource(cost.resourceType, cost.amount);
         }
     }
+
+    /// <summary>
+    /// Tính tổng số lượng của 4 loại tài nguyên chính (Wood, Stone, Food, Gold).
+    /// </summary>
+    public int GetTotalPrimaryResources()
+    {
+        return GetResourceAmount(ResourceType.Wood) +
+               GetResourceAmount(ResourceType.Stone) +
+               GetResourceAmount(ResourceType.Food) +
+               GetResourceAmount(ResourceType.Gold);
+    }
+
+    /// <summary>
+    /// Lấy sức chứa kho tối đa của người chơi (Base 1000 + 1000 cho mỗi công trình Storage + Tech Bonus).
+    /// </summary>
+    public int GetMaxResourceCapacity()
+    {
+        int baseCapacity = 1000;
+        int storageCount = 0;
+        if (BuildingManager.Instance != null)
+        {
+            storageCount = BuildingManager.Instance.GetCompletedStorageCount();
+        }
+
+        int techBonus = 0;
+        if (TechnologyManager.HasInstance)
+        {
+            techBonus = TechnologyManager.Instance.StorageCapacityBonus;
+        }
+
+        return baseCapacity + storageCount * 1000 + techBonus;
+    }
 }

@@ -52,6 +52,8 @@ public class BuildingNightLightController : MonoBehaviour
 
     private void SetupNightLights()
     {
+        // Tắt hoàn toàn việc quản lý đèn point light của công trình để tối ưu hóa hiệu năng, tránh lag
+        _controlChildPointLights = false;
         if (!_controlChildPointLights)
         {
             return;

@@ -36,6 +36,7 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
     private Transform _currentThreat;
     private float _animVert = 0f;
     private float _animState = 0f;
+    private FogVisibilityTarget _fogVisibility;
 
     public int FoodAmount
     {
@@ -103,26 +104,77 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
         {
             WildlifeManager.Instance.RegisterAnimal(this);
         }
+
+        // Tìm kiếm và lưu vết component FogVisibilityTarget
+        _fogVisibility = GetComponent<FogVisibilityTarget>();
+        if (_fogVisibility == null)
+        {
+            _fogVisibility = GetComponentInChildren<FogVisibilityTarget>();
+        }
+        if (_fogVisibility == null)
+        {
+            _fogVisibility = GetComponentInParent<FogVisibilityTarget>();
+        }
     }
 
     protected override void Update()
     {
         if (currentState == CombatState.Dead) return;
 
-        // Quét mối đe dọa định kỳ (0.1s mỗi lần để tránh nặng CPU)
-        if (Time.time >= _nextFleeScanTime)
-        {
-            _nextFleeScanTime = Time.time + 0.1f;
-            ScanForThreats();
-        }
+        bool isVisible = _fogVisibility == null || _fogVisibility.IsVisible;
 
-        // Kiểm tra hết thời gian hoảng loạn chạy trốn
-        if (_isFleeing && Time.time >= _fleeEndTime)
+        if (!isVisible)
         {
-            _isFleeing = false;
-            if (navAgent != null && navAgent.enabled)
+            // Ngoài sương mù: Quét mối đe dọa cực kỳ chậm (2.0 giây mỗi lần) để tiết kiệm CPU
+            if (Time.time >= _nextFleeScanTime)
             {
-                navAgent.speed = _walkSpeed;
+                _nextFleeScanTime = Time.time + 2.0f;
+                ScanForThreats();
+            }
+
+            // Kiểm tra hết thời gian hoảng loạn chạy trốn
+            if (_isFleeing && Time.time >= _fleeEndTime)
+            {
+                _isFleeing = false;
+                if (navAgent != null && navAgent.enabled)
+                {
+                    navAgent.speed = _walkSpeed;
+                }
+            }
+
+            // Nếu không bị hoảng loạn chạy trốn, đóng băng di chuyển và bỏ qua việc cập nhật AI tiếp theo
+            if (!_isFleeing)
+            {
+                if (navAgent != null && navAgent.enabled && !navAgent.isStopped)
+                {
+                    navAgent.isStopped = true;
+                }
+                return;
+            }
+        }
+        else
+        {
+            // Trong tầm nhìn: Quét mối đe dọa nhanh (0.1 giây mỗi lần)
+            if (Time.time >= _nextFleeScanTime)
+            {
+                _nextFleeScanTime = Time.time + 0.1f;
+                ScanForThreats();
+            }
+
+            // Kiểm tra hết thời gian hoảng loạn chạy trốn
+            if (_isFleeing && Time.time >= _fleeEndTime)
+            {
+                _isFleeing = false;
+                if (navAgent != null && navAgent.enabled)
+                {
+                    navAgent.speed = _walkSpeed;
+                }
+            }
+
+            // Khi hiển thị trở lại, khôi phục di chuyển nếu trước đó bị đóng băng
+            if (navAgent != null && navAgent.enabled && navAgent.isStopped && currentState == CombatState.Moving)
+            {
+                navAgent.isStopped = false;
             }
         }
 

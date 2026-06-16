@@ -126,12 +126,6 @@ public class ProceduralGrassRenderer : MonoBehaviour
     // Fog of War cached references
     private csFogWar _fogWar;
     private bool _fogAvailable;
-    private FieldInfo _fogTextureLerpBufferField;
-    private FieldInfo _fogLevelMidPointField;
-    private FieldInfo _fogLevelDimXField;
-    private FieldInfo _fogLevelDimYField;
-    private FieldInfo _fogUnitScaleField;
-    private FieldInfo _fogPlaneAlphaField;
 
     // Cached arrays to avoid allocations in LateUpdate
     private readonly Vector4[] _frustumPlanes = new Vector4[6];
@@ -176,21 +170,6 @@ public class ProceduralGrassRenderer : MonoBehaviour
         if (_fogWar == null)
         {
             Debug.LogWarning("[ProceduralGrassRenderer] csFogWar not found. Fog culling disabled.");
-            _fogAvailable = false;
-            return;
-        }
-
-        BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        _fogTextureLerpBufferField = typeof(csFogWar).GetField("fogPlaneTextureLerpBuffer", flags);
-        _fogLevelMidPointField = typeof(csFogWar).GetField("levelMidPoint", flags);
-        _fogLevelDimXField = typeof(csFogWar).GetField("levelDimensionX", flags);
-        _fogLevelDimYField = typeof(csFogWar).GetField("levelDimensionY", flags);
-        _fogUnitScaleField = typeof(csFogWar).GetField("unitScale", flags);
-        _fogPlaneAlphaField = typeof(csFogWar).GetField("fogPlaneAlpha", flags);
-
-        if (_fogTextureLerpBufferField == null || _fogLevelMidPointField == null)
-        {
-            Debug.LogWarning("[ProceduralGrassRenderer] Could not access csFogWar internals via reflection. Fog culling disabled.");
             _fogAvailable = false;
             return;
         }
@@ -533,17 +512,17 @@ public class ProceduralGrassRenderer : MonoBehaviour
             return;
         }
 
-        Texture2D fogTexture = _fogTextureLerpBufferField.GetValue(_fogWar) as Texture2D;
+        Texture2D fogTexture = _fogWar.FogPlaneTextureLerpBuffer;
         if (fogTexture == null)
         {
             _computeShader.SetInt("_EnableFogCulling", 0);
             return;
         }
 
-        Transform levelMidPoint = _fogLevelMidPointField.GetValue(_fogWar) as Transform;
-        int dimX = (int)_fogLevelDimXField.GetValue(_fogWar);
-        int dimY = (int)_fogLevelDimYField.GetValue(_fogWar);
-        float fogUnitScale = (float)_fogUnitScaleField.GetValue(_fogWar);
+        Transform levelMidPoint = _fogWar._LevelMidPoint;
+        int dimX = _fogWar.LevelDimensionX;
+        int dimY = _fogWar.LevelDimensionY;
+        float fogUnitScale = _fogWar._UnitScale;
 
         if (levelMidPoint == null)
         {
@@ -554,7 +533,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
         Vector2 fogCenter = new Vector2(levelMidPoint.position.x, levelMidPoint.position.z);
         Vector2 fogSize = new Vector2(dimX * fogUnitScale, dimY * fogUnitScale);
 
-        float currentFogPlaneAlpha = (float)_fogPlaneAlphaField.GetValue(_fogWar);
+        float currentFogPlaneAlpha = _fogWar.FogPlaneAlpha;
         if (currentFogPlaneAlpha < 0.01f)
         {
             _computeShader.SetInt("_EnableFogCulling", 0);

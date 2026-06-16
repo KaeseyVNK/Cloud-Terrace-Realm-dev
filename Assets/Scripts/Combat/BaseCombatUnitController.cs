@@ -5,6 +5,8 @@ using System.Collections.Generic;
 
 public abstract class BaseCombatUnitController : MonoBehaviour
 {
+    public static readonly List<BaseCombatUnitController> Registry = new List<BaseCombatUnitController>();
+
     private static readonly int BaseColorProperty = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorProperty = Shader.PropertyToID("_Color");
 
@@ -151,7 +153,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             navAgent.avoidancePriority = Random.Range(30, 71);
         }
 
-        // Tự động gắn đèn cho unit của người chơi
+        // Tự động gắn đèn cho unit của người chơi (Tắt đi để tránh lag do point light)
+        /*
         if (faction == UnitFaction.Player)
         {
             if (gameObject.GetComponent<UnitLightController>() == null)
@@ -159,6 +162,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
                 gameObject.AddComponent<UnitLightController>();
             }
         }
+        */
 
         ApplyPlayerTechnologyStats();
     }
@@ -193,6 +197,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     protected virtual void OnEnable()
     {
+        Registry.Add(this);
         if (faction == UnitFaction.Player && TechnologyManager.HasInstance)
         {
             TechnologyManager.Instance.OnTechnologyUnlocked += HandleTechnologyUnlocked;
@@ -202,6 +207,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     protected virtual void OnDisable()
     {
+        Registry.Remove(this);
         if (faction == UnitFaction.Player && TechnologyManager.HasInstance)
         {
             TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;

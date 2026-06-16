@@ -12,12 +12,6 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     private float _nextRefreshTime = 0f;
     private ResourceNode _hoveredResourceNode;
     
-    // Cache các danh sách thực thể
-    private HouseShelter[] _activeShelters = new HouseShelter[0];
-    private WatchTowerGarrison[] _activeWatchTowers = new WatchTowerGarrison[0];
-    private BuildingCombatTarget[] _activeBuildingTargets = new BuildingCombatTarget[0];
-    private MainBuildingCombatTarget[] _activeMainBuildings = new MainBuildingCombatTarget[0];
-
     // Cache các UI managers
     private MainBuildingUI _mainUI;
     private WatchTowerGarrisonUI _watchUI;
@@ -122,11 +116,6 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         _mainUI = FindAnyObjectByType<MainBuildingUI>();
         _watchUI = FindAnyObjectByType<WatchTowerGarrisonUI>();
         _prodUI = FindAnyObjectByType<TestProductionUI>();
-
-        _activeShelters = FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude);
-        _activeWatchTowers = FindObjectsByType<WatchTowerGarrison>(FindObjectsInactive.Exclude);
-        _activeBuildingTargets = FindObjectsByType<BuildingCombatTarget>(FindObjectsInactive.Exclude);
-        _activeMainBuildings = FindObjectsByType<MainBuildingCombatTarget>(FindObjectsInactive.Exclude);
 
         // Dọn dẹp cache để tránh rò rỉ bộ nhớ (memory leak) khi đối tượng bị hủy
         CleanDestroyedObjectsFromCache();
@@ -350,40 +339,23 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     {
         Color originalColor = GUI.color;
 
-        // 1. Vẽ máu cho Nhà Chính
-        if (_activeMainBuildings != null)
+        for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
         {
-            for (int i = 0; i < _activeMainBuildings.Length; i++)
-            {
-                var mainBuilding = _activeMainBuildings[i];
-                if (mainBuilding == null || !mainBuilding.gameObject.activeInHierarchy || mainBuilding.currentState == CombatState.Dead)
-                    continue;
+            var combat = BaseCombatUnitController.Registry[i];
+            if (combat == null || !combat.gameObject.activeInHierarchy || combat.currentState == CombatState.Dead)
+                continue;
 
-                bool isSelected = IsBuildingSelected(mainBuilding);
-                bool isDamaged = mainBuilding.currentHealth < mainBuilding.maxHealth;
+            bool isMainBuilding = combat is MainBuildingCombatTarget;
+            bool isBuilding = combat is BuildingCombatTarget;
+
+            if (isMainBuilding || isBuilding)
+            {
+                bool isSelected = IsBuildingSelected(combat);
+                bool isDamaged = combat.currentHealth < combat.maxHealth;
 
                 if (isSelected || isDamaged)
                 {
-                    DrawBuildingHealthBar(mainBuilding, isSelected);
-                }
-            }
-        }
-
-        // 2. Vẽ máu cho các công trình thông thường
-        if (_activeBuildingTargets != null)
-        {
-            for (int i = 0; i < _activeBuildingTargets.Length; i++)
-            {
-                var building = _activeBuildingTargets[i];
-                if (building == null || !building.gameObject.activeInHierarchy || building.currentState == CombatState.Dead)
-                    continue;
-
-                bool isSelected = IsBuildingSelected(building);
-                bool isDamaged = building.currentHealth < building.maxHealth;
-
-                if (isSelected || isDamaged)
-                {
-                    DrawBuildingHealthBar(building, isSelected);
+                    DrawBuildingHealthBar(combat, isSelected);
                 }
             }
         }
@@ -494,13 +466,11 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     /// </summary>
     private void DrawShelterOccupancy()
     {
-        if (_activeShelters == null) return;
-
         Color originalColor = GUI.color;
 
-        for (int i = 0; i < _activeShelters.Length; i++)
+        for (int i = 0; i < HouseShelter.Registry.Count; i++)
         {
-            var shelter = _activeShelters[i];
+            var shelter = HouseShelter.Registry[i];
             if (shelter == null || !shelter.gameObject.activeInHierarchy)
                 continue;
 
@@ -561,13 +531,11 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     /// </summary>
     private void DrawWatchTowerOccupancy()
     {
-        if (_activeWatchTowers == null) return;
-
         Color originalColor = GUI.color;
 
-        for (int i = 0; i < _activeWatchTowers.Length; i++)
+        for (int i = 0; i < WatchTowerGarrison.Registry.Count; i++)
         {
-            var tower = _activeWatchTowers[i];
+            var tower = WatchTowerGarrison.Registry[i];
             if (tower == null || !tower.gameObject.activeInHierarchy)
                 continue;
 

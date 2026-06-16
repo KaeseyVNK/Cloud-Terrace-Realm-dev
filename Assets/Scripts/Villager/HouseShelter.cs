@@ -32,6 +32,8 @@ public class HouseShelter : MonoBehaviour
     /// </summary>
     public static bool IsEmergencyShelterActive { get; set; } = false;
 
+    public static readonly List<HouseShelter> Registry = new List<HouseShelter>();
+
     #endregion
 
     #region Public Properties
@@ -54,6 +56,11 @@ public class HouseShelter : MonoBehaviour
     #endregion
 
     #region Unity Lifecycle
+
+    private void OnEnable()
+    {
+        Registry.Add(this);
+    }
 
     private void Awake()
     {
@@ -97,6 +104,7 @@ public class HouseShelter : MonoBehaviour
 
     private void OnDisable()
     {
+        Registry.Remove(this);
         EjectAll();
     }
 

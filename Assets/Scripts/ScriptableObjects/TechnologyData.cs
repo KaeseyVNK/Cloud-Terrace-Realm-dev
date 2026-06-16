@@ -21,6 +21,9 @@ public class TechnologyData : ScriptableObject
     [Min(1f)] public float goldGatherSpeedMultiplier = 1f;
     [Min(1f)] public float foodGatherSpeedMultiplier = 1f;
 
+    [Header("Storage Effects")]
+    public int storageCapacityBonus = 0;
+
     public bool HasVillagerEconomyEffects()
     {
         return villagerCarryCapacityBonus != 0
@@ -28,7 +31,8 @@ public class TechnologyData : ScriptableObject
             || woodGatherSpeedMultiplier > 1.001f
             || stoneGatherSpeedMultiplier > 1.001f
             || goldGatherSpeedMultiplier > 1.001f
-            || foodGatherSpeedMultiplier > 1.001f;
+            || foodGatherSpeedMultiplier > 1.001f
+            || storageCapacityBonus != 0;
     }
 
     public string GetVillagerEffectText()
@@ -38,6 +42,15 @@ public class TechnologyData : ScriptableObject
         if (villagerCarryCapacityBonus != 0)
         {
             text += "+ " + villagerCarryCapacityBonus + " suc chua";
+        }
+
+        if (storageCapacityBonus != 0)
+        {
+            if (!string.IsNullOrEmpty(text))
+            {
+                text += ", ";
+            }
+            text += "+ " + storageCapacityBonus + " suc chua kho";
         }
 
         AppendMultiplierEffect(ref text, villagerMoveSpeedMultiplier, "toc chay");

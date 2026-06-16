@@ -507,7 +507,7 @@ MonoBehaviour:
   movingAnimationHoldTime: 0.18
   _foodAmount: 100
   _fleeRange: 6
-  _fleeDistance: 6
+  _fleeDistance: 4
   _walkSpeed: 1.5
   _fleeSpeed: 5
   _wanderRadius: 8
@@ -786,7 +786,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f6730b960ba6c914e9141395fc93249f, type: 2}
+  - {fileID: 2100000, guid: ad65776df4e784c4da20283e2ef2f2db, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

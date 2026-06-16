@@ -60,6 +60,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: ee0807aa4ea9c184ca709c68c35d5e52, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9f71a134bb3254349b82ccff2d3958f8, type: 2}
     - target: {fileID: -5754084199372789682, guid: ee0807aa4ea9c184ca709c68c35d5e52, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -118,5 +122,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c62119e7b30a424a99d905f7a0da816, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ResourceNode
-  resourceType: 0
-  currentQuantity: 20
+  _resourceType: 0
+  _currentQuantity: 20
+  _hasSecondaryResource: 0
+  _secondaryResourceType: 2
+  _secondaryYieldRatio: 1

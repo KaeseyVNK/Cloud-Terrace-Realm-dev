@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: MarketNeutral
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: "Ch\u1EE3 Trung L\u1EADp"
+  description: "N\u01A1i trao \u0111\u1ED5i t\xE0i nguy\xEAn v\u1EDBi c\xE1c l\xE0ng
+    kh\xE1c."
+  buildingPrefab: {fileID: 3143731048422382929, guid: 00ec312d277bc27429aff1ca665e914a, type: 3}
+  buildingSize: {x: 3, y: 3}
+  buildCosts: []
+  maxHealth: 400
+  maxWorkers: 0
+  buildTime: 0
+  isInstantBuild: 1
+  isStorage: 0
+  acceptedResources: 
+  requiredBuildings: []
+  producibleUnits: []

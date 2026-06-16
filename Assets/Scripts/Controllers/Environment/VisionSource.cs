@@ -2,6 +2,18 @@ using UnityEngine;
 
 public class VisionSource : MonoBehaviour
 {
+    public static readonly System.Collections.Generic.List<VisionSource> Registry = new System.Collections.Generic.List<VisionSource>();
+
+    private void OnEnable()
+    {
+        Registry.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        Registry.Remove(this);
+    }
+
     [SerializeField] private float visionRadius = 12f;
     [SerializeField] private bool revealWhileInactive = false;
 

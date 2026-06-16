@@ -21,6 +21,10 @@ public class BuildingData : ScriptableObject
     public int maxWorkers = 0; // Số dân tối đa có thể làm việc ở đây
     public float buildTime = 15f; // Thời gian cần xây dựng (giây) để hoàn thành công trình
     
+    [Header("Special Settings")]
+    [Tooltip("Nếu true, công trình sẽ được xây dựng ngay lập tức mà không cần dân và móng")]
+    public bool isInstantBuild = false;
+    
     [Header("Storage Settings")]
     public bool isStorage = false; // Đánh dấu nếu công trình này có thể chứa tài nguyên
     public List<ResourceType> acceptedResources; // Nếu trống và isStorage = true thì nhận MỌI LOẠI. Nếu có phần tử thì chỉ nhận những loại đó.

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: Torch Stand
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: "C\u1ED9t \u0110u\u1ED1c"
+  description: "C\xF4ng tr\xECnh chi\u1EBFu s\xE1ng khu v\u1EF1c xung quanh v\xE0o
+    ban \u0111\xEAm ho\u1EB7c tr\u1EDDi m\u01B0a, gi\xFAp d\u1EC5 d\xE0ng qu\u1EA3n
+    l\xFD t\xE0i nguy\xEAn v\xE0 ph\xE1t hi\u1EC7n k\u1EBB \u0111\u1ECBch."
+  buildingPrefab: {fileID: 6055428234873679010, guid: fa1d46f41a3258745bb511239d2e92d3, type: 3}
+  buildingSize: {x: 1, y: 1}
+  buildCosts:
+  - resourceType: 0
+    amount: 10
+  maxHealth: 150
+  maxWorkers: 0
+  buildTime: 8
+  isStorage: 0
+  acceptedResources: 
+  requiredBuildings: []
+  producibleUnits: []

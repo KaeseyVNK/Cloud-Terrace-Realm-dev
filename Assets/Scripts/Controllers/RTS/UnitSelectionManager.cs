@@ -467,7 +467,17 @@ public class UnitSelectionManager : MonoBehaviour
                     VillagerController villager = unit.GetComponent<VillagerController>();
                     BaseCombatUnitController combatUnit = unit.GetComponent<BaseCombatUnitController>();
 
-                    if (clickedWatchTower != null && clickedWatchTower.TrySendToGarrison(unit))
+                    bool shouldGarrison = clickedWatchTower != null;
+                    if (clickedWatchTower != null && villager != null)
+                    {
+                        BaseCombatUnitController towerUnit = clickedWatchTower.GetComponent<BaseCombatUnitController>();
+                        if (towerUnit != null && towerUnit.currentHealth < towerUnit.maxHealth)
+                        {
+                            shouldGarrison = false; // Ưu tiên sửa chữa nếu chòi canh bị hỏng
+                        }
+                    }
+
+                    if (shouldGarrison && clickedWatchTower.TrySendToGarrison(unit))
                     {
                         Debug.Log($"[RTS] Da ra lenh {unit.gameObject.name} vao thap canh.");
                         continue;

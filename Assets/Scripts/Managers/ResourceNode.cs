@@ -3,6 +3,8 @@ using System;
 
 public class ResourceNode : MonoBehaviour
 {
+    public static readonly System.Collections.Generic.List<ResourceNode> Registry = new System.Collections.Generic.List<ResourceNode>();
+
     [UnityEngine.Serialization.FormerlySerializedAs("resourceType")]
     [SerializeField] private ResourceType _resourceType;
     public ResourceType ResourceType
@@ -87,6 +89,16 @@ public class ResourceNode : MonoBehaviour
     private bool _isScaleCached = false;
     private int[] _reservedSlots = new int[6]; // Lưu trữ ID (HashCode) của dân làng đang chiếm giữ 6 slot đứng xung quanh mỏ
     private Transform _visualTarget; // Đối tượng visual thực tế được áp dụng hiệu ứng scale (không thay đổi Collider ở root)
+
+    private void OnEnable()
+    {
+        Registry.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        Registry.Remove(this);
+    }
 
     private void Awake()
     {

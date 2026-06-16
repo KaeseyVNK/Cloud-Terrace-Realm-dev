@@ -51,6 +51,7 @@ public class AOSFogOfWarBridge : MonoBehaviour
     private float revealerRefreshTimer;
     private GameObject runtimeFogPlane;
     private readonly HashSet<Object> revealedObjects = new HashSet<Object>();
+    private readonly Dictionary<string, FieldInfo> _cachedFields = new Dictionary<string, FieldInfo>();
 
     private void Awake()
     {
@@ -182,8 +183,8 @@ public class AOSFogOfWarBridge : MonoBehaviour
     private void ApplyFogAppearance()
     {
         float nightBlend = GetNightBlend();
-        SetPrivateField("fogColor", Color.Lerp(dayFogColor, fogColor, nightBlend));
-        SetPrivateField("fogPlaneAlpha", Mathf.Lerp(dayFogPlaneAlpha, fogPlaneAlpha, nightBlend));
+        fogWar.FogColor = Color.Lerp(dayFogColor, fogColor, nightBlend);
+        fogWar.FogPlaneAlpha = Mathf.Lerp(dayFogPlaneAlpha, fogPlaneAlpha, nightBlend);
     }
 
     private float GetNightBlend()
@@ -223,10 +224,9 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
         if (hideEnemiesOutsideVision || hideNonPlayerCombatTargetsOutsideVision)
         {
-            BaseCombatUnitController[] units = FindObjectsByType<BaseCombatUnitController>(FindObjectsInactive.Exclude);
-            for (int i = 0; i < units.Length; i++)
+            for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
             {
-                BaseCombatUnitController unit = units[i];
+                BaseCombatUnitController unit = BaseCombatUnitController.Registry[i];
                 if (unit == null || unit.faction == UnitFaction.Player)
                 {
                     continue;
@@ -248,12 +248,12 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
         if (hideResourcesOutsideVision)
         {
-            ResourceNode[] resources = FindObjectsByType<ResourceNode>(FindObjectsInactive.Exclude);
-            for (int i = 0; i < resources.Length; i++)
+            for (int i = 0; i < ResourceNode.Registry.Count; i++)
             {
-                if (resources[i] != null)
+                ResourceNode resource = ResourceNode.Registry[i];
+                if (resource != null)
                 {
-                    AddVisibilityTargetIfMissing(resources[i].gameObject);
+                    AddVisibilityTargetIfMissing(resource.gameObject);
                 }
             }
         }
@@ -271,10 +271,9 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void AddExplicitVisionSources(List<csFogWar.FogRevealer> revealers)
     {
-        VisionSource[] sources = FindObjectsByType<VisionSource>(FindObjectsInactive.Exclude);
-        for (int i = 0; i < sources.Length; i++)
+        for (int i = 0; i < VisionSource.Registry.Count; i++)
         {
-            VisionSource source = sources[i];
+            VisionSource source = VisionSource.Registry[i];
             if (source == null || !source.CanReveal())
             {
                 continue;
@@ -287,10 +286,9 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void AddDefaultPlayerUnits(List<csFogWar.FogRevealer> revealers)
     {
-        BaseCombatUnitController[] units = FindObjectsByType<BaseCombatUnitController>(FindObjectsInactive.Exclude);
-        for (int i = 0; i < units.Length; i++)
+        for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
         {
-            BaseCombatUnitController unit = units[i];
+            BaseCombatUnitController unit = BaseCombatUnitController.Registry[i];
             if (unit == null || revealedObjects.Contains(unit.gameObject) || unit.faction != UnitFaction.Player || unit.currentState == CombatState.Dead)
             {
                 continue;
@@ -309,10 +307,9 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void AddDefaultBuildings(List<csFogWar.FogRevealer> revealers)
     {
-        ConstructibleBuilding[] buildings = FindObjectsByType<ConstructibleBuilding>(FindObjectsInactive.Exclude);
-        for (int i = 0; i < buildings.Length; i++)
+        for (int i = 0; i < ConstructibleBuilding.Registry.Count; i++)
         {
-            ConstructibleBuilding building = buildings[i];
+            ConstructibleBuilding building = ConstructibleBuilding.Registry[i];
             if (building == null || revealedObjects.Contains(building.gameObject) || !building.IsCompleted)
             {
                 continue;
@@ -373,11 +370,15 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void SetPrivateField(string fieldName, object value)
     {
-        FieldInfo field = typeof(csFogWar).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-        if (field == null)
+        if (!_cachedFields.TryGetValue(fieldName, out FieldInfo field))
         {
-            Debug.LogWarning("AOS FogWar field not found: " + fieldName);
-            return;
+            field = typeof(csFogWar).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field == null)
+            {
+                Debug.LogWarning("AOS FogWar field not found: " + fieldName);
+                return;
+            }
+            _cachedFields[fieldName] = field;
         }
 
         field.SetValue(fogWar, value);

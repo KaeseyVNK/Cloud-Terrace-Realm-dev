@@ -32,13 +32,12 @@ public class SpawnState : FogSpriteState
 
     private IResourceStorage FindNearestStorage()
     {
-        var storages = GameObject.FindGameObjectsWithTag("ResourceStorage");
         IResourceStorage nearest = null;
         float minDist = float.MaxValue;
 
-        foreach (var go in storages)
+        for (int i = 0; i < ResourceStorageRegistry.Instances.Count; i++)
         {
-            var s = go.GetComponent<IResourceStorage>();
+            var s = ResourceStorageRegistry.Instances[i];
             if (s == null || !s.HasResources()) continue;
 
             float d = Vector3.Distance(ctrl.transform.position, s.GetPosition());

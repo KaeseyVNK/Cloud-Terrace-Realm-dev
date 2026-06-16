@@ -56,6 +56,9 @@ public class GameManager : MonoBehaviour
     [UnityEngine.Serialization.FormerlySerializedAs("flatAreaRadius")]
     [SerializeField] private int _flatAreaRadius = 5;
 
+    [Header("Market Settings")]
+    [SerializeField] private BuildingData _neutralMarketData;
+
     [Header("Cursor Settings")]
     [SerializeField] private Texture2D _customCursorTexture;
     [SerializeField] private Vector2 _cursorHotspot = Vector2.zero;
@@ -188,7 +191,90 @@ public class GameManager : MonoBehaviour
 
         // Spawn dân làng
         SpawnVillagers(centerX, centerZ);
+
+        // Spawn chợ trung lập ngẫu nhiên
+        SpawnNeutralMarkets();
     }
+
+    private void SpawnNeutralMarkets()
+    {
+        if (_gridSystem == null || _buildingManager == null || _neutralMarketData == null || _neutralMarketData.buildingPrefab == null)
+        {
+            Debug.LogWarning("[GameManager] Không thể sinh chợ trung lập: Thiếu dữ liệu hoặc prefab!");
+            return;
+        }
+
+        int mapWidth = _gridSystem.GetWidth();
+        int mapLength = _gridSystem.GetLength();
+        int centerX = mapWidth / 2;
+        int centerZ = mapLength / 2;
+
+        int numMarkets = UnityEngine.Random.Range(1, 3); // Sinh từ 1 đến 2 chợ trung lập
+        int spawnedMarkets = 0;
+        int maxAttempts = 150;
+
+        Vector2Int size = _neutralMarketData.buildingSize;
+
+        for (int attempt = 0; attempt < maxAttempts && spawnedMarkets < numMarkets; attempt++)
+        {
+            int startX = UnityEngine.Random.Range(5, mapWidth - 5 - size.x);
+            int startZ = UnityEngine.Random.Range(5, mapLength - 5 - size.y);
+
+            // Đo khoảng cách đến nhà chính (tâm map) xem có xa hơn 15 ô không
+            float distToCenter = Vector2.Distance(new Vector2(startX + size.x / 2f, startZ + size.y / 2f), new Vector2(centerX, centerZ));
+            if (distToCenter < 15f)
+            {
+                continue;
+            }
+
+            bool canPlace = true;
+            int targetElevation = -1;
+            List<GridCell> cellsToOccupy = new List<GridCell>();
+
+            for (int x = 0; x < size.x; x++)
+            {
+                for (int z = 0; z < size.y; z++)
+                {
+                    GridCell cell = _gridSystem.GetCell(startX + x, startZ + z);
+                    if (cell == null || !cell.isBuildable || cell.hasResource || cell.elevation < 0)
+                    {
+                        canPlace = false;
+                        break;
+                    }
+
+                    if (targetElevation == -1)
+                    {
+                        targetElevation = cell.elevation;
+                    }
+                    cellsToOccupy.Add(cell);
+                }
+                if (!canPlace) break;
+            }
+
+            if (canPlace)
+            {
+                // Ủi phẳng địa hình khu vực chợ trung lập
+                _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
+
+                float cellSize = _gridSystem.GetCellSize();
+                Vector3 startPos = _gridSystem.GetWorldPosition(startX, startZ, targetElevation);
+                float offsetX = (size.x - 1) * cellSize / 2f;
+                float offsetZ = (size.y - 1) * cellSize / 2f;
+                Vector3 centerPos = startPos + new Vector3(offsetX, 0f, offsetZ);
+
+                // Sinh GameObject chợ trung lập
+                GameObject marketObj = Instantiate(_neutralMarketData.buildingPrefab, centerPos, Quaternion.identity);
+                marketObj.name = $"MarketNeutral_{spawnedMarkets + 1}";
+
+                // Đăng ký với BuildingManager
+                _buildingManager.RegisterSpawnedBuilding(marketObj, _neutralMarketData, startX, startZ);
+
+                spawnedMarkets++;
+                Debug.Log($"[GameManager] Đã tự động sinh chợ trung lập {marketObj.name} tại [{startX}, {startZ}]");
+            }
+        }
+    }
+
 
     private void SpawnVillagers(int centerX, int centerZ)
     {
