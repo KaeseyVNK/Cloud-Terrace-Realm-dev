@@ -1004,7 +1004,7 @@ public class GridSystem : MonoBehaviour
         GameObject resObj = Instantiate(prefab, spawnPos, randomRotation, transform);
         resObj.name = namePrefix + "_" + cell.x + "_" + cell.z;
         ExcludeResourceFromNavMeshBuild(resObj);
-        
+        EnsureResourceInteractionCollider(resObj, type);
         cell.hasResource = true;
         cell.resourceType = type;
         cell.resourceObject = resObj;
@@ -1018,6 +1018,50 @@ public class GridSystem : MonoBehaviour
         }
         node.Initialize(type, GetResourceNodeAmount(type, cell), cell);
         RegisterResourceNode(node);
+    }
+
+    private void EnsureResourceInteractionCollider(GameObject resourceObject, ResourceType type)
+    {
+        if (resourceObject == null) return;
+
+        Collider[] colliders = resourceObject.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider col = colliders[i];
+            if (col == null || !col.enabled) continue;
+
+            MeshCollider meshCollider = col as MeshCollider;
+            bool hasMissingMesh = meshCollider != null && meshCollider.sharedMesh == null;
+            bool hasUsableBounds = col.bounds.size.sqrMagnitude > 0.0001f;
+            if (!hasMissingMesh && hasUsableBounds)
+            {
+                return;
+            }
+        }
+
+        BoxCollider fallback = resourceObject.GetComponent<BoxCollider>();
+        if (fallback == null)
+        {
+            fallback = resourceObject.AddComponent<BoxCollider>();
+        }
+
+        fallback.isTrigger = true;
+        switch (type)
+        {
+            case ResourceType.Food:
+                fallback.center = new Vector3(0f, 0.6f, 0f);
+                fallback.size = new Vector3(1.4f, 1.2f, 1.4f);
+                break;
+            case ResourceType.Stone:
+            case ResourceType.Gold:
+                fallback.center = new Vector3(0f, 0.75f, 0f);
+                fallback.size = new Vector3(1.8f, 1.5f, 1.8f);
+                break;
+            default:
+                fallback.center = new Vector3(0f, 1.5f, 0f);
+                fallback.size = new Vector3(1.4f, 3f, 1.4f);
+                break;
+        }
     }
 
     private int GetResourceNodeAmount(ResourceType type, GridCell cell)
@@ -1074,6 +1118,7 @@ public class GridSystem : MonoBehaviour
             return;
         }
 
+        EnsureResourceInteractionCollider(node.gameObject, node.ResourceType);
         node.OnDepleted -= HandleResourceDepleted;
         node.OnDepleted += HandleResourceDepleted;
     }

@@ -842,10 +842,10 @@ public class VillagerController : MonoBehaviour
                     isNearWorkTarget = true;
                 }
             }
-            else if (_currentJob != null)
+            else if (_currentJob != null && _navAgent.hasPath)
             {
-                float distToJobSqr = (transform.position - _currentJob.position).sqrMagnitude;
-                if (distToJobSqr <= disableAvoidanceDistanceSqr)
+                float distToDestinationSqr = (transform.position - _navAgent.destination).sqrMagnitude;
+                if (distToDestinationSqr <= disableAvoidanceDistanceSqr)
                 {
                     isNearWorkTarget = true;
                 }

@@ -87,7 +87,10 @@ public class ResourceNode : MonoBehaviour
     
     private Vector3 _originalScale;  
     private bool _isScaleCached = false;
-    private int[] _reservedSlots = new int[6]; // Lưu trữ ID (HashCode) của dân làng đang chiếm giữ 6 slot đứng xung quanh mỏ
+    private const int HarvestSlotCount = 8;
+    private const float DefaultHarvestSlotRadius = 3.4f;
+    private const float OverflowHarvestSlotRadius = 4.6f;
+    private int[] _reservedSlots = new int[HarvestSlotCount]; // Lưu trữ ID (HashCode) của dân làng đang chiếm giữ slot đứng xung quanh mỏ
     private Transform _visualTarget; // Đối tượng visual thực tế được áp dụng hiệu ứng scale (không thay đổi Collider ở root)
 
     private void OnEnable()
@@ -270,43 +273,43 @@ public class ResourceNode : MonoBehaviour
 
     /// <summary>
     /// Đăng ký một vị trí (slot) đứng khai thác xung quanh mỏ tài nguyên (chuẩn AOE).
-    /// Trả về index của slot đã đặt thành công (0 đến 5), hoặc -1 nếu đã full slot.
+        /// Trả về index của slot đã đặt thành công, hoặc -1 nếu đã full slot.
     /// </summary>
     public int ReserveSlot(int villagerId, Vector3 villagerPos, out Vector3 slotPosition)
     {
-        // Giải phóng slot cũ của dân làng này trên mỏ (tránh bị trùng)
         ReleaseSlot(villagerId);
 
         Vector3 nodeCenter = transform.position;
-        Vector3 dir = (villagerPos - nodeCenter).normalized;
-        dir.y = 0;
-        if (dir.sqrMagnitude < 0.01f) dir = Vector3.forward;
-
+        float slotRadius = GetHarvestSlotRadius();
         int bestSlot = -1;
         float minDistance = float.MaxValue;
         Vector3 bestSlotPos = nodeCenter;
+        Vector3 fallbackSlotPos = nodeCenter;
+        bool hasFallback = false;
 
-        // Quét tìm slot trống gần nhất với hướng đi của dân làng
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < HarvestSlotCount; i++)
         {
-            if (_reservedSlots[i] == 0)
-            {
-                // Phân bổ cố định đều 360 độ xung quanh mỏ tài nguyên (60 độ mỗi slot) trong không gian thế giới (không bị xoay theo góc tiếp cận)
-                float angle = (i * 60f) * Mathf.Deg2Rad;
-                Vector3 rotatedDir = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
-                Vector3 candidatePos = nodeCenter + rotatedDir * 3.2f; // Đứng xa tâm 3.2m để tạo khoảng trống cực kỳ rộng rãi thoáng đãng
+            if (_reservedSlots[i] != 0) continue;
 
-                float dist = Vector3.Distance(villagerPos, candidatePos);
-                if (dist < minDistance)
-                {
-                    minDistance = dist;
-                    bestSlot = i;
-                    bestSlotPos = candidatePos;
-                }
+            Vector3 candidatePos = GetSlotPosition(nodeCenter, i, slotRadius);
+            Vector3 validPos = GetNearestNavMeshPosition(candidatePos, 1.5f, out bool hasNavMeshPos);
+            if (!hasFallback)
+            {
+                fallbackSlotPos = hasNavMeshPos ? validPos : candidatePos;
+                hasFallback = true;
+            }
+
+            if (!hasNavMeshPos) continue;
+
+            float dist = (villagerPos - validPos).sqrMagnitude;
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                bestSlot = i;
+                bestSlotPos = validPos;
             }
         }
 
-        // Đăng ký thành công slot
         if (bestSlot != -1)
         {
             _reservedSlots[bestSlot] = villagerId;
@@ -314,9 +317,48 @@ public class ResourceNode : MonoBehaviour
             return bestSlot;
         }
 
-        // Hết slot (full 6 con): Đứng lùi ra ngoài 4.0 mét ở góc tiếp cận xếp hàng rộng rãi
-        slotPosition = nodeCenter + dir * 4.0f;
+        if (hasFallback)
+        {
+            slotPosition = fallbackSlotPos;
+            return -1;
+        }
+
+        int overflowSlot = Mathf.Abs(villagerId) % HarvestSlotCount;
+        Vector3 overflowPos = GetSlotPosition(nodeCenter, overflowSlot, OverflowHarvestSlotRadius);
+        slotPosition = GetNearestNavMeshPosition(overflowPos, 2.0f, out _);
         return -1;
+    }
+
+    private float GetHarvestSlotRadius()
+    {
+        switch (ResourceType)
+        {
+            case ResourceType.Food:
+                return 2.4f;
+            case ResourceType.Stone:
+            case ResourceType.Gold:
+                return 3.0f;
+            default:
+                return DefaultHarvestSlotRadius;
+        }
+    }
+
+    private Vector3 GetSlotPosition(Vector3 center, int slotIndex, float radius)
+    {
+        float angle = (slotIndex * (360f / HarvestSlotCount)) * Mathf.Deg2Rad;
+        return center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+    }
+
+    private Vector3 GetNearestNavMeshPosition(Vector3 position, float maxDistance, out bool found)
+    {
+        if (UnityEngine.AI.NavMesh.SamplePosition(position, out UnityEngine.AI.NavMeshHit hit, maxDistance, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            found = true;
+            return hit.position;
+        }
+
+        found = false;
+        return position;
     }
 
     /// <summary>
@@ -324,7 +366,7 @@ public class ResourceNode : MonoBehaviour
     /// </summary>
     public void ReleaseSlot(int villagerId)
     {
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < _reservedSlots.Length; i++)
         {
             if (_reservedSlots[i] == villagerId)
             {
