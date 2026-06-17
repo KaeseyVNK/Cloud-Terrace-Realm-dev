@@ -12,15 +12,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: TraiKhoangSan
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Tr\u1EA1i Khai Th\xE1c Kho\xE1ng S\u1EA3n"
-  description: 
+  buildingName: Mining Camp
+  description: 'Resource production building.
+
+    Extracts stone and minerals from
+    nearby deposits.'
+  category: 1
+  icon: {fileID: 21300000, guid: 26837acfa337b334c98f7e69ed2c24d4, type: 3}
   buildingPrefab: {fileID: 6103480610250070807, guid: dc243ed7689354a4cb59409f53399a26, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:
   - resourceType: 0
-    amount: 50
+    amount: 180
+  - resourceType: 4
+    amount: 150
+  - resourceType: 1
+    amount: 80
   maxHealth: 100
   maxWorkers: 0
+  buildTime: 15
   isStorage: 1
   acceptedResources: 0100000004000000
   requiredBuildings: []

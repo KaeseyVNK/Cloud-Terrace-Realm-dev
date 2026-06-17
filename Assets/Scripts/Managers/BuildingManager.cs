@@ -1,6 +1,7 @@
 using FischlWorks_FogWar;
 using UnityEngine; 
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 
 public class BuildingManager : MonoBehaviour
@@ -171,10 +172,10 @@ public class BuildingManager : MonoBehaviour
             DontDestroyOnLoad(gameObject);
             
             // Tự động thêm Component UI vào để kích hoạt Plug-and-Play mà không cần kéo thả tay
-            if (GetComponent<BuildingSelectionUI>() == null)
-            {
-                gameObject.AddComponent<BuildingSelectionUI>();
-            }
+            //if (GetComponent<BuildingSelectionUI>() == null)
+            //{
+                //gameObject.AddComponent<BuildingSelectionUI>();
+            //}
 
             if (GetComponent<WatchTowerGarrisonUI>() == null)
             {
@@ -331,6 +332,12 @@ public class BuildingManager : MonoBehaviour
 
     private void InteractWithGrid()
     {
+        if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame && (IsBuildMode || IsDeleteMode))
+        {
+            CancelBuildMode();
+            return;
+        }
+
         if (_gridSystem == null || (!IsBuildMode && !IsDeleteMode)) 
         {
             if (_ghostBuilding != null) _ghostBuilding.SetActive(false);
@@ -339,10 +346,25 @@ public class BuildingManager : MonoBehaviour
 
         // NGĂN CLICK XUYÊN QUA UI (UI Click-Through): Nếu chuột đang di chuyển đè lên thanh UI chọn công trình ở dưới,
         // lập tức ẩn Ghost Building và bỏ qua mọi hành vi chọn ô lưới hoặc đặt nhà để tránh lỗi click chọn công trình là đặt nhà luôn.
+        // Ngăn click xuyên qua UI mới.
+        //if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        //{
+            //if (_ghostBuilding != null)
+            //{
+                ///_ghostBuilding.SetActive(false);
+            //}
+
+            //return;
+        //}
+        // Giữ lại tương thích với UI cũ nếu component này vẫn còn bật.
         BuildingSelectionUI ui = GetComponent<BuildingSelectionUI>();
-        if (ui != null && ui.IsMouseOverUI())
+        if (ui != null && ui.enabled && ui.IsMouseOverUI())
         {
-            if (_ghostBuilding != null) _ghostBuilding.SetActive(false);
+            if (_ghostBuilding != null)
+            {
+                _ghostBuilding.SetActive(false);
+            }
+
             return;
         }
 
@@ -926,4 +948,18 @@ public class BuildingManager : MonoBehaviour
             }
         }
     }
+
+    private void CancelBuildMode()
+    {
+        IsBuildMode = false;
+        IsDeleteMode = false;
+
+        if (_ghostBuilding != null)
+        {
+            _ghostBuilding.SetActive(false);
+        }
+
+        Debug.Log("[BuildingManager] Cancelled build mode.");
+    }
+
 }

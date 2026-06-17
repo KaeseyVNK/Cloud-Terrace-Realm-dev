@@ -1,12 +1,28 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+public enum BuildingCategory
+{
+    Residential,
+    Production,
+    Goods,
+    Cultural,
+    Hospital,
+    Military,
+    Roads,
+    Expansion
+}
+
 [CreateAssetMenu(fileName = "New Building Data", menuName = "Cloud Terrace/Building Data")]
 public class BuildingData : ScriptableObject
 {
     [Header("Basic Info")]
     public string buildingName;
     [TextArea] public string description;
+
+    [Header("UI")]
+    public BuildingCategory category = BuildingCategory.Residential;
+    public Sprite icon;
 
     [Header("Visuals")]
     public GameObject buildingPrefab;

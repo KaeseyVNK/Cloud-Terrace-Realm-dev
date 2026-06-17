@@ -13,7 +13,12 @@ MonoBehaviour:
   m_Name: Main Building
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   buildingName: Main Building
-  description: 
+  description: 'The central building of the settlement.
+
+    Stores basic resources
+    and serves as the heart of your base.'
+  category: 0
+  icon: {fileID: 21300000, guid: 1810dff1d43e0cc4b9b90c80fd9d71a7, type: 3}
   buildingPrefab: {fileID: 6673023864783920064, guid: e3166afbf9457cd4699625a48ef1aa43, type: 3}
   buildingSize: {x: 4, y: 4}
   buildCosts:

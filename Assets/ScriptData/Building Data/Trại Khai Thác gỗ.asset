@@ -12,15 +12,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: "Tr\u1EA1i Khai Th\xE1c g\u1ED7"
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Tr\u1EA1i khai th\xE1c g\u1ED7"
-  description: 
+  buildingName: Logging Camp
+  description: 'Resource production building.
+
+    Produces wood for construction
+    and expansion.'
+  category: 1
+  icon: {fileID: 21300000, guid: f4e7e1509f17a8c46b9a97793013feec, type: 3}
   buildingPrefab: {fileID: 5987755191451098744, guid: e3efddcd63574ee4e8ab0212be17a91f, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:
   - resourceType: 0
-    amount: 50
+    amount: 120
+  - resourceType: 1
+    amount: 80
+  - resourceType: 4
+    amount: 20
   maxHealth: 100
   maxWorkers: 0
+  buildTime: 15
   isStorage: 1
   acceptedResources: 00000000
   requiredBuildings: []
