@@ -15,6 +15,8 @@ MonoBehaviour:
   buildingName: "Kho L\u01B0\u01A1ng Th\u1EF1c"
   description: "N\u01A1i d\xE2n l\xE0ng n\u1ED9p th\u1EE9c \u0103n thu ho\u1EA1ch
     \u0111\u01B0\u1EE3c."
+  category: 1
+  icon: {fileID: -561964831, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 4439591625897593992, guid: 295e5cdf952e1cf449860da3660a0738, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:

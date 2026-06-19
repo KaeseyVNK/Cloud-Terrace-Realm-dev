@@ -273,9 +273,10 @@ public class BuildingManager : MonoBehaviour
     private void EnsureRuntimeComponents()
     {
         // Keep build-related helper UI/overlays plug-and-play on persistent managers.
-        if (GetComponent<BuildingSelectionUI>() == null)
+        BuildingSelectionUI legacyBuildUi = GetComponent<BuildingSelectionUI>();
+        if (legacyBuildUi != null)
         {
-            gameObject.AddComponent<BuildingSelectionUI>();
+            legacyBuildUi.enabled = false;
         }
 
         if (GetComponent<WatchTowerGarrisonUI>() == null)
@@ -297,6 +298,8 @@ public class BuildingManager : MonoBehaviour
         {
             gameObject.AddComponent<MarketUI>();
         }
+
+        SetBuildingMenuVisible(IsBuildMode);
     }
 
     /// <summary>
@@ -398,6 +401,7 @@ public class BuildingManager : MonoBehaviour
                 {
                     SelectBuilding(CurrentSelectedBuilding);
                 }
+                SetBuildingMenuVisible(true);
                 Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT");
             }
             else
@@ -406,6 +410,7 @@ public class BuildingManager : MonoBehaviour
                 {
                     _ghostBuilding.SetActive(false);
                 }
+                SetBuildingMenuVisible(false);
                 Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT");
             }
         }    
@@ -418,6 +423,7 @@ public class BuildingManager : MonoBehaviour
             {
                 _isBuildMode = false;
                 if (_ghostBuilding != null) _ghostBuilding.SetActive(false);
+                SetBuildingMenuVisible(false);
                 Debug.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT");
             }
             else
@@ -1168,6 +1174,16 @@ public class BuildingManager : MonoBehaviour
         }
 
         Debug.Log("[BuildingManager] Cancelled build mode.");
+        SetBuildingMenuVisible(false);
+    }
+
+    private void SetBuildingMenuVisible(bool visible)
+    {
+        BuildingMenuUI buildingMenu = FindAnyObjectByType<BuildingMenuUI>(FindObjectsInactive.Include);
+        if (buildingMenu != null)
+        {
+            buildingMenu.SetMenuVisible(visible);
+        }
     }
 
 }

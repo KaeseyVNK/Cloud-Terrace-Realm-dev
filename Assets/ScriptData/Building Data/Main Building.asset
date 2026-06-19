@@ -18,7 +18,7 @@ MonoBehaviour:
     Stores basic resources
     and serves as the heart of your base.'
   category: 0
-  icon: {fileID: 21300000, guid: 1810dff1d43e0cc4b9b90c80fd9d71a7, type: 3}
+  icon: {fileID: 775623967, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 6673023864783920064, guid: e3166afbf9457cd4699625a48ef1aa43, type: 3}
   buildingSize: {x: 4, y: 4}
   buildCosts:
@@ -29,6 +29,7 @@ MonoBehaviour:
   maxHealth: 10000
   maxWorkers: 0
   buildTime: 60
+  isInstantBuild: 0
   isStorage: 1
   acceptedResources: 0000000001000000020000000300000004000000
   requiredBuildings: []

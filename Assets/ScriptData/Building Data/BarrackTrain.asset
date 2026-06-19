@@ -15,12 +15,12 @@ MonoBehaviour:
   buildingName: Barracks
   description: 'Military training facility.
 
-    Allows the settlement to train
-    combat units.
+    Allows the settlement to train combat
+    units.
 
 '
   category: 5
-  icon: {fileID: 21300000, guid: fa7d2eeecca1b5c44bfb34fc15d7963d, type: 3}
+  icon: {fileID: -1252907030, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 5987755191451098744, guid: 019aa01d4d4eb4e4687fe6c9a58095b3, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:
@@ -33,6 +33,7 @@ MonoBehaviour:
   maxHealth: 100
   maxWorkers: 0
   buildTime: 20
+  isInstantBuild: 0
   isStorage: 0
   acceptedResources: 
   requiredBuildings:

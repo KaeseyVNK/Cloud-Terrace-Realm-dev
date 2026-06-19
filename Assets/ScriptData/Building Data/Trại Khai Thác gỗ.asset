@@ -18,7 +18,7 @@ MonoBehaviour:
     Produces wood for construction
     and expansion.'
   category: 1
-  icon: {fileID: 21300000, guid: f4e7e1509f17a8c46b9a97793013feec, type: 3}
+  icon: {fileID: 1360073342, guid: 380bcc965a75a5446987b89955ad9c15, type: 3}
   buildingPrefab: {fileID: 5987755191451098744, guid: e3efddcd63574ee4e8ab0212be17a91f, type: 3}
   buildingSize: {x: 3, y: 3}
   buildCosts:
@@ -31,6 +31,7 @@ MonoBehaviour:
   maxHealth: 100
   maxWorkers: 0
   buildTime: 15
+  isInstantBuild: 0
   isStorage: 1
   acceptedResources: 00000000
   requiredBuildings: []

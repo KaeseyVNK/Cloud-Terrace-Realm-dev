@@ -1,0 +1,393 @@
+fileFormatVersion: 2
+guid: 93023335b444bcf4090cf23d5e6fafc5
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_0
+      rect:
+        serializedVersion: 2
+        x: 67
+        y: 716
+        width: 978
+        height: 125
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 24, y: 12, z: 27, w: 11}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dda82febaa2920b40a236353dbe19dbf
+      internalID: 1211189462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_1
+      rect:
+        serializedVersion: 2
+        x: 1078
+        y: 642
+        width: 546
+        height: 251
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 27, y: 50, z: 13, w: 47}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a06932b18621de54ba1f7866df40f1fc
+      internalID: 994372040
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_2
+      rect:
+        serializedVersion: 2
+        x: 205
+        y: 307
+        width: 113
+        height: 112
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ba8a22363dc5a6447b51108ac5450055
+      internalID: 1704633571
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_3
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 304
+        width: 82
+        height: 124
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 75bd52a6047feb545b918fdae33664f1
+      internalID: -535301140
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_4
+      rect:
+        serializedVersion: 2
+        x: 602
+        y: 313
+        width: 120
+        height: 103
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 23035645319192c4da0119fd60d1e23b
+      internalID: -1660347954
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_5
+      rect:
+        serializedVersion: 2
+        x: 397
+        y: 316
+        width: 119
+        height: 97
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d06b1d7c7cb35f24b8f1c3082f58a07d
+      internalID: 1995341195
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_6
+      rect:
+        serializedVersion: 2
+        x: 1163
+        y: 306
+        width: 81
+        height: 117
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: be49569678e241f43a761719e48a6d03
+      internalID: -407875679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_7
+      rect:
+        serializedVersion: 2
+        x: 966
+        y: 304
+        width: 115
+        height: 123
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f42fc47631a19c54eab97ceb80aaa2f3
+      internalID: -821131794
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_8
+      rect:
+        serializedVersion: 2
+        x: 1324
+        y: 307
+        width: 77
+        height: 120
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: faf5ac2be15febc40b32f2bcb334b4f0
+      internalID: -1955469586
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_9
+      rect:
+        serializedVersion: 2
+        x: 187
+        y: 508
+        width: 692
+        height: 88
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 14, y: 7, z: 13, w: 6}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fef5f1b53fa4bf048ad53496703855e9
+      internalID: -1457810337
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_10
+      rect:
+        serializedVersion: 2
+        x: 966
+        y: 506
+        width: 36
+        height: 113
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 43}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e88c28e0b2eaaf41a910f24a9f2fb95
+      internalID: 458448767
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fantasy_ui_asset_sheet_transparent_clean_11
+      rect:
+        serializedVersion: 2
+        x: 1154
+        y: 498
+        width: 324
+        height: 106
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 27, y: 13, z: 25, w: 8}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc96a401c9e290644afd10862b0a153e
+      internalID: 1860756134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 6279597fff4e5de4e8f81e63cb41f82c
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      fantasy_ui_asset_sheet_transparent_clean_0: 1211189462
+      fantasy_ui_asset_sheet_transparent_clean_1: 994372040
+      fantasy_ui_asset_sheet_transparent_clean_10: 458448767
+      fantasy_ui_asset_sheet_transparent_clean_11: 1860756134
+      fantasy_ui_asset_sheet_transparent_clean_2: 1704633571
+      fantasy_ui_asset_sheet_transparent_clean_3: -535301140
+      fantasy_ui_asset_sheet_transparent_clean_4: -1660347954
+      fantasy_ui_asset_sheet_transparent_clean_5: 1995341195
+      fantasy_ui_asset_sheet_transparent_clean_6: -407875679
+      fantasy_ui_asset_sheet_transparent_clean_7: -821131794
+      fantasy_ui_asset_sheet_transparent_clean_8: -1955469586
+      fantasy_ui_asset_sheet_transparent_clean_9: -1457810337
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

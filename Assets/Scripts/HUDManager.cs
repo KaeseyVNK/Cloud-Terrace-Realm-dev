@@ -34,6 +34,20 @@ public class HUDManager : MonoBehaviour
 
     private float _nextPopulationRefreshTime;
 
+    // Cache variables for resource and UI animations
+    private int _prevWood = -1;
+    private int _prevStone = -1;
+    private int _prevFood = -1;
+    private int _prevGold = -1;
+    private int _prevRelic = -1;
+    private int _prevPopulation = -1;
+    private int _prevCapacity = -1;
+    private bool _wasFoodShortage = false;
+    private Coroutine _foodWarningCoroutine;
+    private Vector3 _originalWarningPos;
+    private bool _hasStoredWarningPos = false;
+    private readonly System.Collections.Generic.Dictionary<TextMeshProUGUI, Coroutine> _activePunchCoroutines = new System.Collections.Generic.Dictionary<TextMeshProUGUI, Coroutine>();
+
     [Header("Đói Lương Thực Warning")]
     [SerializeField] private TextMeshProUGUI _foodWarningText;
 
@@ -52,7 +66,20 @@ public class HUDManager : MonoBehaviour
         EnsureFoodWarningText();
         EnsureRelicText();
         EnsureBloodMoonBannerText();
-        EnsureInstructionsUI();
+        
+        // Deactivate instructions panel as requested
+        if (_instructionsPanel != null)
+        {
+            _instructionsPanel.SetActive(false);
+        }
+        else
+        {
+            GameObject existing = FindGameObjectInChildren("InstructionsPanel");
+            if (existing != null)
+            {
+                existing.SetActive(false);
+            }
+        }
 
         // Đăng ký lắng nghe sự kiện tài nguyên thay đổi từ ResourceManager
         if (ResourceManager.Instance != null)
@@ -81,23 +108,54 @@ public class HUDManager : MonoBehaviour
     private void UpdateResourceUI(ResourceType type, int newAmount)
     {
         int gatherers = VillagerController.GetGathererCount(type);
+        bool hasChanged = false;
 
         switch (type)
         {
             case ResourceType.Wood:
-                if (_woodText != null) _woodText.text = $"Go: {newAmount}/{gatherers}";
+                if (_woodText != null)
+                {
+                    _woodText.text = $"{newAmount}/{gatherers}";
+                    if (_prevWood != -1 && _prevWood != newAmount) hasChanged = true;
+                    _prevWood = newAmount;
+                    if (hasChanged) TriggerPunchScale(_woodText);
+                }
                 break;
             case ResourceType.Stone:
-                if (_stoneText != null) _stoneText.text = $"Da: {newAmount}/{gatherers}";
+                if (_stoneText != null)
+                {
+                    _stoneText.text = $"{newAmount}/{gatherers}";
+                    if (_prevStone != -1 && _prevStone != newAmount) hasChanged = true;
+                    _prevStone = newAmount;
+                    if (hasChanged) TriggerPunchScale(_stoneText);
+                }
                 break;
             case ResourceType.Food:
-                if (_foodText != null) _foodText.text = $"Luong: {newAmount}/{gatherers}";
+                if (_foodText != null)
+                {
+                    _foodText.text = $"{newAmount}/{gatherers}";
+                    if (_prevFood != -1 && _prevFood != newAmount) hasChanged = true;
+                    _prevFood = newAmount;
+                    if (hasChanged) TriggerPunchScale(_foodText);
+                }
                 break;
             case ResourceType.Gold:
-                if (_goldText != null) _goldText.text = $"Vang: {newAmount}/{gatherers}";
+                if (_goldText != null)
+                {
+                    _goldText.text = $"{newAmount}/{gatherers}";
+                    if (_prevGold != -1 && _prevGold != newAmount) hasChanged = true;
+                    _prevGold = newAmount;
+                    if (hasChanged) TriggerPunchScale(_goldText);
+                }
                 break;
             case ResourceType.AncientRelic:
-                if (_relicText != null) _relicText.text = "Co vat: " + newAmount;
+                if (_relicText != null)
+                {
+                    _relicText.text = newAmount.ToString();
+                    if (_prevRelic != -1 && _prevRelic != newAmount) hasChanged = true;
+                    _prevRelic = newAmount;
+                    if (hasChanged) TriggerPunchScale(_relicText);
+                }
                 break;
         }
 
@@ -109,16 +167,7 @@ public class HUDManager : MonoBehaviour
 
     void Update()
     {
-        if (TimeManager.Instance != null && _timeText != null)
-        {
-            float ratio = TimeManager.Instance.GetTimeRatio();
-            float clockHoursRaw = (ratio * 24f + 6f) % 24f; // Bắt đầu chu kỳ ngày ở 6:00 AM
-            int hours = Mathf.FloorToInt(clockHoursRaw);
-            int minutes = Mathf.FloorToInt((clockHoursRaw - hours) * 60f);
-            
-            string stateText = TimeManager.Instance.IsNight ? "Ban Dem" : "Ban Ngay";
-            _timeText.text = $"Ngay {TimeManager.Instance.dayCount} | {hours:00}:{minutes:00} ({stateText})";
-        }
+        // Legacy time update removed - Handled by HUDTimeUI.cs
 
         if (Time.unscaledTime >= _nextPopulationRefreshTime)
         {
@@ -134,18 +183,30 @@ public class HUDManager : MonoBehaviour
             }
         }
 
-        // Cập nhật trạng thái thiếu lương thực
+        // Cập nhật trạng thái thiếu lương thực & Cảnh báo đói có transition/shake
         if (HungerSystem.Instance != null)
         {
             bool isShortage = HungerSystem.Instance.IsFoodShortage;
-            if (_foodWarningText != null)
+            if (isShortage != _wasFoodShortage)
             {
-                _foodWarningText.gameObject.SetActive(isShortage);
+                _wasFoodShortage = isShortage;
+                if (_foodWarningText != null)
+                {
+                    if (_foodWarningCoroutine != null) StopCoroutine(_foodWarningCoroutine);
+                    _foodWarningCoroutine = StartCoroutine(FoodWarningTransitionRoutine(isShortage));
+                }
             }
             if (_foodText != null)
             {
                 _foodText.color = isShortage ? Color.red : Color.white;
             }
+        }
+
+        // Tạo nhịp nháy phát sáng nhẹ liên tục cho Relic text (vì đây là tài nguyên quý hiếm)
+        if (_relicText != null)
+        {
+            float glow = 0.8f + Mathf.PingPong(Time.unscaledTime * 1.5f, 0.2f);
+            _relicText.color = new Color(1f, 0.84f, 0f, glow);
         }
     }
 
@@ -156,14 +217,10 @@ public class HUDManager : MonoBehaviour
             return;
         }
 
-        Transform existing = transform.Find("PopulationText");
-        if (existing != null)
+        _populationText = FindTextComponent("PopulationText");
+        if (_populationText != null)
         {
-            _populationText = existing.GetComponent<TextMeshProUGUI>();
-            if (_populationText != null)
-            {
-                return;
-            }
+            return;
         }
 
         GameObject populationObject = new GameObject("PopulationText", typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -195,8 +252,14 @@ public class HUDManager : MonoBehaviour
         int reserved = PopulationManager.ReservedVillagers;
         int max = PopulationManager.MaxVillagers;
         _populationText.text = reserved > 0
-            ? $"Dan: {current}+{reserved}/{max}"
-            : $"Dan: {current}/{max}";
+            ? $"{current}+{reserved}/{max}"
+            : $"{current}/{max}";
+
+        if (_prevPopulation != -1 && _prevPopulation != current)
+        {
+            TriggerPunchScale(_populationText);
+        }
+        _prevPopulation = current;
     }
 
     private void EnsureFoodWarningText()
@@ -206,14 +269,10 @@ public class HUDManager : MonoBehaviour
             return;
         }
 
-        Transform existing = transform.Find("FoodWarningText");
-        if (existing != null)
+        _foodWarningText = FindTextComponent("FoodWarningText");
+        if (_foodWarningText != null)
         {
-            _foodWarningText = existing.GetComponent<TextMeshProUGUI>();
-            if (_foodWarningText != null)
-            {
-                return;
-            }
+            return;
         }
 
         GameObject warningObject = new GameObject("FoodWarningText", typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -243,14 +302,10 @@ public class HUDManager : MonoBehaviour
             return;
         }
 
-        Transform existing = transform.Find("RelicText");
-        if (existing != null)
+        _relicText = FindTextComponent("RelicText");
+        if (_relicText != null)
         {
-            _relicText = existing.GetComponent<TextMeshProUGUI>();
-            if (_relicText != null)
-            {
-                return;
-            }
+            return;
         }
 
         GameObject relicObject = new GameObject("RelicText", typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -269,7 +324,7 @@ public class HUDManager : MonoBehaviour
         _relicText.alignment = TextAlignmentOptions.Center;
         _relicText.color = new Color(1f, 0.84f, 0f); // Màu vàng Gold nổi bật
         _relicText.raycastTarget = false;
-        _relicText.text = "Co vat: 0";
+        _relicText.text = "0";
     }
 
     private void EnsureBloodMoonBannerText()
@@ -279,14 +334,10 @@ public class HUDManager : MonoBehaviour
             return;
         }
 
-        Transform existing = transform.Find("BloodMoonBannerText");
-        if (existing != null)
+        _bloodMoonBannerText = FindTextComponent("BloodMoonBannerText");
+        if (_bloodMoonBannerText != null)
         {
-            _bloodMoonBannerText = existing.GetComponent<TextMeshProUGUI>();
-            if (_bloodMoonBannerText != null)
-            {
-                return;
-            }
+            return;
         }
 
         GameObject bannerObj = new GameObject("BloodMoonBannerText", typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -428,12 +479,8 @@ public class HUDManager : MonoBehaviour
     {
         if (_capacityText != null) return;
 
-        Transform existing = transform.Find("CapacityText");
-        if (existing != null)
-        {
-            _capacityText = existing.GetComponent<TextMeshProUGUI>();
-            if (_capacityText != null) return;
-        }
+        _capacityText = FindTextComponent("CapacityText");
+        if (_capacityText != null) return;
 
         GameObject capObject = new GameObject("CapacityText", typeof(RectTransform), typeof(TextMeshProUGUI));
         capObject.transform.SetParent(transform, false);
@@ -461,7 +508,102 @@ public class HUDManager : MonoBehaviour
         {
             _capacityText.text = $"Kho: {current}/{max}";
             _capacityText.color = current >= max ? Color.red : Color.white;
+            if (_prevCapacity != -1 && _prevCapacity != current)
+            {
+                TriggerPunchScale(_capacityText);
+            }
+            _prevCapacity = current;
         }
+    }
+
+    // Các phương thức trợ giúp tạo hiệu ứng Animation cho HUD
+    private void TriggerPunchScale(TextMeshProUGUI text)
+    {
+        if (text == null) return;
+        if (_activePunchCoroutines.TryGetValue(text, out Coroutine active))
+        {
+            StopCoroutine(active);
+        }
+        _activePunchCoroutines[text] = StartCoroutine(PunchScaleRoutine(text));
+    }
+
+    private IEnumerator PunchScaleRoutine(TextMeshProUGUI text)
+    {
+        Transform textTrans = text.transform;
+        Vector3 originalScale = Vector3.one;
+        float duration = 0.15f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+            // Tạo nảy nhẹ dạng Parabol: 1.0 -> 1.25 -> 1.0
+            float scaleMultiplier = 1f + Mathf.Sin(t * Mathf.PI) * 0.25f;
+            textTrans.localScale = originalScale * scaleMultiplier;
+            yield return null;
+        }
+
+        textTrans.localScale = originalScale;
+        _activePunchCoroutines.Remove(text);
+    }
+
+    private IEnumerator FoodWarningTransitionRoutine(bool show)
+    {
+        if (!_hasStoredWarningPos)
+        {
+            _originalWarningPos = _foodWarningText.rectTransform.anchoredPosition;
+            _hasStoredWarningPos = true;
+        }
+
+        if (show)
+        {
+            _foodWarningText.gameObject.SetActive(true);
+            _foodWarningText.alpha = 0f;
+            _foodWarningText.rectTransform.anchoredPosition = _originalWarningPos;
+
+            // Fade in kết hợp rung lắc (Shake)
+            float elapsed = 0f;
+            float duration = 0.4f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = elapsed / duration;
+                _foodWarningText.alpha = Mathf.Lerp(0f, 1f, t);
+                
+                float shakeOffset = Mathf.Sin(t * 30f) * 10f * (1f - t);
+                _foodWarningText.rectTransform.anchoredPosition = _originalWarningPos + new Vector3(shakeOffset, 0f, 0f);
+                yield return null;
+            }
+
+            _foodWarningText.alpha = 1f;
+            _foodWarningText.rectTransform.anchoredPosition = _originalWarningPos;
+
+            // Hiệu ứng nhấp nháy alpha nhịp nhàng khi đói
+            while (_wasFoodShortage)
+            {
+                float pulse = 0.6f + Mathf.PingPong(Time.unscaledTime * 3f, 0.4f);
+                _foodWarningText.alpha = pulse;
+                yield return null;
+            }
+        }
+        else
+        {
+            // Fade out
+            float elapsed = 0f;
+            float duration = 0.3f;
+            float startAlpha = _foodWarningText.alpha;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = elapsed / duration;
+                _foodWarningText.alpha = Mathf.Lerp(startAlpha, 0f, t);
+                yield return null;
+            }
+            _foodWarningText.alpha = 0f;
+            _foodWarningText.gameObject.SetActive(false);
+        }
+        _foodWarningCoroutine = null;
     }
 
     [Header("Kho đầy Warning")]
@@ -472,12 +614,8 @@ public class HUDManager : MonoBehaviour
     {
         if (_storageFullWarningText != null) return;
 
-        Transform existing = transform.Find("StorageFullWarningText");
-        if (existing != null)
-        {
-            _storageFullWarningText = existing.GetComponent<TextMeshProUGUI>();
-            if (_storageFullWarningText != null) return;
-        }
+        _storageFullWarningText = FindTextComponent("StorageFullWarningText");
+        if (_storageFullWarningText != null) return;
 
         GameObject warningObject = new GameObject("StorageFullWarningText", typeof(RectTransform), typeof(TextMeshProUGUI));
         warningObject.transform.SetParent(transform, false);
@@ -538,5 +676,49 @@ public class HUDManager : MonoBehaviour
 
         _storageFullWarningText.gameObject.SetActive(false);
         _warningFadeCoroutine = null;
+    }
+
+    private TextMeshProUGUI FindTextComponent(string name)
+    {
+        TextMeshProUGUI[] textComponents = GetComponentsInChildren<TextMeshProUGUI>(true);
+        // First pass: prefer active in hierarchy
+        foreach (var text in textComponents)
+        {
+            if (text.gameObject.name == name && text.gameObject.activeInHierarchy)
+            {
+                return text;
+            }
+        }
+        // Second pass: fall back to inactive
+        foreach (var text in textComponents)
+        {
+            if (text.gameObject.name == name)
+            {
+                return text;
+            }
+        }
+        return null;
+    }
+
+    private GameObject FindGameObjectInChildren(string name)
+    {
+        Transform[] allChildren = GetComponentsInChildren<Transform>(true);
+        // First pass: prefer active in hierarchy
+        foreach (var t in allChildren)
+        {
+            if (t.gameObject.name == name && t.gameObject.activeInHierarchy)
+            {
+                return t.gameObject;
+            }
+        }
+        // Second pass: fall back to inactive
+        foreach (var t in allChildren)
+        {
+            if (t.gameObject.name == name)
+            {
+                return t.gameObject;
+            }
+        }
+        return null;
     }
 }

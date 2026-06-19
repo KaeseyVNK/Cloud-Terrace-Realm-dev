@@ -6,7 +6,8 @@ using UnityEngine.UI;
 
 public class BuildingCardUI : MonoBehaviour,
     IPointerEnterHandler,
-    IPointerExitHandler
+    IPointerExitHandler,
+    IPointerClickHandler
 {
     [Header("Card UI")]
     [SerializeField] private TMP_Text _buildingNameText;
@@ -30,6 +31,19 @@ public class BuildingCardUI : MonoBehaviour,
     [SerializeField] private TMP_Text _goldCostAmountText;
 
     private BuildingData _buildingData;
+    private Transform _tooltipOriginalParent;
+    private int _tooltipOriginalSiblingIndex;
+    private Vector2 _tooltipOriginalAnchorMin;
+    private Vector2 _tooltipOriginalAnchorMax;
+    private Vector2 _tooltipOriginalPivot;
+    private Vector2 _tooltipOriginalAnchoredPosition;
+    private Vector2 _tooltipOriginalSizeDelta;
+    private bool _hasCachedTooltipOriginalValues;
+
+    private Coroutine _hoverScaleCoroutine;
+    private Coroutine _popInCoroutine;
+    private const float HoverScaleFactor = 1.05f;
+    private const float ScaleDuration = 0.15f;
 
     private void Awake()
     {
@@ -38,7 +52,10 @@ public class BuildingCardUI : MonoBehaviour,
             _buildButton.onClick.AddListener(OnBuildButtonClicked);
         }
 
-        HideTooltip();
+        if (_tooltipRoot != null)
+        {
+            _tooltipRoot.SetActive(false);
+        }
     }
 
     private void OnDestroy()
@@ -155,7 +172,10 @@ public class BuildingCardUI : MonoBehaviour,
                     : _buildingData.description;
         }
 
-        HideTooltip();
+        if (_tooltipRoot != null)
+        {
+            _tooltipRoot.SetActive(false);
+        }
     }
 
     private void OnBuildButtonClicked()
@@ -185,30 +205,113 @@ public class BuildingCardUI : MonoBehaviour,
         Debug.Log($"[BuildingCardUI] Đã bật Build Mode cho: {_buildingData.buildingName}", this);
     }
 
-    // Phải bật Build Mode trước vì SelectBuilding dùng trạng thái này
-    // để quyết định có hiển thị ghost building hay không.
-    //manager.IsDeleteMode = false;
-        //manager.IsBuildMode = true;
-        //manager.SelectBuilding(_buildingData);
-
-        //Debug.Log(
-            //$"[BuildingCardUI] Đã chọn công trình: {_buildingData.buildingName}"
-        //);
-    //}
-
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (_buildingData == null || _tooltipRoot == null)
+        if (_buildingData == null)
         {
             return;
         }
 
-        _tooltipRoot.SetActive(true);
+        if (_tooltipRoot != null)
+        {
+            CacheTooltipOriginalValues();
+            _tooltipRoot.SetActive(true);
+            MoveTooltipToTopLayer();
+        }
+
+        if (_hoverScaleCoroutine != null) StopCoroutine(_hoverScaleCoroutine);
+        if (_popInCoroutine != null)
+        {
+            StopCoroutine(_popInCoroutine);
+            _popInCoroutine = null;
+        }
+        _hoverScaleCoroutine = StartCoroutine(ScaleTo(Vector3.one * HoverScaleFactor, ScaleDuration));
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         HideTooltip();
+
+        if (_hoverScaleCoroutine != null) StopCoroutine(_hoverScaleCoroutine);
+        if (_popInCoroutine != null)
+        {
+            StopCoroutine(_popInCoroutine);
+            _popInCoroutine = null;
+        }
+        _hoverScaleCoroutine = StartCoroutine(ScaleTo(Vector3.one, ScaleDuration));
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+        {
+            return;
+        }
+
+        OnBuildButtonClicked();
+    }
+
+    public void AnimatePopIn(float delay)
+    {
+        if (_popInCoroutine != null)
+        {
+            StopCoroutine(_popInCoroutine);
+            _popInCoroutine = null;
+        }
+
+        if (gameObject.activeInHierarchy)
+        {
+            transform.localScale = Vector3.zero;
+            _popInCoroutine = StartCoroutine(PopInRoutine(delay));
+        }
+        else
+        {
+            transform.localScale = Vector3.one;
+        }
+    }
+
+    private System.Collections.IEnumerator PopInRoutine(float delay)
+    {
+        transform.localScale = Vector3.zero;
+
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        float elapsed = 0f;
+        float duration = 0.4f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+
+            // Back Ease Out
+            float tMinus1 = t - 1f;
+            float s = 1.70158f;
+            float currentScale = tMinus1 * tMinus1 * ((s + 1f) * tMinus1 + s) + 1f;
+
+            transform.localScale = Vector3.one * currentScale;
+            yield return null;
+        }
+
+        transform.localScale = Vector3.one;
+        _popInCoroutine = null;
+    }
+
+    private System.Collections.IEnumerator ScaleTo(Vector3 targetScale, float duration)
+    {
+        Vector3 startScale = transform.localScale;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transform.localScale = Vector3.Lerp(startScale, targetScale, elapsed / duration);
+            yield return null;
+        }
+        transform.localScale = targetScale;
+        _hoverScaleCoroutine = null;
     }
 
     private void HideTooltip()
@@ -216,7 +319,138 @@ public class BuildingCardUI : MonoBehaviour,
         if (_tooltipRoot != null)
         {
             _tooltipRoot.SetActive(false);
+
+            if (_hasCachedTooltipOriginalValues)
+            {
+                if (_tooltipOriginalParent != null &&
+                    _tooltipRoot.transform.parent != _tooltipOriginalParent)
+                {
+                    _tooltipRoot.transform.SetParent(_tooltipOriginalParent, false);
+                }
+
+                RectTransform tooltipRect = _tooltipRoot.transform as RectTransform;
+                if (tooltipRect != null)
+                {
+                    tooltipRect.anchorMin = _tooltipOriginalAnchorMin;
+                    tooltipRect.anchorMax = _tooltipOriginalAnchorMax;
+                    tooltipRect.pivot = _tooltipOriginalPivot;
+                    tooltipRect.anchoredPosition = _tooltipOriginalAnchoredPosition;
+                    tooltipRect.sizeDelta = _tooltipOriginalSizeDelta;
+                    tooltipRect.SetSiblingIndex(_tooltipOriginalSiblingIndex);
+                }
+            }
         }
+    }
+
+    private void CacheTooltipOriginalValues()
+    {
+        if (_hasCachedTooltipOriginalValues) return;
+
+        if (_tooltipRoot != null)
+        {
+            _tooltipOriginalParent = _tooltipRoot.transform.parent;
+            RectTransform tooltipRect = _tooltipRoot.transform as RectTransform;
+            if (tooltipRect != null)
+            {
+                _tooltipOriginalSiblingIndex = tooltipRect.GetSiblingIndex();
+                _tooltipOriginalAnchorMin = tooltipRect.anchorMin;
+                _tooltipOriginalAnchorMax = tooltipRect.anchorMax;
+                _tooltipOriginalPivot = tooltipRect.pivot;
+                _tooltipOriginalAnchoredPosition = tooltipRect.anchoredPosition;
+                _tooltipOriginalSizeDelta = tooltipRect.sizeDelta;
+
+                // Fallbacks if RectTransform hasn't been initialized by UI Canvas layout yet
+                if (_tooltipOriginalSizeDelta == Vector2.zero)
+                {
+                    _tooltipOriginalSizeDelta = new Vector2(326.77f, 107.00f);
+                }
+                if (_tooltipOriginalAnchorMin == Vector2.zero && _tooltipOriginalAnchorMax == Vector2.zero)
+                {
+                    _tooltipOriginalAnchorMin = new Vector2(0.5f, 0.5f);
+                    _tooltipOriginalAnchorMax = new Vector2(0.5f, 0.5f);
+                    _tooltipOriginalPivot = new Vector2(0.5f, 0.5f);
+                    _tooltipOriginalAnchoredPosition = new Vector2(267.80f, 53.50f);
+                }
+            }
+            _hasCachedTooltipOriginalValues = true;
+        }
+    }
+
+    private void MoveTooltipToTopLayer()
+    {
+        RectTransform tooltipTransform = _tooltipRoot.transform as RectTransform;
+        RectTransform layer = FindTooltipLayer() as RectTransform;
+
+        if (tooltipTransform == null || layer == null)
+        {
+            _tooltipRoot.transform.SetAsLastSibling();
+            return;
+        }
+
+        RectTransform cardRect = transform as RectTransform;
+        Vector3[] cardCorners = new Vector3[4];
+        cardRect.GetWorldCorners(cardCorners);
+
+        Vector3 rightCenterWorld = (cardCorners[2] + cardCorners[3]) * 0.5f;
+        Vector3 leftCenterWorld = (cardCorners[0] + cardCorners[1]) * 0.5f;
+
+        tooltipTransform.SetParent(layer, false);
+        tooltipTransform.anchorMin = new Vector2(0f, 0.5f);
+        tooltipTransform.anchorMax = new Vector2(0f, 0.5f);
+        tooltipTransform.pivot = new Vector2(0f, 0.5f);
+        tooltipTransform.sizeDelta = _tooltipOriginalSizeDelta;
+
+        Vector2 rightCenterLocal =
+            layer.InverseTransformPoint(rightCenterWorld);
+        Vector2 leftCenterLocal =
+            layer.InverseTransformPoint(leftCenterWorld);
+
+        const float margin = 12f;
+        Rect layerRect = layer.rect;
+        Vector2 tooltipSize = tooltipTransform.rect.size;
+        if (tooltipSize.x <= 0f || tooltipSize.y <= 0f)
+        {
+            tooltipSize = tooltipTransform.sizeDelta;
+        }
+
+        float layerLeftToPivot = layerRect.width * layer.pivot.x;
+        float x = rightCenterLocal.x + layerLeftToPivot + margin;
+
+        if (x + tooltipSize.x > layerRect.width - margin)
+        {
+            x = leftCenterLocal.x + layerLeftToPivot - tooltipSize.x - margin;
+        }
+
+        x = Mathf.Clamp(x, margin, Mathf.Max(margin, layerRect.width - tooltipSize.x - margin));
+
+        float minY = -layerRect.height * 0.5f + tooltipSize.y * 0.5f + margin;
+        float maxY = layerRect.height * 0.5f - tooltipSize.y * 0.5f - margin;
+        float y = Mathf.Clamp(rightCenterLocal.y, minY, maxY);
+
+        tooltipTransform.anchoredPosition = new Vector2(x, y);
+        tooltipTransform.SetAsLastSibling();
+    }
+
+    private Transform FindTooltipLayer()
+    {
+        Transform current = transform;
+        while (current != null)
+        {
+            if (current.name == "BuildingMenuRoot")
+            {
+                Transform layer = current.Find("TooltipLayer");
+                if (layer != null)
+                {
+                    return layer;
+                }
+
+                return current;
+            }
+
+            current = current.parent;
+        }
+
+        return null;
     }
 
     private void SetupCostIcons()
