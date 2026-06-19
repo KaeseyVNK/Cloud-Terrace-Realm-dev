@@ -26,10 +26,6 @@ MonoBehaviour:
   buildCosts:
   - resourceType: 0
     amount: 50
-  - resourceType: 1
-    amount: 40
-  - resourceType: 4
-    amount: 20
   maxHealth: 500
   maxWorkers: 0
   buildTime: 15

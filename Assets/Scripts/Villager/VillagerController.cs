@@ -106,6 +106,8 @@ public class VillagerController : MonoBehaviour
     private ConstructibleBuilding _autoGatherBuildingAfterDeposit;
     private int _assignedBuildSlotIndex = -1;
     private BaseCombatUnitController _repairTarget;
+    private int _assignedRepairSlotIndex = -1;
+    private Vector3 _repairTargetPos = Vector3.zero;
     private float _repairResourceTimer = 0f;
     private bool _isManualMove = false;
 
@@ -551,7 +553,10 @@ public class VillagerController : MonoBehaviour
                 if (_assignedGarrison == null)
                 {
                     _shelterSearchTimer += Time.deltaTime;
-                    if (_shelterSearchTimer >= ShelterSearchCooldown || _shelterSearchTimer <= Time.deltaTime)
+                    float initialStagger = (GetHashCode() % 10) * 0.05f;
+                    float cooldown = (_shelterSearchTimer <= Time.deltaTime + 0.0001f) ? initialStagger : ShelterSearchCooldown;
+
+                    if (_shelterSearchTimer >= cooldown)
                     {
                         _shelterSearchTimer = 0f;
                         WatchTowerGarrison closestGarrison = FindClosestAvailableGarrison();
@@ -577,7 +582,10 @@ public class VillagerController : MonoBehaviour
                 }
 
                 _shelterSearchTimer += Time.deltaTime;
-                if (_shelterSearchTimer >= ShelterSearchCooldown || _shelterSearchTimer <= Time.deltaTime)
+                float initialStagger = (GetHashCode() % 10) * 0.05f;
+                float cooldown = (_shelterSearchTimer <= Time.deltaTime + 0.0001f) ? initialStagger : ShelterSearchCooldown;
+
+                if (_shelterSearchTimer >= cooldown)
                 {
                     _shelterSearchTimer = 0f;
                     HouseShelter closestShelter = FindClosestAvailableShelter();
@@ -682,6 +690,8 @@ public class VillagerController : MonoBehaviour
         if (_currentState != VillagerState.Moving && _currentState != VillagerState.Building)
         {
             TargetBuilding = null;
+            _repairTarget = null;
+            _assignedRepairSlotIndex = -1;
         }
 
         if (_navAgent != null)
@@ -842,6 +852,14 @@ public class VillagerController : MonoBehaviour
                     isNearWorkTarget = true;
                 }
             }
+            else if (_repairTarget != null)
+            {
+                float distToDestSqr = (transform.position - _repairTargetPos).sqrMagnitude;
+                if (distToDestSqr <= disableAvoidanceDistanceSqr)
+                {
+                    isNearWorkTarget = true;
+                }
+            }
             else if (_currentJob != null && _navAgent.hasPath)
             {
                 float distToDestinationSqr = (transform.position - _navAgent.destination).sqrMagnitude;
@@ -868,7 +886,7 @@ public class VillagerController : MonoBehaviour
             
             // Nếu đi làm việc (mỏ hoặc công trình), nới lỏng khoảng cách dừng lên 0.65m để tránh kẹt do chen lấn
             float stopDist = _navAgent.stoppingDistance;
-            if (_currentJob != null || _targetBuilding != null)
+            if (_currentJob != null || _targetBuilding != null || _repairTarget != null)
             {
                 stopDist = Mathf.Max(stopDist, 0.65f);
             }
@@ -1115,7 +1133,9 @@ public class VillagerController : MonoBehaviour
         {
             if (_navAgent != null)
             {
-                Vector3 buildingPos = _repairTarget.transform.position;
+                float distToTargetPosSqr = (transform.position - _repairTargetPos).sqrMagnitude;
+                bool reachedSlot = distToTargetPosSqr <= 1.5f * 1.5f;
+
                 Collider col = _repairTarget.GetComponent<Collider>();
                 float boundsRadius = 2.0f;
                 if (col != null)
@@ -1123,9 +1143,10 @@ public class VillagerController : MonoBehaviour
                     float maxExtent = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
                     boundsRadius = Mathf.Max(boundsRadius, maxExtent + 2.0f);
                 }
+                float distToBuilding = Vector3.Distance(transform.position, _repairTarget.transform.position);
+                bool reachedBuildingPerimeter = distToBuilding <= boundsRadius + 0.8f;
 
-                float distToBuilding = Vector3.Distance(transform.position, buildingPos);
-                if (distToBuilding > boundsRadius + 0.5f)
+                if (!reachedSlot && !reachedBuildingPerimeter)
                 {
                     if (_pathRetryCount >= MaxPathRetries)
                     {
@@ -1136,7 +1157,7 @@ public class VillagerController : MonoBehaviour
                         return;
                     }
                     _pathRetryCount++;
-                    SetPathToTarget(buildingPos);
+                    SetPathToTarget(_repairTargetPos);
                     return;
                 }
             }
@@ -1925,6 +1946,9 @@ public class VillagerController : MonoBehaviour
                 return;
             }
 
+            float distToTargetPosSqr = (transform.position - _repairTargetPos).sqrMagnitude;
+            bool reachedSlot = distToTargetPosSqr <= 2.0f * 2.0f;
+
             Collider col = _repairTarget.GetComponent<Collider>();
             float boundsRadius = 2.0f;
             if (col != null)
@@ -1934,9 +1958,11 @@ public class VillagerController : MonoBehaviour
             }
 
             float distToBuilding = Vector3.Distance(transform.position, _repairTarget.transform.position);
-            if (distToBuilding > boundsRadius + 0.8f)
+            bool reachedBuildingPerimeter = distToBuilding <= boundsRadius + 0.8f;
+
+            if (!reachedSlot && !reachedBuildingPerimeter)
             {
-                SetPathToTarget(_repairTarget.transform.position);
+                SetPathToTarget(_repairTargetPos);
                 ChangeState(VillagerState.Moving);
                 return;
             }
@@ -2199,7 +2225,10 @@ public class VillagerController : MonoBehaviour
         _isManualMove = false;
         _wasFarmingWildAnimals = false;
 
-        if (SetPathToTarget(target.transform.position))
+        _assignedRepairSlotIndex = AssignFreeRepairSlot(_repairTarget);
+        _repairTargetPos = CalculateTargetRepairPosition(_repairTarget, _assignedRepairSlotIndex);
+
+        if (SetPathToTarget(_repairTargetPos))
         {
             ChangeState(VillagerState.Moving);
         }
@@ -2370,6 +2399,70 @@ public class VillagerController : MonoBehaviour
             slot++;
         }
         return slot;
+    }
+
+    /// <summary>
+    /// Tìm một slot sửa chữa trống đầu tiên cho công trình này.
+    /// </summary>
+    private int AssignFreeRepairSlot(BaseCombatUnitController target)
+    {
+        if (target == null) return -1;
+
+        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        HashSet<int> occupiedSlots = new HashSet<int>();
+        foreach (var v in allVillagers)
+        {
+            if (v != null && v != this && v._repairTarget == target && v._assignedRepairSlotIndex >= 0)
+            {
+                occupiedSlots.Add(v._assignedRepairSlotIndex);
+            }
+        }
+
+        int slot = 0;
+        while (occupiedSlots.Contains(slot))
+        {
+            slot++;
+        }
+        return slot;
+    }
+
+    /// <summary>
+    /// Tính điểm đứng sửa chữa được phân bổ riêng biệt bao quanh công trình.
+    /// </summary>
+    public Vector3 CalculateTargetRepairPosition(BaseCombatUnitController target, int slotIndex)
+    {
+        Vector3 targetPos = target.transform.position;
+        
+        ConstructibleBuilding building = target.GetComponent<ConstructibleBuilding>();
+        if (building != null)
+        {
+            return CalculateTargetBuildPosition(building, slotIndex);
+        }
+
+        Collider col = target.GetComponent<Collider>();
+        float halfWidth = 1.5f;
+        float halfLength = 1.5f;
+
+        if (col != null)
+        {
+            halfWidth = col.bounds.extents.x;
+            halfLength = col.bounds.extents.z;
+        }
+
+        const int numSlots = 8;
+        float radius = Mathf.Max(halfWidth, halfLength) + 1.8f;
+        float angle = (slotIndex * (360f / numSlots)) * Mathf.Deg2Rad;
+
+        float targetX = targetPos.x + Mathf.Cos(angle) * radius;
+        float targetZ = targetPos.z + Mathf.Sin(angle) * radius;
+
+        Vector3 targetPosition = new Vector3(targetX, targetPos.y, targetZ);
+        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            targetPosition = hit.position;
+        }
+
+        return targetPosition;
     }
 
     /// <summary>

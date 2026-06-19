@@ -406,11 +406,7 @@ public class BuildingManager : MonoBehaviour
             }
             else
             {
-                if (_ghostBuilding != null)
-                {
-                    _ghostBuilding.SetActive(false);
-                }
-                SetBuildingMenuVisible(false);
+                CancelBuildMode();
                 Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT");
             }
         }    
@@ -482,15 +478,15 @@ public class BuildingManager : MonoBehaviour
         // NGĂN CLICK XUYÊN QUA UI (UI Click-Through): Nếu chuột đang di chuyển đè lên thanh UI chọn công trình ở dưới,
         // lập tức ẩn Ghost Building và bỏ qua mọi hành vi chọn ô lưới hoặc đặt nhà để tránh lỗi click chọn công trình là đặt nhà luôn.
         // Ngăn click xuyên qua UI mới.
-        //if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-        //{
-            //if (_ghostBuilding != null)
-            //{
-                ///_ghostBuilding.SetActive(false);
-            //}
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            if (_ghostBuilding != null)
+            {
+                _ghostBuilding.SetActive(false);
+            }
 
-            //return;
-        //}
+            return;
+        }
         // Giữ lại tương thích với UI cũ nếu component này vẫn còn bật.
         BuildingSelectionUI ui = GetComponent<BuildingSelectionUI>();
         if (ui != null && ui.enabled && ui.IsMouseOverUI())
@@ -1170,8 +1166,10 @@ public class BuildingManager : MonoBehaviour
 
         if (_ghostBuilding != null)
         {
-            _ghostBuilding.SetActive(false);
+            Destroy(_ghostBuilding);
+            _ghostBuilding = null;
         }
+        _currentSelectedBuilding = null;
 
         Debug.Log("[BuildingManager] Cancelled build mode.");
         SetBuildingMenuVisible(false);

@@ -25,11 +25,9 @@ MonoBehaviour:
   buildingSize: {x: 3, y: 3}
   buildCosts:
   - resourceType: 0
-    amount: 220
-  - resourceType: 4
-    amount: 250
+    amount: 50
   - resourceType: 1
-    amount: 120
+    amount: 50
   maxHealth: 100
   maxWorkers: 0
   buildTime: 20

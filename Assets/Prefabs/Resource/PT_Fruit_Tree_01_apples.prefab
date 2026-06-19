@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 7166231712945947760}
   - component: {fileID: 7261938820053711135}
   - component: {fileID: 6515004167936558396}
-  - component: {fileID: 875019676361409048}
   m_Layer: 7
   m_Name: PT_Fruit_Tree_01_apples_LOD0
   m_TagString: Untagged
@@ -92,28 +91,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &875019676361409048
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 739817823455973032}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -65089136688577580, guid: fb0559a36ae9650449b6e3c26d5076a5, type: 3}
 --- !u!1 &4985516994003664520
 GameObject:
   m_ObjectHideFlags: 0
@@ -125,7 +102,6 @@ GameObject:
   - component: {fileID: 1521031249066610457}
   - component: {fileID: 8754381409129715867}
   - component: {fileID: 931027414323011715}
-  - component: {fileID: 3875763669678804391}
   m_Layer: 7
   m_Name: PT_Fruit_Tree_01_apples_LOD2
   m_TagString: Untagged
@@ -206,28 +182,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &3875763669678804391
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4985516994003664520}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -108839522260070907, guid: fb0559a36ae9650449b6e3c26d5076a5, type: 3}
 --- !u!1 &5737446558444684759
 GameObject:
   m_ObjectHideFlags: 0
@@ -239,8 +193,8 @@ GameObject:
   - component: {fileID: 8751986501702445715}
   - component: {fileID: 4852923037603099339}
   - component: {fileID: 2443482454826623108}
-  - component: {fileID: 4421244898300687749}
   - component: {fileID: -589615517035808980}
+  - component: {fileID: 8599245144773303446}
   m_Layer: 7
   m_Name: PT_Fruit_Tree_01_apples
   m_TagString: Untagged
@@ -311,8 +265,24 @@ MonoBehaviour:
   _hasSecondaryResource: 0
   _secondaryResourceType: 2
   _secondaryYieldRatio: 1
---- !u!64 &4421244898300687749
-MeshCollider:
+--- !u!208 &-589615517035808980
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5737446558444684759}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.3, y: 1.18, z: 0.265}
+  m_MoveThreshold: 0.01
+  m_Carve: 1
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0, z: -0.06}
+  m_TimeToStationary: 0.5
+--- !u!65 &8599245144773303446
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -329,26 +299,9 @@ MeshCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 0}
---- !u!208 &-589615517035808980
-NavMeshObstacle:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5737446558444684759}
-  m_Enabled: 1
   serializedVersion: 3
-  m_Shape: 0
-  m_Extents: {x: 0.6, y: 2.76, z: 0.6}
-  m_MoveThreshold: 0.01
-  m_Carve: 1
-  m_CarveOnlyStationary: 1
-  m_Center: {x: -0.07, y: 1.81, z: -0.12}
-  m_TimeToStationary: 0.5
+  m_Size: {x: 0.60765076, y: 2.896347, z: 0.6893921}
+  m_Center: {x: -0.19617462, y: 1.1279998, z: -0.15530396}
 --- !u!1 &7029541342390677043
 GameObject:
   m_ObjectHideFlags: 0
@@ -360,7 +313,6 @@ GameObject:
   - component: {fileID: 9087542439647419754}
   - component: {fileID: 8858475276278179532}
   - component: {fileID: 5427323865757052289}
-  - component: {fileID: 8941931948221482162}
   m_Layer: 7
   m_Name: PT_Fruit_Tree_01_apples_LOD1
   m_TagString: Untagged
@@ -441,25 +393,3 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &8941931948221482162
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7029541342390677043}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 8437342880481029371, guid: fb0559a36ae9650449b6e3c26d5076a5, type: 3}

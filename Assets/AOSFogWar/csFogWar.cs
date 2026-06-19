@@ -279,6 +279,7 @@ namespace FischlWorks_FogWar
         private GameObject fogPlane = null;
 
         private float FogRefreshRateTimer = 0;
+        private float bufferUpdateTimer = 0f;
 
         private const string levelScanDataPath = "/LevelData";
 
@@ -525,6 +526,14 @@ namespace FischlWorks_FogWar
         // Doing shader business on the script, if we pull this out as a shader pass, same operations must be repeated
         private void UpdateFogPlaneTextureBuffer()
         {
+            bufferUpdateTimer += Time.deltaTime;
+            if (bufferUpdateTimer < 0.04f) // Cap texture updates at ~25 FPS
+            {
+                return;
+            }
+            float elapsed = bufferUpdateTimer;
+            bufferUpdateTimer = 0f;
+
             EnsureFogTexturePixelBuffers();
 
             if (fogPlaneTextureBufferPixels.Length != fogPlaneTextureTargetPixels.Length)
@@ -533,10 +542,16 @@ namespace FischlWorks_FogWar
                 return;
             }
 
-            float lerpAmount = fogLerpSpeed * Time.deltaTime;
+            float lerpAmount = Mathf.Clamp01(fogLerpSpeed * elapsed);
             for (int i = 0; i < fogPlaneTextureBufferPixels.Length; i++)
             {
-                fogPlaneTextureBufferPixels[i] = Color.Lerp(fogPlaneTextureBufferPixels[i], fogPlaneTextureTargetPixels[i], lerpAmount);
+                Color c1 = fogPlaneTextureBufferPixels[i];
+                Color c2 = fogPlaneTextureTargetPixels[i];
+                c1.r += (c2.r - c1.r) * lerpAmount;
+                c1.g += (c2.g - c1.g) * lerpAmount;
+                c1.b += (c2.b - c1.b) * lerpAmount;
+                c1.a += (c2.a - c1.a) * lerpAmount;
+                fogPlaneTextureBufferPixels[i] = c1;
             }
             
             fogPlaneTextureLerpBuffer.SetPixels(fogPlaneTextureBufferPixels);

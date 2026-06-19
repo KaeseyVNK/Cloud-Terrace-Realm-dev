@@ -22,6 +22,7 @@ public class FogVisibilityTarget : MonoBehaviour
     private void Start()
     {
         fogWar = FindAnyObjectByType<csFogWar>(FindObjectsInactive.Include);
+        updateTimer = Random.Range(0f, updateInterval);
         RefreshVisibility(true);
     }
 

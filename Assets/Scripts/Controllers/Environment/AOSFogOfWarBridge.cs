@@ -257,6 +257,17 @@ public class AOSFogOfWarBridge : MonoBehaviour
                 }
             }
         }
+
+        // Neutral Market visibility
+        MarketController[] markets = FindObjectsByType<MarketController>(FindObjectsInactive.Include);
+        for (int i = 0; i < markets.Length; i++)
+        {
+            MarketController market = markets[i];
+            if (market != null && market.isNeutral)
+            {
+                AddVisibilityTargetIfMissing(market.gameObject);
+            }
+        }
     }
 
     private static void AddVisibilityTargetIfMissing(GameObject target)
