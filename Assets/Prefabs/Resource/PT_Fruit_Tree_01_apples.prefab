@@ -200,7 +200,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &8751986501702445715
 Transform:
@@ -265,6 +265,7 @@ MonoBehaviour:
   _hasSecondaryResource: 0
   _secondaryResourceType: 2
   _secondaryYieldRatio: 1
+  _maxHarvestSlots: 8
 --- !u!208 &-589615517035808980
 NavMeshObstacle:
   m_ObjectHideFlags: 0

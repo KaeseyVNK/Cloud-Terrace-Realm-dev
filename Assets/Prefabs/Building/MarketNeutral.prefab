@@ -14,12 +14,13 @@ GameObject:
   - component: {fileID: 6962072544066867523}
   - component: {fileID: 5948322758967036538}
   - component: {fileID: 3681262403846567566}
+  - component: {fileID: 2564199834649529229}
   m_Layer: 0
   m_Name: MarketNeutral
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &8374167092569761184
 Transform:
@@ -149,3 +150,18 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: 0.002, y: 0.03, z: -0.057000004}
   m_TimeToStationary: 0.5
+--- !u!114 &2564199834649529229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3143731048422382929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5726a48ce83b38d458447610f0100959, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FogVisibilityTarget
+  additionalRadius: 0
+  updateInterval: 0.2
+  visibleWhenFogDisabled: 1

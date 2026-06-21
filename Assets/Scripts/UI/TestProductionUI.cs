@@ -298,7 +298,7 @@ public class TestProductionUI : MonoBehaviour
         }
         if (mainBuilding != null)
         {
-            extraHeight = 110f;
+            extraHeight = 140f;
         }
 
         Rect panelRect = GetProductionPanelRect();
@@ -391,12 +391,20 @@ public class TestProductionUI : MonoBehaviour
             string stateText = HouseShelter.IsEmergencyShelterActive ? "TRẠNG THÁI: YÊU CẦU TRÚ ẨN KHẨN CẤP" : "TRẠNG THÁI: Bình thường";
             GUI.Label(new Rect(panelRect.x + 15f, startY + 22f, panelRect.width - 30f, 20f), stateText);
 
-            if (GUI.Button(new Rect(panelRect.x + 15f, startY + 47f, 235f, 45f), "Trú ẩn khẩn cấp\n(Shelter All)"))
+            // Toggle yêu cầu dân làng trú ẩn vào ban đêm
+            bool currentShelterAtNight = VillagerController.ShouldShelterAtNight;
+            bool newShelterAtNight = GUI.Toggle(new Rect(panelRect.x + 15f, startY + 44f, panelRect.width - 30f, 20f), currentShelterAtNight, " Cư dân tự động đi trú ẩn vào ban đêm");
+            if (newShelterAtNight != currentShelterAtNight)
+            {
+                VillagerController.ShouldShelterAtNight = newShelterAtNight;
+            }
+
+            if (GUI.Button(new Rect(panelRect.x + 15f, startY + 69f, 235f, 45f), "Trú ẩn khẩn cấp\n(Shelter All)"))
             {
                 mainBuilding.OrderAllVillagersToShelter();
             }
 
-            if (GUI.Button(new Rect(panelRect.x + 260f, startY + 47f, 235f, 45f), "Ra ngoài khẩn cấp\n(Evacuate All)"))
+            if (GUI.Button(new Rect(panelRect.x + 260f, startY + 69f, 235f, 45f), "Ra ngoài khẩn cấp\n(Evacuate All)"))
             {
                 mainBuilding.OrderAllVillagersToEvacuate();
             }

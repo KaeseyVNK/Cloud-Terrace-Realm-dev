@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: Rice Field
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: Rice Field
+  description: A wet paddy field for producing food. Auto-regrows. Worked by 1 villager.
+  category: 1
+  icon: {fileID: -535301140, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
+  buildingPrefab: {fileID: 5946666023619749758, guid: db90b9315d9fee94a8784506f269f736, type: 3}
+  buildingSize: {x: 2, y: 2}
+  buildCosts:
+  - resourceType: 0
+    amount: 60
+  maxHealth: 400
+  maxWorkers: 0
+  buildTime: 15
+  isInstantBuild: 1
+  isStorage: 0
+  acceptedResources: 
+  requiredBuildings: []
+  producibleUnits: []

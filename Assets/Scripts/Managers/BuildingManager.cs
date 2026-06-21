@@ -125,6 +125,7 @@ public class BuildingManager : MonoBehaviour
     private Renderer[] _ghostRenderers;
     private int _currentRotationIndex = 0; // Chỉ số góc xoay công trình: 0 = 0 độ, 1 = 90 độ, 2 = 180 độ, 3 = 270 độ
     private csFogWar _fogWar;
+    private bool _blockPlacementThisFrame = false;
 
     // Dictionary để quản lý nhà nào đang nằm trên ô nào
     private Dictionary<GridCell, GameObject> _builtStructures = new Dictionary<GridCell, GameObject>();
@@ -351,6 +352,7 @@ public class BuildingManager : MonoBehaviour
     // Hàm gọi khi người dùng muốn đổi loại nhà sẽ xây
     public void SelectBuilding(BuildingData buildingData)
     {
+        _blockPlacementThisFrame = true; // Chặn đặt nhà trong frame chọn UI
         _currentSelectedBuilding = buildingData;
         _currentRotationIndex = 0; // Reset góc xoay về 0 khi chọn công trình mới
 
@@ -386,6 +388,7 @@ public class BuildingManager : MonoBehaviour
     {
         HandleModeSwitchInput();
         InteractWithGrid();
+        _blockPlacementThisFrame = false;
     }
 
     private void HandleModeSwitchInput()
@@ -418,7 +421,12 @@ public class BuildingManager : MonoBehaviour
             if(IsDeleteMode)
             {
                 _isBuildMode = false;
-                if (_ghostBuilding != null) _ghostBuilding.SetActive(false);
+                if (_ghostBuilding != null)
+                {
+                    Destroy(_ghostBuilding);
+                    _ghostBuilding = null;
+                }
+                _currentSelectedBuilding = null;
                 SetBuildingMenuVisible(false);
                 Debug.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT");
             }
@@ -466,6 +474,12 @@ public class BuildingManager : MonoBehaviour
         if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame && (IsBuildMode || IsDeleteMode))
         {
             CancelBuildMode();
+            return;
+        }
+
+        if (_blockPlacementThisFrame)
+        {
+            if (_ghostBuilding != null) _ghostBuilding.SetActive(false);
             return;
         }
 
@@ -560,8 +574,8 @@ public class BuildingManager : MonoBehaviour
     {
         // Tính toán độ lệch (Offset) để lấy điểm chính giữa Tâm của công trình (nhiều ô)
         Vector3 startPos = _gridSystem.GetWorldPosition(startX, startZ, elevation);
-        float offset_x = (size.x - 1) * _gridSystem.GetCellSize() / 2f;
-        float offset_z = (size.y - 1) * _gridSystem.GetCellSize() / 2f;
+        float offset_x = size.x * _gridSystem.GetCellSize() / 2f;
+        float offset_z = size.y * _gridSystem.GetCellSize() / 2f;
         
         // Không nâng Y lên nữa vì hệ thống đang dùng Unity Terrain, mặt đất đã chính xác
         return startPos + new Vector3(offset_x, 0f, offset_z);
@@ -618,6 +632,36 @@ public class BuildingManager : MonoBehaviour
             return;
         }
 
+        // Vô hiệu hóa TorchStandController trên ghost để tránh tự động bật đèn
+        TorchStandController[] torchControllers = ghost.GetComponentsInChildren<TorchStandController>(true);
+        foreach (TorchStandController controller in torchControllers)
+        {
+            if (controller != null)
+            {
+                controller.enabled = false;
+            }
+        }
+
+        // Tắt toàn bộ đèn Point Light thực tế trên ghost
+        Light[] lights = ghost.GetComponentsInChildren<Light>(true);
+        foreach (Light l in lights)
+        {
+            if (l != null)
+            {
+                l.enabled = false;
+            }
+        }
+
+        // Tắt toàn bộ đối tượng vòng sáng giả FakeLight trên ghost
+        Transform[] allTransforms = ghost.GetComponentsInChildren<Transform>(true);
+        foreach (Transform t in allTransforms)
+        {
+            if (t != null && t.gameObject.name == "FakeLight")
+            {
+                t.gameObject.SetActive(false);
+            }
+        }
+
         VisionSource[] visionSources = ghost.GetComponentsInChildren<VisionSource>(true);
         foreach (VisionSource source in visionSources)
         {
@@ -634,6 +678,51 @@ public class BuildingManager : MonoBehaviour
             {
                 building.IsCompleted = false;
                 building.enabled = false;
+
+                // Reset vị trí của _VisualContainer về 0 để mô hình ghost không bị chôn dưới đất khi chưa xây
+                Transform visualContainer = building.transform.Find("_VisualContainer");
+                if (visualContainer != null)
+                {
+                    visualContainer.localPosition = Vector3.zero;
+                }
+            }
+        }
+
+        // Vô hiệu hóa RiceField trên ghost và hiển thị ô vuông đất trồng làm footprint xem trước
+        RiceField[] riceFields = ghost.GetComponentsInChildren<RiceField>(true);
+        foreach (RiceField rf in riceFields)
+        {
+            if (rf != null)
+            {
+                rf.enabled = false;
+
+                // Thay vì tắt tất cả child của rf.transform (làm tắt nhầm _VisualContainer), 
+                // ta dùng reflection chỉnh trạng thái hiển thị của các Visual con tương ứng
+                System.Reflection.FieldInfo emptyField = typeof(RiceField).GetField(
+                    "_emptyVisual",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                System.Reflection.FieldInfo growingField = typeof(RiceField).GetField(
+                    "_growingVisual",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                System.Reflection.FieldInfo ripeField = typeof(RiceField).GetField(
+                    "_ripeVisual",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                if (emptyField != null)
+                {
+                    GameObject emptyGO = emptyField.GetValue(rf) as GameObject;
+                    if (emptyGO != null) emptyGO.SetActive(true);
+                }
+                if (growingField != null)
+                {
+                    GameObject growingGO = growingField.GetValue(rf) as GameObject;
+                    if (growingGO != null) growingGO.SetActive(false);
+                }
+                if (ripeField != null)
+                {
+                    GameObject ripeGO = ripeField.GetValue(rf) as GameObject;
+                    if (ripeGO != null) ripeGO.SetActive(false);
+                }
             }
         }
     }
@@ -845,6 +934,16 @@ public class BuildingManager : MonoBehaviour
             // Ghi nhận nhà đã bắt đầu đặt móng (chưa tăng builtBuildingCounts vì chưa hoàn thành)
             Debug.Log($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
         }
+
+        // Sau khi đặt thành công, dọn dẹp ghost và lựa chọn hiện tại để tránh lưu công trình cũ
+        if (_ghostBuilding != null)
+        {
+            Destroy(_ghostBuilding);
+            _ghostBuilding = null;
+        }
+        _currentSelectedBuilding = null;
+        IsBuildMode = false;
+        SetBuildingMenuVisible(false);
     }
 
     /// <summary>

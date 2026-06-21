@@ -46,8 +46,18 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected bool isStunned = false;
     protected Coroutine staggerCoroutine;
     protected Coroutine flashCoroutine;
-    private readonly Dictionary<Renderer, Color> _hitFlashOriginalColors = new Dictionary<Renderer, Color>();
-    private readonly Dictionary<Renderer, int> _hitFlashColorProperties = new Dictionary<Renderer, int>();
+    private static MaterialPropertyBlock _hitFlashPropertyBlock;
+    private readonly List<Renderer> _hitFlashRenderers = new List<Renderer>();
+
+    private static MaterialPropertyBlock GetHitFlashPropertyBlock()
+    {
+        if (_hitFlashPropertyBlock == null)
+        {
+            _hitFlashPropertyBlock = new MaterialPropertyBlock();
+        }
+        return _hitFlashPropertyBlock;
+    }
+
     protected float blockedTimer = 0f;
     protected bool isManualMoveCommand = false;
     protected bool returnToPoolOnDeath = false;
@@ -153,16 +163,31 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             navAgent.avoidancePriority = Random.Range(30, 71);
         }
 
-        // Tự động gắn đèn cho unit của người chơi (Tắt đi để tránh lag do point light)
-        /*
-        if (faction == UnitFaction.Player)
+        // Tự động gắn FogVisibilityTarget cho kẻ địch/đơn vị ngoài phe người chơi
+        if (faction != UnitFaction.Player && 
+            AOSFogOfWarBridge.Instance != null && 
+            AOSFogOfWarBridge.Instance.AutoAddVisibilityTargets)
+        {
+            bool isEnemy = GetComponent<EnemyUnitController>() != null;
+            bool shouldAdd = (isEnemy && AOSFogOfWarBridge.Instance.HideEnemiesOutsideVision) ||
+                             (!isEnemy && AOSFogOfWarBridge.Instance.HideNonPlayerCombatTargetsOutsideVision);
+            if (shouldAdd && GetComponent<FogVisibilityTarget>() == null)
+            {
+                gameObject.AddComponent<FogVisibilityTarget>();
+            }
+        }
+
+        // Tự động gắn đèn cho unit của người chơi (Sử dụng Fake Light vòng sáng tối ưu hiệu năng)
+        if (faction == UnitFaction.Player && 
+            GetComponent<ConstructibleBuilding>() == null && 
+            !(this is BuildingCombatTarget) && 
+            !(this is MainBuildingCombatTarget))
         {
             if (gameObject.GetComponent<UnitLightController>() == null)
             {
                 gameObject.AddComponent<UnitLightController>();
             }
         }
-        */
 
         ApplyPlayerTechnologyStats();
     }
@@ -212,6 +237,13 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         {
             TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
         }
+
+        if (flashCoroutine != null)
+        {
+            StopCoroutine(flashCoroutine);
+            flashCoroutine = null;
+        }
+        RestoreHitFlashColors();
     }
 
     private void HandleTechnologyUnlocked(TechnologyData tech)
@@ -592,62 +624,46 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     private IEnumerator FlashRedCoroutine()
     {
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
-        foreach (var r in renderers)
+        _hitFlashRenderers.Clear();
+        GetComponentsInChildren<Renderer>(true, _hitFlashRenderers);
+
+        var block = GetHitFlashPropertyBlock();
+
+        foreach (var r in _hitFlashRenderers)
         {
-            if (r != null && r.material != null)
+            if (r != null && r.sharedMaterial != null)
             {
-                // Kiểm tra thuộc tính màu cho cả URP và Standard shader
-                if (r.material.HasProperty(BaseColorProperty))
+                // Kiểm tra thuộc tính màu cho cả URP và Standard shader trên sharedMaterial
+                if (r.sharedMaterial.HasProperty(BaseColorProperty))
                 {
-                    StoreOriginalFlashColor(r, BaseColorProperty);
-                    r.material.SetColor(BaseColorProperty, Color.red);
+                    block.SetColor(BaseColorProperty, Color.red);
+                    r.SetPropertyBlock(block);
                 }
-                else if (r.material.HasProperty(ColorProperty))
+                else if (r.sharedMaterial.HasProperty(ColorProperty))
                 {
-                    StoreOriginalFlashColor(r, ColorProperty);
-                    r.material.SetColor(ColorProperty, Color.red);
+                    block.SetColor(ColorProperty, Color.red);
+                    r.SetPropertyBlock(block);
                 }
             }
         }
 
         yield return new WaitForSeconds(0.12f);
 
-        // Trả lại màu gốc mượt mà
+        // Trả lại màu gốc
         RestoreHitFlashColors();
         flashCoroutine = null;
     }
 
-    private void StoreOriginalFlashColor(Renderer targetRenderer, int colorProperty)
-    {
-        if (_hitFlashOriginalColors.ContainsKey(targetRenderer))
-        {
-            return;
-        }
-
-        _hitFlashOriginalColors[targetRenderer] = targetRenderer.material.GetColor(colorProperty);
-        _hitFlashColorProperties[targetRenderer] = colorProperty;
-    }
-
     private void RestoreHitFlashColors()
     {
-        foreach (var pair in _hitFlashOriginalColors)
+        foreach (var r in _hitFlashRenderers)
         {
-            Renderer targetRenderer = pair.Key;
-            if (targetRenderer == null || targetRenderer.material == null)
+            if (r != null)
             {
-                continue;
-            }
-
-            int colorProperty = _hitFlashColorProperties[targetRenderer];
-            if (targetRenderer.material.HasProperty(colorProperty))
-            {
-                targetRenderer.material.SetColor(colorProperty, pair.Value);
+                r.SetPropertyBlock(null);
             }
         }
-
-        _hitFlashOriginalColors.Clear();
-        _hitFlashColorProperties.Clear();
+        _hitFlashRenderers.Clear();
     }
 
     protected virtual void Die()

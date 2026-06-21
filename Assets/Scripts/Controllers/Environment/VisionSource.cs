@@ -33,6 +33,14 @@ public class VisionSource : MonoBehaviour
             return false;
         }
 
+        // Chợ trung lập không được phép mở tầm nhìn
+        MarketController mc = GetComponent<MarketController>();
+        if (mc == null) mc = GetComponentInChildren<MarketController>();
+        if (mc != null && mc.isNeutral)
+        {
+            return false;
+        }
+
         if (!isActiveAndEnabled)
         {
             return revealWhileInactive;

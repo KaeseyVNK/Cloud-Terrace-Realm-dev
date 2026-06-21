@@ -111,6 +111,9 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     // Cache BaseCombatUnitController trên SelectableUnit để tránh GetComponent mỗi frame
     private readonly Dictionary<SelectableUnit, BaseCombatUnitController> _cachedCombatControllers = new Dictionary<SelectableUnit, BaseCombatUnitController>();
 
+    private readonly List<GameObject> _keysToRemove = new List<GameObject>();
+    private readonly List<SelectableUnit> _unitsToRemove = new List<SelectableUnit>();
+
     // Cache trạng thái lựa chọn công trình để so sánh tham chiếu cực nhanh
     private BaseCombatUnitController _selectedMainBuildingCombat;
     private BaseCombatUnitController _selectedWatchTowerCombat;
@@ -250,7 +253,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         _canvasTransform = canvasGO.AddComponent<RectTransform>();
         _canvas = canvasGO.AddComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 99; // Hiển thị phía trên hầu hết các UI khác
+        _canvas.sortingOrder = -1; // Hiển thị phía dưới các UI Canvas chính để tránh đè lên UI canvas
 
         canvasGO.AddComponent<CanvasScaler>();
         DontDestroyOnLoad(canvasGO);
@@ -946,24 +949,24 @@ public class WorldSpaceOverlayManager : MonoBehaviour
 
     private void CleanDestroyedObjectsFromCache()
     {
-        var keysToRemove = new List<GameObject>();
+        _keysToRemove.Clear();
         foreach (var key in _cachedHeights.Keys)
         {
-            if (key == null) keysToRemove.Add(key);
+            if (key == null) _keysToRemove.Add(key);
         }
-        for (int i = 0; i < keysToRemove.Count; i++)
+        for (int i = 0; i < _keysToRemove.Count; i++)
         {
-            _cachedHeights.Remove(keysToRemove[i]);
+            _cachedHeights.Remove(_keysToRemove[i]);
         }
 
-        var unitsToRemove = new List<SelectableUnit>();
+        _unitsToRemove.Clear();
         foreach (var key in _cachedCombatControllers.Keys)
         {
-            if (key == null) unitsToRemove.Add(key);
+            if (key == null) _unitsToRemove.Add(key);
         }
-        for (int i = 0; i < unitsToRemove.Count; i++)
+        for (int i = 0; i < _unitsToRemove.Count; i++)
         {
-            _cachedCombatControllers.Remove(unitsToRemove[i]);
+            _cachedCombatControllers.Remove(_unitsToRemove[i]);
         }
     }
 

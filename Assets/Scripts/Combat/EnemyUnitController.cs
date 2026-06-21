@@ -69,6 +69,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     private bool _isRetreating = false;
     private float _retreatTimer = 0f;
     private Vector3 _spawnPosition;
+    private float _appliedSpeedMultiplier = 1f;
     public override int TargetPriorityPenalty => _isRetreating ? 100 : 0;
 
     private static readonly List<BaseCombatUnitController> s_cachedPlayerBuildingTargets = new List<BaseCombatUnitController>(64);
@@ -123,6 +124,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _repathTimer = 0f;
         _isWaitingForRally = false;
         _isRetreating = false;
+        _appliedSpeedMultiplier = 1f;
         _spawnPosition = transform.position;
         ClearScanCache();
         AssignRandomRole();
@@ -182,7 +184,14 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _repathTimer = 0f;
         _isWaitingForRally = false;
         _isRetreating = false;
+        _appliedSpeedMultiplier = 1f;
         ClearScanCache();
+    }
+
+    public new void ApplyStatMultipliers(float healthMult, float damageMult, float speedMult)
+    {
+        base.ApplyStatMultipliers(healthMult, damageMult, speedMult);
+        _appliedSpeedMultiplier = speedMult;
     }
 
     public void SetRallyPoint(Vector3 position)
@@ -212,9 +221,34 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _isWaitingForRally = false;
     }
 
+    private void UpdateNightSpeedBuff()
+    {
+        if (navAgent == null || !navAgent.enabled) return;
+
+        bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
+        bool isMarching = (currentState == CombatState.Idle || currentState == CombatState.Moving);
+
+        float normalSpeed = (baseSpeed > 0 ? baseSpeed : 3.5f) * _appliedSpeedMultiplier;
+        float targetSpeed = normalSpeed;
+
+        if (isNight && isMarching)
+        {
+            // Buff 2.2x tốc độ di chuyển ban đêm khi hành quân
+            targetSpeed *= 2.2f;
+        }
+
+        if (!Mathf.Approximately(navAgent.speed, targetSpeed))
+        {
+            navAgent.speed = targetSpeed;
+        }
+    }
+
     protected override void Update()
     {
         if (currentState == CombatState.Dead) return;
+
+        UpdateNightSpeedBuff();
+
         if (isStunned) return;
 
         if (IsKnockupActive())

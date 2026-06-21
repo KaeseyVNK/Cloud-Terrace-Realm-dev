@@ -36,11 +36,17 @@ public class HUDManager : MonoBehaviour
 
     // Cache variables for resource and UI animations
     private int _prevWood = -1;
+    private int _prevWoodGatherers = -1;
     private int _prevStone = -1;
+    private int _prevStoneGatherers = -1;
     private int _prevFood = -1;
+    private int _prevFoodGatherers = -1;
     private int _prevGold = -1;
+    private int _prevGoldGatherers = -1;
     private int _prevRelic = -1;
     private int _prevPopulation = -1;
+    private int _prevReserved = -1;
+    private int _prevMax = -1;
     private int _prevCapacity = -1;
     private bool _wasFoodShortage = false;
     private Coroutine _foodWarningCoroutine;
@@ -115,46 +121,65 @@ public class HUDManager : MonoBehaviour
             case ResourceType.Wood:
                 if (_woodText != null)
                 {
-                    _woodText.text = $"{newAmount}/{gatherers}";
-                    if (_prevWood != -1 && _prevWood != newAmount) hasChanged = true;
-                    _prevWood = newAmount;
-                    if (hasChanged) TriggerPunchScale(_woodText);
+                    if (_prevWood != newAmount || _prevWoodGatherers != gatherers)
+                    {
+                        _woodText.text = $"{newAmount}/{gatherers}";
+                        if (_prevWood != -1 && _prevWood != newAmount) hasChanged = true;
+                        _prevWood = newAmount;
+                        _prevWoodGatherers = gatherers;
+                        if (hasChanged) TriggerPunchScale(_woodText);
+                    }
                 }
                 break;
             case ResourceType.Stone:
                 if (_stoneText != null)
                 {
-                    _stoneText.text = $"{newAmount}/{gatherers}";
-                    if (_prevStone != -1 && _prevStone != newAmount) hasChanged = true;
-                    _prevStone = newAmount;
-                    if (hasChanged) TriggerPunchScale(_stoneText);
+                    if (_prevStone != newAmount || _prevStoneGatherers != gatherers)
+                    {
+                        _stoneText.text = $"{newAmount}/{gatherers}";
+                        if (_prevStone != -1 && _prevStone != newAmount) hasChanged = true;
+                        _prevStone = newAmount;
+                        _prevStoneGatherers = gatherers;
+                        if (hasChanged) TriggerPunchScale(_stoneText);
+                    }
                 }
                 break;
             case ResourceType.Food:
                 if (_foodText != null)
                 {
-                    _foodText.text = $"{newAmount}/{gatherers}";
-                    if (_prevFood != -1 && _prevFood != newAmount) hasChanged = true;
-                    _prevFood = newAmount;
-                    if (hasChanged) TriggerPunchScale(_foodText);
+                    if (_prevFood != newAmount || _prevFoodGatherers != gatherers)
+                    {
+                        _foodText.text = $"{newAmount}/{gatherers}";
+                        if (_prevFood != -1 && _prevFood != newAmount) hasChanged = true;
+                        _prevFood = newAmount;
+                        _prevFoodGatherers = gatherers;
+                        if (hasChanged) TriggerPunchScale(_foodText);
+                    }
                 }
                 break;
             case ResourceType.Gold:
                 if (_goldText != null)
                 {
-                    _goldText.text = $"{newAmount}/{gatherers}";
-                    if (_prevGold != -1 && _prevGold != newAmount) hasChanged = true;
-                    _prevGold = newAmount;
-                    if (hasChanged) TriggerPunchScale(_goldText);
+                    if (_prevGold != newAmount || _prevGoldGatherers != gatherers)
+                    {
+                        _goldText.text = $"{newAmount}/{gatherers}";
+                        if (_prevGold != -1 && _prevGold != newAmount) hasChanged = true;
+                        _prevGold = newAmount;
+                        _prevGoldGatherers = gatherers;
+                        if (hasChanged) TriggerPunchScale(_goldText);
+                    }
                 }
                 break;
             case ResourceType.AncientRelic:
                 if (_relicText != null)
                 {
-                    _relicText.text = newAmount.ToString();
-                    if (_prevRelic != -1 && _prevRelic != newAmount) hasChanged = true;
-                    _prevRelic = newAmount;
-                    if (hasChanged) TriggerPunchScale(_relicText);
+                    if (_prevRelic != newAmount)
+                    {
+                        _relicText.text = newAmount.ToString();
+                        if (_prevRelic != -1 && _prevRelic != newAmount) hasChanged = true;
+                        _prevRelic = newAmount;
+                        if (hasChanged) TriggerPunchScale(_relicText);
+                    }
                 }
                 break;
         }
@@ -173,14 +198,6 @@ public class HUDManager : MonoBehaviour
         {
             _nextPopulationRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, _populationRefreshInterval);
             UpdatePopulationUI();
-
-            if (ResourceManager.Instance != null)
-            {
-                UpdateResourceUI(ResourceType.Wood, ResourceManager.Instance.GetResourceAmount(ResourceType.Wood));
-                UpdateResourceUI(ResourceType.Stone, ResourceManager.Instance.GetResourceAmount(ResourceType.Stone));
-                UpdateResourceUI(ResourceType.Food, ResourceManager.Instance.GetResourceAmount(ResourceType.Food));
-                UpdateResourceUI(ResourceType.Gold, ResourceManager.Instance.GetResourceAmount(ResourceType.Gold));
-            }
         }
 
         // Cập nhật trạng thái thiếu lương thực & Cảnh báo đói có transition/shake
@@ -195,18 +212,54 @@ public class HUDManager : MonoBehaviour
                     if (_foodWarningCoroutine != null) StopCoroutine(_foodWarningCoroutine);
                     _foodWarningCoroutine = StartCoroutine(FoodWarningTransitionRoutine(isShortage));
                 }
-            }
-            if (_foodText != null)
-            {
-                _foodText.color = isShortage ? Color.red : Color.white;
+                if (_foodText != null)
+                {
+                    _foodText.color = isShortage ? Color.red : Color.white;
+                }
             }
         }
 
-        // Tạo nhịp nháy phát sáng nhẹ liên tục cho Relic text (vì đây là tài nguyên quý hiếm)
-        if (_relicText != null)
+        UpdateGathererCountsIfNeeded();
+    }
+
+    private void UpdateGathererCountsIfNeeded()
+    {
+        if (ResourceManager.Instance == null) return;
+
+        int woodG = VillagerController.GetGathererCount(ResourceType.Wood);
+        if (woodG != _prevWoodGatherers && _woodText != null)
         {
-            float glow = 0.8f + Mathf.PingPong(Time.unscaledTime * 1.5f, 0.2f);
-            _relicText.color = new Color(1f, 0.84f, 0f, glow);
+            int amount = ResourceManager.Instance.GetResourceAmount(ResourceType.Wood);
+            _woodText.text = $"{amount}/{woodG}";
+            _prevWoodGatherers = woodG;
+            _prevWood = amount;
+        }
+
+        int stoneG = VillagerController.GetGathererCount(ResourceType.Stone);
+        if (stoneG != _prevStoneGatherers && _stoneText != null)
+        {
+            int amount = ResourceManager.Instance.GetResourceAmount(ResourceType.Stone);
+            _stoneText.text = $"{amount}/{stoneG}";
+            _prevStoneGatherers = stoneG;
+            _prevStone = amount;
+        }
+
+        int foodG = VillagerController.GetGathererCount(ResourceType.Food);
+        if (foodG != _prevFoodGatherers && _foodText != null)
+        {
+            int amount = ResourceManager.Instance.GetResourceAmount(ResourceType.Food);
+            _foodText.text = $"{amount}/{foodG}";
+            _prevFoodGatherers = foodG;
+            _prevFood = amount;
+        }
+
+        int goldG = VillagerController.GetGathererCount(ResourceType.Gold);
+        if (goldG != _prevGoldGatherers && _goldText != null)
+        {
+            int amount = ResourceManager.Instance.GetResourceAmount(ResourceType.Gold);
+            _goldText.text = $"{amount}/{goldG}";
+            _prevGoldGatherers = goldG;
+            _prevGold = amount;
         }
     }
 
@@ -251,15 +304,21 @@ public class HUDManager : MonoBehaviour
         int current = PopulationManager.CurrentVillagers;
         int reserved = PopulationManager.ReservedVillagers;
         int max = PopulationManager.MaxVillagers;
-        _populationText.text = reserved > 0
-            ? $"{current}+{reserved}/{max}"
-            : $"{current}/{max}";
 
-        if (_prevPopulation != -1 && _prevPopulation != current)
+        if (current != _prevPopulation || reserved != _prevReserved || max != _prevMax)
         {
-            TriggerPunchScale(_populationText);
+            _populationText.text = reserved > 0
+                ? $"{current}+{reserved}/{max}"
+                : $"{current}/{max}";
+
+            if (_prevPopulation != -1 && _prevPopulation != current)
+            {
+                TriggerPunchScale(_populationText);
+            }
+            _prevPopulation = current;
+            _prevReserved = reserved;
+            _prevMax = max;
         }
-        _prevPopulation = current;
     }
 
     private void EnsureFoodWarningText()

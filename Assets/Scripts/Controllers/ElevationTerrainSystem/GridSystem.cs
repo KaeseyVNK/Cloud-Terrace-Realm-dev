@@ -147,6 +147,7 @@ public class GridSystem : MonoBehaviour
 
     private GridCell[,] _gridArray;
     private readonly List<PendingResourceRespawn> _pendingResourceRespawns = new List<PendingResourceRespawn>();
+    private bool _isGeneratingFullMap = false;
 
     private class PendingResourceRespawn
     {
@@ -240,41 +241,56 @@ public class GridSystem : MonoBehaviour
     [ContextMenu("0. Generate Full Procedural Map")]
     private void GenerateFullProceduralMap()
     {
-        ClearGrid();
-        PrepareTerrainSize();
-        GenerateTerrainShape();
+        _isGeneratingFullMap = true;
+        try
+        {
+            if (!_useProceduralSeed)
+            {
+                _mapSeed = UnityEngine.Random.Range(1, 1000000);
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(this);
+#endif
+            }
+            ClearGrid();
+            PrepareTerrainSize();
+            GenerateTerrainShape();
 
-        // [TEMPORARILY DISABLED] Grass generation from GridSystem
-        // if (_useComputeShaderGrass)
-        // {
-        //     // Clear legacy details so they don't render
-        //     Terrain terrain = Terrain.activeTerrain;
-        //     if (terrain != null && terrain.terrainData != null)
-        //     {
-        //         TerrainData tData = terrain.terrainData;
-        //         int[,] emptyLayer = new int[tData.detailHeight, tData.detailWidth];
-        //         for (int i = 0; i < tData.detailPrototypes.Length; i++)
-        //         {
-        //             tData.SetDetailLayer(0, 0, i, emptyLayer);
-        //         }
-        //         terrain.Flush();
-        //     }
-        //
-        //     // Trigger the ProceduralGrassRenderer
-        //     ProceduralGrassRenderer grassRenderer = FindAnyObjectByType<ProceduralGrassRenderer>();
-        //     if (grassRenderer != null)
-        //     {
-        //         grassRenderer.GenerateGrass(Terrain.activeTerrain);
-        //     }
-        // }
-        // else
-        // {
-        //     GenerateTerrainDetails();
-        // }
+            // [TEMPORARILY DISABLED] Grass generation from GridSystem
+            // if (_useComputeShaderGrass)
+            // {
+            //     // Clear legacy details so they don't render
+            //     Terrain terrain = Terrain.activeTerrain;
+            //     if (terrain != null && terrain.terrainData != null)
+            //     {
+            //         TerrainData tData = terrain.terrainData;
+            //         int[,] emptyLayer = new int[tData.detailHeight, tData.detailWidth];
+            //         for (int i = 0; i < tData.detailPrototypes.Length; i++)
+            //         {
+            //             tData.SetDetailLayer(0, 0, i, emptyLayer);
+            //         }
+            //         terrain.Flush();
+            //     }
+            //
+            //     // Trigger the ProceduralGrassRenderer
+            //     ProceduralGrassRenderer grassRenderer = FindAnyObjectByType<ProceduralGrassRenderer>();
+            //     if (grassRenderer != null)
+            //     {
+            //         grassRenderer.GenerateGrass(Terrain.activeTerrain);
+            //     }
+            // }
+            // else
+            // {
+            //     GenerateTerrainDetails();
+            // }
 
-        BakeNavigationMesh();
-        GenerateGrid();
-        InitGridFromTerrain();
+            BakeNavigationMesh();
+            GenerateGrid();
+            InitGridFromTerrain();
+        }
+        finally
+        {
+            _isGeneratingFullMap = false;
+        }
     }
 
     private void BakeNavigationMesh()
@@ -322,6 +338,13 @@ public class GridSystem : MonoBehaviour
     [ContextMenu("1. Generate Terrain Shape")]
     private void GenerateTerrainShape()
     {
+        if (!_useProceduralSeed && !_isGeneratingFullMap)
+        {
+            _mapSeed = UnityEngine.Random.Range(1, 1000000);
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        }
         Terrain terrain = Terrain.activeTerrain;
         if (terrain == null)
         {
@@ -913,9 +936,9 @@ public class GridSystem : MonoBehaviour
         return false;
     }
 
-    private System.Random CreateDeterministicRandom(int salt)
+    public System.Random CreateDeterministicRandom(int salt)
     {
-        int seed = _useProceduralSeed ? Hash(_mapSeed, salt, 917) : UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+        int seed = Hash(_mapSeed, salt, 917);
         return new System.Random(seed);
     }
 
@@ -1312,11 +1335,6 @@ public class GridSystem : MonoBehaviour
 
     private Vector2 GetSeedOffset(int salt)
     {
-        if (!_useProceduralSeed)
-        {
-            return new Vector2(UnityEngine.Random.Range(-10000f, 10000f), UnityEngine.Random.Range(-10000f, 10000f));
-        }
-
         int hashA = Hash(_mapSeed, salt, 17);
         int hashB = Hash(_mapSeed, salt, 53);
         return new Vector2((hashA % 20000) - 10000f, (hashB % 20000) - 10000f);
@@ -1324,11 +1342,6 @@ public class GridSystem : MonoBehaviour
 
     private float GetDeterministic01(int x, int z, int salt)
     {
-        if (!_useProceduralSeed)
-        {
-            return UnityEngine.Random.value;
-        }
-
         int hash = Hash(x, z, _mapSeed + salt);
         return (hash & 0xFFFFFF) / 16777215f;
     }

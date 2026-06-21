@@ -15,7 +15,7 @@ public class FreezableBuilding : MonoBehaviour, IFreezable
     {
         _renderer = GetComponentInChildren<MeshRenderer>();
         if (normalMaterial == null && _renderer != null)
-            normalMaterial = _renderer.material;
+            normalMaterial = _renderer.sharedMaterial;
     }
 
     public void Freeze()
@@ -24,7 +24,7 @@ public class FreezableBuilding : MonoBehaviour, IFreezable
         _isFrozen = true;
 
         if (_renderer != null && frozenMaterial != null)
-            _renderer.material = frozenMaterial;
+            _renderer.sharedMaterial = frozenMaterial;
 
         FreezeManager.Instance.RegisterFrozen(this);
         Debug.Log($"[Freeze] {gameObject.name} bị đóng băng!");
@@ -36,7 +36,7 @@ public class FreezableBuilding : MonoBehaviour, IFreezable
         _isFrozen = false;
 
         if (_renderer != null && normalMaterial != null)
-            _renderer.material = normalMaterial;
+            _renderer.sharedMaterial = normalMaterial;
 
         FreezeManager.Instance.UnregisterFrozen(this);
         Debug.Log($"[Freeze] {gameObject.name} đã rã đông!");

@@ -33,6 +33,9 @@ public class VillagerController : MonoBehaviour
     [Tooltip("Cây cung đi săn")]
     [SerializeField] private GameObject _bowTool;
 
+    [Tooltip("Xẻng để đào đất")]
+    [SerializeField] private GameObject _diggingTool;
+
     [Header("Chuỗi Cung Ứng (Inventory)")]
     [Tooltip("Sức chứa tối đa của dân làng")]
     [SerializeField] private int _maxCarryCapacity = 5;
@@ -123,6 +126,7 @@ public class VillagerController : MonoBehaviour
 
     private WildAnimalController _huntTarget;
     private bool _wasFarmingWildAnimals = false;
+    private RiceField _targetRiceField;
 
     private int _pathRetryCount = 0;
     private float _stuckTimer = 0f;
@@ -134,12 +138,14 @@ public class VillagerController : MonoBehaviour
     private bool _overrideShelter = false;
     private float _shelterSearchTimer = 0f;
     private const float ShelterSearchCooldown = 1.5f;
+    private float _dangerTimer = 0f;
 
     // Cache to restore previous work
     private VillagerState _preShelterState = VillagerState.Idle;
     private Job _preShelterJob;
     private ConstructibleBuilding _preShelterBuilding;
     private ResourceType _preShelterResource;
+    private RiceField _preShelterRiceField;
 
     // Bộ sưu tập tĩnh được tối ưu hóa để tránh allocations bộ nhớ trong runtime
     private static readonly List<VillagerController> s_tempBuilders = new(32);
@@ -149,6 +155,7 @@ public class VillagerController : MonoBehaviour
     private static readonly List<VillagerController> s_tempCompletedBuilders = new(32);
 
     public static readonly List<VillagerController> AllVillagers = new List<VillagerController>();
+    public static bool ShouldShelterAtNight { get; set; } = true;
 
     #endregion
 
@@ -364,13 +371,11 @@ public class VillagerController : MonoBehaviour
         UpdateActiveTools();
         UpdateCarryVisuals();
 
-        // Tự động gắn đèn cho dân làng (Tắt đi để tránh lag do point light)
-        /*
+        // Tự động gắn đèn cho dân làng (Sử dụng Fake Light vòng sáng tối ưu hiệu năng)
         if (gameObject.GetComponent<UnitLightController>() == null)
         {
             gameObject.AddComponent<UnitLightController>();
         }
-        */
 
         if (TechnologyManager.HasInstance)
         {
@@ -418,12 +423,19 @@ public class VillagerController : MonoBehaviour
     /// </summary>
     public void ResumePostShelterState()
     {
+        _dangerTimer = 0f;
+
         if (_navAgent != null && !_navAgent.enabled)
         {
             _navAgent.enabled = true;
         }
 
-        if (_preShelterBuilding != null && !_preShelterBuilding.IsCompleted)
+        if (_preShelterRiceField != null)
+        {
+            Debug.Log($"[Villager] Khôi phục chăm sóc ruộng lúa: {_preShelterRiceField.name}");
+            CommandFarm(_preShelterRiceField);
+        }
+        else if (_preShelterBuilding != null && !_preShelterBuilding.IsCompleted)
         {
             Debug.Log($"[Villager] Khôi phục xây dựng công trình: {_preShelterBuilding.name}");
             CommandBuild(_preShelterBuilding);
@@ -462,6 +474,7 @@ public class VillagerController : MonoBehaviour
         _preShelterState = VillagerState.Idle;
         _preShelterJob = null;
         _preShelterBuilding = null;
+        _preShelterRiceField = null;
     }
 
     private HouseShelter FindClosestAvailableShelter()
@@ -517,28 +530,36 @@ public class VillagerController : MonoBehaviour
         _preShelterJob = _currentJob;
         _preShelterBuilding = _targetBuilding;
         _preShelterResource = _targetResource;
+        _preShelterRiceField = _targetRiceField;
     }
 
     private void Update()
     {
-        // Kiểm tra nhu cầu trú ẩn (mưa, đêm, hoặc lệnh khẩn cấp)
-        bool needsShelter = HouseShelter.IsEmergencyShelterActive || 
-                            (!_overrideShelter && (
-                                (TimeManager.Instance != null && TimeManager.Instance.IsNight) || 
+        // Cập nhật trạng thái nguy hiểm
+        if (_dangerTimer > 0f)
+        {
+            _dangerTimer -= Time.deltaTime;
+        }
+
+        // Kiểm tra nhu cầu trú ẩn (mưa, đêm, lệnh khẩn cấp, hoặc đang bị đe dọa)
+        bool needsShelter = !_overrideShelter && (
+                                HouseShelter.IsEmergencyShelterActive || 
+                                _dangerTimer > 0f ||
+                                (ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight) || 
                                 (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain)
-                            ));
+                            );
 
         // Reset cờ override khi thời tiết và thời gian đã trở lại bình thường
-        bool isEnvironmentShelterNeeded = (TimeManager.Instance != null && TimeManager.Instance.IsNight) || 
+        bool isEnvironmentShelterNeeded = (ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight) || 
                                           (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain);
-        if (!isEnvironmentShelterNeeded)
+        if (!isEnvironmentShelterNeeded && _dangerTimer <= 0f)
         {
             _overrideShelter = false;
         }
 
         if (needsShelter && _currentState != VillagerState.Sheltered)
         {
-            bool isEmergencyShelter = HouseShelter.IsEmergencyShelterActive;
+            bool isEmergencyShelter = HouseShelter.IsEmergencyShelterActive || _dangerTimer > 0f;
             bool shouldUseHouseShelter = true;
 
             if (isEmergencyShelter)
@@ -982,6 +1003,15 @@ public class VillagerController : MonoBehaviour
             return;
         }
 
+        // Tình huống 0.5: Chăm sóc ruộng lúa
+        if (_targetRiceField != null && GetTotalCarryAmount() < MaxCarryCapacity)
+        {
+            _pathRetryCount = 0;
+            _gatherTimer = 0f;
+            ChangeState(VillagerState.Gathering);
+            return;
+        }
+
         // Tình huống 1: Khai thác tài nguyên
         if (GetTotalCarryAmount() < MaxCarryCapacity && _currentJob != null && _targetBuilding == null)
         {
@@ -1134,7 +1164,7 @@ public class VillagerController : MonoBehaviour
             if (_navAgent != null)
             {
                 float distToTargetPosSqr = (transform.position - _repairTargetPos).sqrMagnitude;
-                bool reachedSlot = distToTargetPosSqr <= 1.5f * 1.5f;
+                bool reachedSlot = distToTargetPosSqr <= 2.5f * 2.5f; // Nới lỏng từ 1.5m lên 2.5m
 
                 Collider col = _repairTarget.GetComponent<Collider>();
                 float boundsRadius = 2.0f;
@@ -1144,7 +1174,7 @@ public class VillagerController : MonoBehaviour
                     boundsRadius = Mathf.Max(boundsRadius, maxExtent + 2.0f);
                 }
                 float distToBuilding = Vector3.Distance(transform.position, _repairTarget.transform.position);
-                bool reachedBuildingPerimeter = distToBuilding <= boundsRadius + 0.8f;
+                bool reachedBuildingPerimeter = distToBuilding <= boundsRadius + 1.5f; // Nới lỏng từ 0.8m lên 1.5m
 
                 if (!reachedSlot && !reachedBuildingPerimeter)
                 {
@@ -1303,6 +1333,90 @@ public class VillagerController : MonoBehaviour
                 {
                     BaseCombatUnitController combatCtrl = GetComponent<VillagerCombatTarget>();
                     _huntTarget.TakeDamage(_huntDamage, combatCtrl);
+                }
+            }
+            return;
+        }
+
+        if (_targetRiceField != null)
+        {
+            float distToField = Vector3.Distance(transform.position, _targetRiceField.transform.position);
+            if (distToField > 4.5f)
+            {
+                if (SetPathToTarget(_targetRiceField.transform.position))
+                {
+                    ChangeState(VillagerState.Moving);
+                }
+                else
+                {
+                    ChangeState(VillagerState.Idle);
+                }
+                return;
+            }
+
+            UpdateAnimationState();
+            UpdateActiveTools();
+
+            Vector3 dirToField = (_targetRiceField.transform.position - transform.position).normalized;
+            dirToField.y = 0;
+            if (dirToField.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(dirToField);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 5f);
+            }
+
+            if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Empty || _targetRiceField.CurrentState == RiceField.RiceFieldState.Growing)
+            {
+                float progressFactor = Time.deltaTime;
+                if (_isHungry) progressFactor *= 0.7f;
+                _targetRiceField.FarmProgress(progressFactor);
+            }
+            else if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Ripe)
+            {
+                ResourceNode node = _targetRiceField.GetComponentInChildren<ResourceNode>();
+                if (node != null)
+                {
+                    float progressAmt = Time.deltaTime;
+                    if (_isHungry) progressAmt *= 0.7f;
+                    _gatherTimer += progressAmt;
+
+                    if (_gatherTimer >= TimeToGather)
+                    {
+                        _gatherTimer = 0f;
+                        int spaceLeft = MaxCarryCapacity - _totalCarryAmount;
+                        int toExtract = Mathf.Min(spaceLeft, _gatherAmountPerTick);
+                        int extracted = node.ExtractResource(toExtract);
+                        if (extracted > 0)
+                        {
+                            if (_inventory.ContainsKey(node.ResourceType))
+                                _inventory[node.ResourceType] += extracted;
+                            else
+                                _inventory[node.ResourceType] = extracted;
+
+                            _totalCarryAmount += extracted;
+                            UpdateCarryVisuals();
+                            MyGame.UI.FloatingText.Spawn(transform.position, $"+{extracted} {GetResourceName(node.ResourceType)}", GetResourceColor(node.ResourceType));
+                            node.TriggerBounceEffect();
+                        }
+                    }
+                }
+            }
+
+            if (_totalCarryAmount >= MaxCarryCapacity)
+            {
+                _pathRetryCount = 0;
+                if (BuildingManager.Instance != null)
+                {
+                    _storageDropoffTarget = BuildingManager.Instance.FindNearestDropoff(transform.position, _targetResource);
+                }
+
+                if (_storageDropoffTarget != Vector3.zero && SetPathToTarget(_storageDropoffTarget))
+                {
+                    ChangeState(VillagerState.Moving);
+                }
+                else
+                {
+                    ChangeState(VillagerState.Idle);
                 }
             }
             return;
@@ -1765,11 +1879,10 @@ public class VillagerController : MonoBehaviour
     public static int GetGathererCount(ResourceType type)
     {
         int count = 0;
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
-        for (int i = 0; i < allVillagers.Length; i++)
+        for (int i = 0; i < AllVillagers.Count; i++)
         {
-            VillagerController v = allVillagers[i];
-            if (v != null)
+            VillagerController v = AllVillagers[i];
+            if (v != null && v.gameObject.activeInHierarchy)
             {
                 if (v._currentState == VillagerState.Gathering && v._targetResource == type)
                 {
@@ -1860,6 +1973,20 @@ public class VillagerController : MonoBehaviour
         _totalCarryAmount = 0; // Đưa tải trọng về 0 (Zero Allocations)
         UpdateCarryVisuals();
 
+        if (_targetRiceField != null)
+        {
+            _pathRetryCount = 0;
+            if (SetPathToTarget(_targetRiceField.transform.position))
+            {
+                ChangeState(VillagerState.Moving);
+            }
+            else
+            {
+                ChangeState(VillagerState.Idle);
+            }
+            return;
+        }
+
         if (_autoGatherBuildingAfterDeposit != null)
         {
             ConstructibleBuilding targetCamp = _autoGatherBuildingAfterDeposit;
@@ -1937,17 +2064,18 @@ public class VillagerController : MonoBehaviour
         // 1. Xử lý logic sửa chữa công trình
         if (_repairTarget != null)
         {
+            // Kiểm tra nếu công trình đã đầy máu từ trước
             if (_repairTarget.currentHealth >= _repairTarget.maxHealth)
             {
-                // Đã sửa xong đầy máu
                 _repairTarget = null;
                 _repairResourceTimer = 0f;
+                _assignedRepairSlotIndex = -1;
                 ChangeState(VillagerState.Idle);
                 return;
             }
 
             float distToTargetPosSqr = (transform.position - _repairTargetPos).sqrMagnitude;
-            bool reachedSlot = distToTargetPosSqr <= 2.0f * 2.0f;
+            bool reachedSlot = distToTargetPosSqr <= 3.0f * 3.0f; // Nới lỏng từ 2.0m lên 3.0m
 
             Collider col = _repairTarget.GetComponent<Collider>();
             float boundsRadius = 2.0f;
@@ -1958,7 +2086,7 @@ public class VillagerController : MonoBehaviour
             }
 
             float distToBuilding = Vector3.Distance(transform.position, _repairTarget.transform.position);
-            bool reachedBuildingPerimeter = distToBuilding <= boundsRadius + 0.8f;
+            bool reachedBuildingPerimeter = distToBuilding <= boundsRadius + 1.8f; // Nới lỏng từ 0.8m lên 1.8m
 
             if (!reachedSlot && !reachedBuildingPerimeter)
             {
@@ -1992,6 +2120,17 @@ public class VillagerController : MonoBehaviour
                 {
                     _repairResourceTimer = 0f;
                     ResourceManager.Instance.TryConsumeResource(ResourceType.Wood, 1);
+                }
+
+                // Kiểm tra xem đã đầy máu chưa sau khi hồi phục
+                if (_repairTarget.currentHealth >= _repairTarget.maxHealth)
+                {
+                    Debug.Log($"[Repair] {gameObject.name} hoàn thành sửa chữa công trình {_repairTarget.unitName}!");
+                    _repairTarget = null;
+                    _repairResourceTimer = 0f;
+                    _assignedRepairSlotIndex = -1;
+                    ChangeState(VillagerState.Idle);
+                    return;
                 }
             }
             else
@@ -2073,6 +2212,7 @@ public class VillagerController : MonoBehaviour
         _huntTarget = null;
         _isManualMove = true;
         _wasFarmingWildAnimals = false;
+        _targetRiceField = null;
         
         if (SetPathToTarget(destination))
         {
@@ -2101,6 +2241,7 @@ public class VillagerController : MonoBehaviour
         _repairTarget = null;
         _huntTarget = null;
         _isManualMove = false;
+        _targetRiceField = null;
 
         // Giữ cờ _wasFarmingWildAnimals nếu đang thu hoạch xác thú (Food Carcass)
         if (node.ResourceType == ResourceType.Food && node.gameObject.name.Contains("Carcass"))
@@ -2150,6 +2291,7 @@ public class VillagerController : MonoBehaviour
         _currentJob = null;
         _isManualMove = false;
         _wasFarmingWildAnimals = true;
+        _targetRiceField = null;
 
         _targetResource = ResourceType.Food;
 
@@ -2187,6 +2329,7 @@ public class VillagerController : MonoBehaviour
         _huntTarget = null;
         _isManualMove = false;
         _wasFarmingWildAnimals = false;
+        _targetRiceField = null;
 
         if (SetPathToTarget(_buildTargetPos))
         {
@@ -2224,11 +2367,51 @@ public class VillagerController : MonoBehaviour
         _huntTarget = null;
         _isManualMove = false;
         _wasFarmingWildAnimals = false;
+        _targetRiceField = null;
 
         _assignedRepairSlotIndex = AssignFreeRepairSlot(_repairTarget);
         _repairTargetPos = CalculateTargetRepairPosition(_repairTarget, _assignedRepairSlotIndex);
 
         if (SetPathToTarget(_repairTargetPos))
+        {
+            ChangeState(VillagerState.Moving);
+        }
+        else
+        {
+            ChangeState(VillagerState.Idle);
+        }
+    }
+
+    /// <summary>
+    /// Ra lệnh đi chăm sóc ruộng lúa.
+    /// </summary>
+    public void CommandFarm(RiceField field)
+    {
+        if (field == null) return;
+
+        _overrideShelter = true;
+        CancelAssignedGarrison();
+        if (_assignedShelter != null)
+        {
+            _assignedShelter.CancelReservation(this);
+            _assignedShelter = null;
+        }
+
+        _autoGatherBuildingAfterDeposit = null;
+        _pathRetryCount = 0;
+        ReleaseReservedSlot();
+
+        TargetBuilding = null;
+        _currentJob = null;
+        _repairTarget = null;
+        _huntTarget = null;
+        _isManualMove = false;
+        _wasFarmingWildAnimals = false;
+
+        _targetRiceField = field;
+        _targetResource = ResourceType.Food;
+
+        if (SetPathToTarget(field.transform.position))
         {
             ChangeState(VillagerState.Moving);
         }
@@ -2261,6 +2444,7 @@ public class VillagerController : MonoBehaviour
         TargetBuilding = null;
         _repairTarget = null;
         _wasFarmingWildAnimals = false;
+        _targetRiceField = null;
         
         _currentJob = newJob;
         _isManualMove = false;
@@ -2489,10 +2673,21 @@ public class VillagerController : MonoBehaviour
         if (_woodTool != null) _woodTool.SetActive(false);
         if (_miningTool != null) _miningTool.SetActive(false);
         if (_bowTool != null) _bowTool.SetActive(false);
+        if (_diggingTool != null) _diggingTool.SetActive(false);
 
         if (_currentState == VillagerState.Building || (_currentState == VillagerState.Moving && _targetBuilding != null))
         {
             if (_woodTool != null) _woodTool.SetActive(true);
+            return;
+        }
+
+        if (_targetRiceField != null && (_currentState == VillagerState.Gathering || (_currentState == VillagerState.Moving && GetTotalCarryAmount() == 0)))
+        {
+            if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Empty)
+            {
+                if (_diggingTool != null) _diggingTool.SetActive(true);
+                else if (_woodTool != null) _woodTool.SetActive(true);
+            }
             return;
         }
 
@@ -2599,6 +2794,21 @@ public class VillagerController : MonoBehaviour
                 {
                     typeVal = 2; // Thu hoạch / Săn bắn
                 }
+                else if (_targetRiceField != null)
+                {
+                    if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Empty)
+                    {
+                        typeVal = 4; // Digging
+                    }
+                    else if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Growing)
+                    {
+                        typeVal = 2; // Harvest
+                    }
+                    else if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Ripe)
+                    {
+                        typeVal = 2; // Harvesting
+                    }
+                }
                 else
                 {
                     switch (_targetResource)
@@ -2697,6 +2907,24 @@ public class VillagerController : MonoBehaviour
     {
         if (attacker == null || _currentState == VillagerState.Sheltered) return;
         
+        _dangerTimer = 12f; // Bắt đầu trạng thái nguy hiểm trong 12 giây
+        _overrideShelter = false; // Hủy bỏ override di chuyển tự do để bắt buộc đi lánh nạn
+
+        // Ưu tiên tìm tháp canh gần nhất còn chỗ trống
+        SelectableUnit selectable = GetComponent<SelectableUnit>();
+        WatchTowerGarrison closestGarrison = FindClosestAvailableGarrison();
+        if (closestGarrison != null && selectable != null)
+        {
+            CachePreShelterWorkIfNeeded();
+            if (closestGarrison.TrySendToGarrison(selectable))
+            {
+                _assignedGarrison = closestGarrison;
+                ChangeState(VillagerState.Moving);
+                return;
+            }
+        }
+
+        // Nếu không có tháp canh, tìm nhà trú ẩn gần nhất hoặc nhà chính
         HouseShelter shelter = FindClosestAvailableShelter();
         Vector3 escapeTarget = shelter != null ? shelter.transform.position : 
             (BuildingManager.Instance != null && BuildingManager.Instance.MainBuildingInstance != null ? 

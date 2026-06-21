@@ -6,6 +6,13 @@ using UnityEngine;
 [RequireComponent(typeof(csFogWar))]
 public class AOSFogOfWarBridge : MonoBehaviour
 {
+    public static AOSFogOfWarBridge Instance { get; private set; }
+
+    public bool AutoAddVisibilityTargets => autoAddVisibilityTargets;
+    public bool HideResourcesOutsideVision => hideResourcesOutsideVision;
+    public bool HideEnemiesOutsideVision => hideEnemiesOutsideVision;
+    public bool HideNonPlayerCombatTargetsOutsideVision => hideNonPlayerCombatTargetsOutsideVision;
+
     [Header("Activation")]
     [SerializeField] private bool onlyAtNight = false;
     [SerializeField] private bool alwaysNightForDebug = false;
@@ -55,6 +62,7 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
         fogWar = GetComponent<csFogWar>();
         ConfigureFogWar();
     }
@@ -217,57 +225,9 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void EnsureVisibilityTargets()
     {
-        if (!autoAddVisibilityTargets)
-        {
-            return;
-        }
-
-        if (hideEnemiesOutsideVision || hideNonPlayerCombatTargetsOutsideVision)
-        {
-            for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
-            {
-                BaseCombatUnitController unit = BaseCombatUnitController.Registry[i];
-                if (unit == null || unit.faction == UnitFaction.Player)
-                {
-                    continue;
-                }
-
-                if (!hideEnemiesOutsideVision && unit.GetComponent<EnemyUnitController>() != null)
-                {
-                    continue;
-                }
-
-                if (!hideNonPlayerCombatTargetsOutsideVision && unit.GetComponent<EnemyUnitController>() == null)
-                {
-                    continue;
-                }
-
-                AddVisibilityTargetIfMissing(unit.gameObject);
-            }
-        }
-
-        if (hideResourcesOutsideVision)
-        {
-            for (int i = 0; i < ResourceNode.Registry.Count; i++)
-            {
-                ResourceNode resource = ResourceNode.Registry[i];
-                if (resource != null)
-                {
-                    AddVisibilityTargetIfMissing(resource.gameObject);
-                }
-            }
-        }
-
-        // Neutral Market visibility
-        MarketController[] markets = FindObjectsByType<MarketController>(FindObjectsInactive.Include);
-        for (int i = 0; i < markets.Length; i++)
-        {
-            MarketController market = markets[i];
-            if (market != null && market.isNeutral)
-            {
-                AddVisibilityTargetIfMissing(market.gameObject);
-            }
-        }
+        // Tối ưu hóa hiệu năng: Các đối tượng (Tài nguyên, Kẻ địch, Chợ trung lập)
+        // tự động đăng ký FogVisibilityTarget khi khởi chạy (Start/Awake).
+        // Tránh vòng lặp duyệt hàng nghìn đối tượng mỗi giây trong Update() gây sụt giảm FPS định kỳ.
     }
 
     private static void AddVisibilityTargetIfMissing(GameObject target)
@@ -322,6 +282,14 @@ public class AOSFogOfWarBridge : MonoBehaviour
         {
             ConstructibleBuilding building = ConstructibleBuilding.Registry[i];
             if (building == null || revealedObjects.Contains(building.gameObject) || !building.IsCompleted)
+            {
+                continue;
+            }
+
+            // Chặn các công trình trung lập (Neutral Market) tự mở sương mù xung quanh nó
+            MarketController mc = building.GetComponent<MarketController>();
+            if (mc == null) mc = building.GetComponentInChildren<MarketController>();
+            if (mc != null && mc.isNeutral)
             {
                 continue;
             }

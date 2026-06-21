@@ -72,8 +72,9 @@ public class HouseShelter : MonoBehaviour
         if (!IsOperational()) return;
 
         // Auto-eject villagers if weather/night is clear and emergency is not active
+        bool isNightShelterNeeded = VillagerController.ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight;
         if (!IsEmergencyShelterActive && 
-            TimeManager.Instance != null && !TimeManager.Instance.IsNight && 
+            !isNightShelterNeeded && 
             WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather != WeatherState.Rain)
         {
             if (_shelteredVillagers.Count > 0)
@@ -126,7 +127,21 @@ public class HouseShelter : MonoBehaviour
     /// </summary>
     public bool IsOperational()
     {
-        return _constructibleBuilding == null || _constructibleBuilding.IsCompleted;
+        if (_constructibleBuilding == null)
+        {
+            _constructibleBuilding = GetComponent<ConstructibleBuilding>();
+            if (_constructibleBuilding == null)
+            {
+                _constructibleBuilding = GetComponentInParent<ConstructibleBuilding>();
+            }
+        }
+
+        if (_constructibleBuilding != null)
+        {
+            return _constructibleBuilding.IsCompleted;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -188,19 +203,45 @@ public class HouseShelter : MonoBehaviour
     /// </summary>
     public void EjectAll()
     {
-        for (int i = _shelteredVillagers.Count - 1; i >= 0; i--)
+        if (gameObject.activeInHierarchy && Application.isPlaying)
         {
-            EjectVillager(_shelteredVillagers[i], i);
+            StartCoroutine(EjectAllRoutine());
         }
+        else
+        {
+            // Fallback khi tắt/xóa đối tượng
+            for (int i = _shelteredVillagers.Count - 1; i >= 0; i--)
+            {
+                EjectVillagerImmediate(_shelteredVillagers[i], i);
+            }
+            _shelteredVillagers.Clear();
+            _incomingVillagers.Clear();
+        }
+    }
+
+    private System.Collections.IEnumerator EjectAllRoutine()
+    {
+        // Tạo bản sao danh sách để tránh sửa đổi bộ sưu tập khi đang duyệt
+        List<VillagerController> toEject = new List<VillagerController>(_shelteredVillagers);
         _shelteredVillagers.Clear();
         _incomingVillagers.Clear();
+
+        for (int i = 0; i < toEject.Count; i++)
+        {
+            if (toEject[i] != null)
+            {
+                EjectVillagerImmediate(toEject[i], i);
+                // Giãn cách 0.08 giây (khoảng 5-6 frame ở 60fps) giữa các dân làng để tránh dồn ứ pathfinding
+                yield return new WaitForSeconds(0.08f);
+            }
+        }
     }
 
     #endregion
 
     #region Private Methods
 
-    private void EjectVillager(VillagerController villager, int index)
+    private void EjectVillagerImmediate(VillagerController villager, int index)
     {
         if (villager == null) return;
 

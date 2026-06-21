@@ -87,10 +87,15 @@ public class ResourceNode : MonoBehaviour
     
     private Vector3 _originalScale;  
     private bool _isScaleCached = false;
-    private const int HarvestSlotCount = 8;
+    [SerializeField] private int _maxHarvestSlots = 8;
+    public int MaxHarvestSlots
+    {
+        get => _maxHarvestSlots;
+        set => _maxHarvestSlots = value;
+    }
     private const float DefaultHarvestSlotRadius = 3.4f;
     private const float OverflowHarvestSlotRadius = 4.6f;
-    private int[] _reservedSlots = new int[HarvestSlotCount]; // Lưu trữ ID (HashCode) của dân làng đang chiếm giữ slot đứng xung quanh mỏ
+    private int[] _reservedSlots; // Khởi tạo động trong Awake dựa trên _maxHarvestSlots
     private Transform _visualTarget; // Đối tượng visual thực tế được áp dụng hiệu ứng scale (không thay đổi Collider ở root)
 
     private void OnEnable()
@@ -105,8 +110,24 @@ public class ResourceNode : MonoBehaviour
 
     private void Awake()
     {
+        if (_maxHarvestSlots <= 0) _maxHarvestSlots = 8;
+        _reservedSlots = new int[_maxHarvestSlots];
         SetupVisualTarget();
         CacheScale();
+    }
+
+    private void Start()
+    {
+        // Tự động gắn FogVisibilityTarget cho tài nguyên để phục vụ Sương mù chiến trận (Fog of War)
+        if (AOSFogOfWarBridge.Instance != null && 
+            AOSFogOfWarBridge.Instance.AutoAddVisibilityTargets && 
+            AOSFogOfWarBridge.Instance.HideResourcesOutsideVision)
+        {
+            if (GetComponent<FogVisibilityTarget>() == null)
+            {
+                gameObject.AddComponent<FogVisibilityTarget>();
+            }
+        }
     }
 
     private void SetupVisualTarget()
@@ -273,10 +294,15 @@ public class ResourceNode : MonoBehaviour
 
     /// <summary>
     /// Đăng ký một vị trí (slot) đứng khai thác xung quanh mỏ tài nguyên (chuẩn AOE).
-        /// Trả về index của slot đã đặt thành công, hoặc -1 nếu đã full slot.
+    /// Trả về index của slot đã đặt thành công, hoặc -1 nếu đã full slot.
     /// </summary>
     public int ReserveSlot(int villagerId, Vector3 villagerPos, out Vector3 slotPosition)
     {
+        if (_reservedSlots == null || _reservedSlots.Length != _maxHarvestSlots)
+        {
+            if (_maxHarvestSlots <= 0) _maxHarvestSlots = 8;
+            _reservedSlots = new int[_maxHarvestSlots];
+        }
         ReleaseSlot(villagerId);
 
         Vector3 nodeCenter = transform.position;
@@ -287,7 +313,7 @@ public class ResourceNode : MonoBehaviour
         Vector3 fallbackSlotPos = nodeCenter;
         bool hasFallback = false;
 
-        for (int i = 0; i < HarvestSlotCount; i++)
+        for (int i = 0; i < _maxHarvestSlots; i++)
         {
             if (_reservedSlots[i] != 0) continue;
 
@@ -323,7 +349,7 @@ public class ResourceNode : MonoBehaviour
             return -1;
         }
 
-        int overflowSlot = Mathf.Abs(villagerId) % HarvestSlotCount;
+        int overflowSlot = Mathf.Abs(villagerId) % _maxHarvestSlots;
         Vector3 overflowPos = GetSlotPosition(nodeCenter, overflowSlot, OverflowHarvestSlotRadius);
         slotPosition = GetNearestNavMeshPosition(overflowPos, 2.0f, out _);
         return -1;
@@ -345,7 +371,7 @@ public class ResourceNode : MonoBehaviour
 
     private Vector3 GetSlotPosition(Vector3 center, int slotIndex, float radius)
     {
-        float angle = (slotIndex * (360f / HarvestSlotCount)) * Mathf.Deg2Rad;
+        float angle = (slotIndex * (360f / _maxHarvestSlots)) * Mathf.Deg2Rad;
         return center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
     }
 

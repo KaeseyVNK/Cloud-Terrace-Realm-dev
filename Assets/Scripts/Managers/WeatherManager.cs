@@ -5,7 +5,8 @@ public enum WeatherState
 {
     Clear,
     Rain,
-    BloodMoon
+    BloodMoon,
+    Drought
 }
 
 public class WeatherManager : MonoBehaviour
@@ -19,6 +20,10 @@ public class WeatherManager : MonoBehaviour
     [Tooltip("Tỉ lệ đổ mưa vào ban ngày (0.25 = 25%)")]
     [Range(0f, 1f)]
     [SerializeField] private float _rainChance = 0.25f;
+
+    [Tooltip("Tỉ lệ hạn hán vào ban ngày (0.15 = 15%)")]
+    [Range(0f, 1f)]
+    [SerializeField] private float _droughtChance = 0.15f;
 
     [Tooltip("Chu kỳ đêm trăng máu (mỗi 5 đêm)")]
     [SerializeField] private int _bloodMoonCycle = 5;
@@ -91,10 +96,15 @@ public class WeatherManager : MonoBehaviour
                 AwardBloodMoonSurvivalReward();
             }
 
-            // Ban ngày: Có tỉ lệ đổ mưa
-            if (UnityEngine.Random.value <= _rainChance)
+            // Ban ngày: Có tỉ lệ đổ mưa hoặc nắng hạn
+            float rand = UnityEngine.Random.value;
+            if (rand <= _rainChance)
             {
                 SetWeather(WeatherState.Rain);
+            }
+            else if (rand <= _rainChance + _droughtChance)
+            {
+                SetWeather(WeatherState.Drought);
             }
             else
             {
@@ -159,5 +169,11 @@ public class WeatherManager : MonoBehaviour
     public void ForceClear()
     {
         SetWeather(WeatherState.Clear);
+    }
+
+    [ContextMenu("Force Drought")]
+    public void ForceDrought()
+    {
+        SetWeather(WeatherState.Drought);
     }
 }

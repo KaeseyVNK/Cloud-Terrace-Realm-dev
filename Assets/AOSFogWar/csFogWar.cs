@@ -543,15 +543,25 @@ namespace FischlWorks_FogWar
             }
 
             float lerpAmount = Mathf.Clamp01(fogLerpSpeed * elapsed);
-            for (int i = 0; i < fogPlaneTextureBufferPixels.Length; i++)
+            int len = fogPlaneTextureBufferPixels.Length;
+
+            // Nếu lerp đã đạt tới đích (gần 1.0), sao chép trực tiếp thay vì chạy vòng lặp nhân chia số thực
+            if (lerpAmount >= 0.99f)
             {
-                Color c1 = fogPlaneTextureBufferPixels[i];
-                Color c2 = fogPlaneTextureTargetPixels[i];
-                c1.r += (c2.r - c1.r) * lerpAmount;
-                c1.g += (c2.g - c1.g) * lerpAmount;
-                c1.b += (c2.b - c1.b) * lerpAmount;
-                c1.a += (c2.a - c1.a) * lerpAmount;
-                fogPlaneTextureBufferPixels[i] = c1;
+                System.Array.Copy(fogPlaneTextureTargetPixels, fogPlaneTextureBufferPixels, len);
+            }
+            else
+            {
+                for (int i = 0; i < len; i++)
+                {
+                    Color c1 = fogPlaneTextureBufferPixels[i];
+                    Color c2 = fogPlaneTextureTargetPixels[i];
+                    c1.r += (c2.r - c1.r) * lerpAmount;
+                    c1.g += (c2.g - c1.g) * lerpAmount;
+                    c1.b += (c2.b - c1.b) * lerpAmount;
+                    c1.a += (c2.a - c1.a) * lerpAmount;
+                    fogPlaneTextureBufferPixels[i] = c1;
+                }
             }
             
             fogPlaneTextureLerpBuffer.SetPixels(fogPlaneTextureBufferPixels);

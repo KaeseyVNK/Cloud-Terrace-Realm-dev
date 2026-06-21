@@ -9,11 +9,14 @@ public class WeatherVFXController : MonoBehaviour
     [SerializeField] private Vector3 _rainLocalEulerAngles = Vector3.zero;
     [SerializeField] private bool _spawnOnStart = true;
 
+    [Header("Transition Settings")]
+    [SerializeField] private float _weatherTransitionSpeed = 0.5f;
+
     private GameObject _rainInstance;
     private ParticleSystem[] _rainParticles;
+    private float[] _originalEmissionRates;
     private WeatherManager _weatherManager;
-    private WeatherState _lastAppliedWeather;
-    private bool _hasAppliedWeather;
+    private float _currentRainIntensity = 0f;
 
     private void Start()
     {
@@ -23,13 +26,12 @@ public class WeatherVFXController : MonoBehaviour
         }
 
         TryBindWeatherManager();
-        ApplyCurrentWeather();
     }
 
     private void Update()
     {
         TryBindWeatherManager();
-        ApplyCurrentWeather();
+        UpdateRainIntensity();
     }
 
     private void OnDestroy()
@@ -42,7 +44,7 @@ public class WeatherVFXController : MonoBehaviour
 
     private void HandleWeatherChanged(WeatherState weather)
     {
-        ApplyWeatherState(weather);
+        // Giữ lại để tương thích event nhưng không thực hiện logic bật/tắt trực tiếp nữa
     }
 
     private void TryBindWeatherManager()
@@ -64,28 +66,71 @@ public class WeatherVFXController : MonoBehaviour
         }
     }
 
-    private void ApplyCurrentWeather()
+    private void UpdateRainIntensity()
     {
-        if (_weatherManager == null)
+        EnsureRainInstance();
+        if (_rainInstance == null || _rainParticles == null) return;
+
+        float targetRain = 0f;
+        if (_weatherManager != null && _weatherManager.CurrentWeather == WeatherState.Rain)
         {
-            SetRainActive(false);
+            targetRain = 1f;
+        }
+
+        if (Mathf.Approximately(_currentRainIntensity, targetRain) && targetRain == 0f && !_rainInstance.activeSelf)
+        {
             return;
         }
 
-        WeatherState currentWeather = _weatherManager.CurrentWeather;
-        if (_hasAppliedWeather && _lastAppliedWeather == currentWeather)
+        _currentRainIntensity = Mathf.MoveTowards(_currentRainIntensity, targetRain, _weatherTransitionSpeed * Time.deltaTime);
+
+        if (!_rainInstance.activeSelf && _currentRainIntensity > 0f)
         {
-            return;
+            _rainInstance.SetActive(true);
         }
 
-        ApplyWeatherState(currentWeather);
-    }
+        for (int i = 0; i < _rainParticles.Length; i++)
+        {
+            ParticleSystem particle = _rainParticles[i];
+            if (particle == null) continue;
 
-    private void ApplyWeatherState(WeatherState weather)
-    {
-        _lastAppliedWeather = weather;
-        _hasAppliedWeather = true;
-        SetRainActive(weather == WeatherState.Rain);
+            var emission = particle.emission;
+            if (_currentRainIntensity > 0.01f)
+            {
+                if (!particle.isPlaying)
+                {
+                    particle.Play(true);
+                }
+                var rate = emission.rateOverTime;
+                float originalRate = (_originalEmissionRates != null && i < _originalEmissionRates.Length) ? _originalEmissionRates[i] : 10f;
+                rate.constant = originalRate * _currentRainIntensity;
+                emission.rateOverTime = rate;
+            }
+            else
+            {
+                if (particle.isPlaying)
+                {
+                    particle.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                }
+            }
+        }
+
+        if (_currentRainIntensity <= 0f && _rainInstance.activeSelf)
+        {
+            bool anyParticlesAlive = false;
+            for (int i = 0; i < _rainParticles.Length; i++)
+            {
+                if (_rainParticles[i] != null && _rainParticles[i].particleCount > 0)
+                {
+                    anyParticlesAlive = true;
+                    break;
+                }
+            }
+            if (!anyParticlesAlive)
+            {
+                _rainInstance.SetActive(false);
+            }
+        }
     }
 
     private void EnsureRainInstance()
@@ -101,42 +146,17 @@ public class WeatherVFXController : MonoBehaviour
         _rainInstance.transform.localPosition = _rainAnchor != null ? Vector3.zero : _rainLocalOffset;
         _rainInstance.transform.localRotation = _rainAnchor != null ? Quaternion.identity : Quaternion.Euler(_rainLocalEulerAngles);
         _rainInstance.transform.localScale = Vector3.one;
+        
         _rainParticles = _rainInstance.GetComponentsInChildren<ParticleSystem>(true);
-        SetRainActive(false);
-    }
-
-    private void SetRainActive(bool active)
-    {
-        EnsureRainInstance();
-        if (_rainInstance == null)
-        {
-            return;
-        }
-
-        if (!_rainInstance.activeSelf)
-        {
-            _rainInstance.SetActive(true);
-        }
-
+        _originalEmissionRates = new float[_rainParticles.Length];
         for (int i = 0; i < _rainParticles.Length; i++)
         {
-            ParticleSystem particle = _rainParticles[i];
-            if (particle == null)
+            if (_rainParticles[i] != null)
             {
-                continue;
-            }
-
-            if (active)
-            {
-                if (!particle.isPlaying)
-                {
-                    particle.Play(true);
-                }
-            }
-            else
-            {
-                particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                _originalEmissionRates[i] = _rainParticles[i].emission.rateOverTime.constant;
             }
         }
+
+        _rainInstance.SetActive(false);
     }
 }

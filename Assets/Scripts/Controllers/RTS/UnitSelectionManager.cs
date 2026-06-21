@@ -226,6 +226,10 @@ public class UnitSelectionManager : MonoBehaviour
             else if (_isGatherMode)
             {
                 ResourceNode clickedNode = hit.collider.GetComponentInParent<ResourceNode>();
+                if (clickedNode != null && clickedNode.GetComponentInParent<RiceField>() != null)
+                {
+                    clickedNode = null;
+                }
                 BaseCombatUnitController clickedEnemy = hit.collider.GetComponentInParent<BaseCombatUnitController>();
                 WildAnimalController animal = clickedEnemy != null ? clickedEnemy.GetComponent<WildAnimalController>() : null;
 
@@ -275,6 +279,24 @@ public class UnitSelectionManager : MonoBehaviour
                                 {
                                     villager.CommandGather(clickedNode, null);
                                     Debug.Log($"[RTS] Chỉ định khai thác tài nguyên: {clickedNode.ResourceType}");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        RiceField clickedRiceField = hit.collider.GetComponentInParent<RiceField>();
+                        if (clickedRiceField != null)
+                        {
+                            foreach (var unit in selectedUnits)
+                            {
+                                if (unit != null)
+                                {
+                                    VillagerController villager = unit.GetComponent<VillagerController>();
+                                    if (villager != null)
+                                    {
+                                        villager.CommandFarm(clickedRiceField);
+                                    }
                                 }
                             }
                         }
@@ -411,6 +433,8 @@ public class UnitSelectionManager : MonoBehaviour
             {
                 clickedNode = null;
             }
+
+            RiceField clickedRiceField = hit.collider.GetComponentInParent<RiceField>();
             
             // 3. Kiểm tra dự phòng xem click vào ô đất có tài nguyên không
             GridSystem grid = FindAnyObjectByType<GridSystem>();
@@ -425,6 +449,11 @@ public class UnitSelectionManager : MonoBehaviour
                         clickedNode = cell.resourceObject.GetComponent<ResourceNode>();
                     }
                 }
+            }
+
+            if (clickedNode != null && clickedNode.GetComponentInParent<RiceField>() != null)
+            {
+                clickedNode = null;
             }
 
             if (clickedNode != null)
@@ -450,6 +479,11 @@ public class UnitSelectionManager : MonoBehaviour
             {
                 // Click vào công trình xây dựng -> Indicator màu xanh lá cây
                 MyGame.UI.MoveIndicator.Spawn(clickedBuilding.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
+            }
+            else if (clickedRiceField != null)
+            {
+                // Click vào ruộng lúa -> Indicator màu xanh lá cây tại tâm ruộng lúa
+                MyGame.UI.MoveIndicator.Spawn(clickedRiceField.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
             }
             else
             {
@@ -511,6 +545,11 @@ public class UnitSelectionManager : MonoBehaviour
                             WildAnimalController animal = clickedEnemy.GetComponent<WildAnimalController>();
                             villager.CommandHunt(animal);
                             Debug.Log($"[RTS] Đã ra lệnh cho dân làng {unit.gameObject.name} đi săn thú hoang {clickedEnemy.unitName}");
+                        }
+                        else if (clickedRiceField != null)
+                        {
+                            villager.CommandFarm(clickedRiceField);
+                            Debug.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} chăm sóc ruộng lúa");
                         }
                         // C. Ưu tiên 3: Click vào đất trống -> Di chuyển
                         else

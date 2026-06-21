@@ -1,5 +1,6 @@
 using FischlWorks_FogWar;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class FogVisibilityTarget : MonoBehaviour
 {
@@ -8,7 +9,7 @@ public class FogVisibilityTarget : MonoBehaviour
     [SerializeField] private bool visibleWhenFogDisabled = true;
 
     private csFogWar fogWar;
-    private Renderer[] renderers;
+    private readonly List<Renderer> renderers = new List<Renderer>();
     private float updateTimer;
     private bool currentVisible = true;
 
@@ -16,7 +17,7 @@ public class FogVisibilityTarget : MonoBehaviour
 
     private void Awake()
     {
-        renderers = GetComponentsInChildren<Renderer>(true);
+        GetComponentsInChildren<Renderer>(true, renderers);
     }
 
     private void Start()
@@ -56,13 +57,29 @@ public class FogVisibilityTarget : MonoBehaviour
             return;
         }
 
-        if (!fogWar.CheckWorldGridRange(transform.position))
+        bool isVisible = fogWar.CheckWorldGridRange(transform.position) && 
+                          fogWar.CheckVisibility(transform.position, additionalRadius);
+
+        // Kiểm tra an toàn: Nếu mục tiêu đang ẩn, ta muốn chắc chắn không có renderer nào đang hiển thị.
+        // Nếu phát hiện thấy có renderer đang enabled, ta ép buộc ẩn. Ta dọn dẹp các renderers bị null.
+        if (!isVisible && !force)
         {
-            SetVisible(false, force);
-            return;
+            renderers.RemoveAll(r => r == null);
+            
+            if (renderers.Count > 0)
+            {
+                for (int i = 0; i < renderers.Count; i++)
+                {
+                    if (renderers[i].enabled)
+                    {
+                        force = true;
+                        break;
+                    }
+                }
+            }
         }
 
-        SetVisible(fogWar.CheckVisibility(transform.position, additionalRadius), force);
+        SetVisible(isVisible, force);
     }
 
     private void SetVisible(bool visible, bool force)
@@ -74,12 +91,18 @@ public class FogVisibilityTarget : MonoBehaviour
 
         currentVisible = visible;
 
-        if (renderers == null)
+        // Chỉ quét lại toàn bộ renderers khi thực sự cần thiết (danh sách rỗng nhưng cần hiện)
+        // Thay vì gọi GetComponentsInChildren vô điều kiện mỗi frame/mỗi lần force
+        if (renderers.Count == 0 && visible)
         {
-            return;
+            GetComponentsInChildren<Renderer>(true, renderers);
+        }
+        else
+        {
+            renderers.RemoveAll(r => r == null);
         }
 
-        for (int i = 0; i < renderers.Length; i++)
+        for (int i = 0; i < renderers.Count; i++)
         {
             if (renderers[i] != null)
             {

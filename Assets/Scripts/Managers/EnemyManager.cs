@@ -875,12 +875,13 @@ public class EnemyManager : MonoBehaviour
         // Giai phong rally khi group da tap hop du hoac het thoi gian cho.
         if (spawnedGroup.Count > 0)
         {
+            float rallyMaxWait = (TimeManager.Instance != null && TimeManager.Instance.IsNight) ? 2.5f : _groupRallyMaxWait;
             StartCoroutine(_groupRallyController.ReleaseGroupWhenReady(
                 spawnedGroup,
                 rallyPos,
                 _groupRallyRadius,
                 _groupRallyMinReadyRatio,
-                _groupRallyMaxWait));
+                rallyMaxWait));
         }
 
         return successfulSpawns;

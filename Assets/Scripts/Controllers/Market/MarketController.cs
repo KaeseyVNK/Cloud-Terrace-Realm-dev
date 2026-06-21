@@ -53,6 +53,12 @@ public class MarketController : MonoBehaviour
     private void Awake()
     {
         InitializePrices();
+
+        // Chợ trung lập bị ẩn trong sương mù, người chơi phải tự đi khám phá
+        if (isNeutral && GetComponent<FogVisibilityTarget>() == null)
+        {
+            gameObject.AddComponent<FogVisibilityTarget>();
+        }
     }
 
     private void Start()

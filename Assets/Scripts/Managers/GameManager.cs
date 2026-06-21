@@ -209,7 +209,10 @@ public class GameManager : MonoBehaviour
         int centerX = mapWidth / 2;
         int centerZ = mapLength / 2;
 
-        int numMarkets = UnityEngine.Random.Range(1, 3); // Sinh từ 1 đến 2 chợ trung lập
+        // Khởi tạo bộ sinh số ngẫu nhiên deterministic dựa trên seed của GridSystem (salt = 88)
+        System.Random prng = _gridSystem.CreateDeterministicRandom(88);
+
+        int numMarkets = prng.Next(1, 3); // Sinh từ 1 đến 2 chợ trung lập
         int spawnedMarkets = 0;
         int maxAttempts = 150;
 
@@ -217,8 +220,8 @@ public class GameManager : MonoBehaviour
 
         for (int attempt = 0; attempt < maxAttempts && spawnedMarkets < numMarkets; attempt++)
         {
-            int startX = UnityEngine.Random.Range(5, mapWidth - 5 - size.x);
-            int startZ = UnityEngine.Random.Range(5, mapLength - 5 - size.y);
+            int startX = prng.Next(5, mapWidth - 5 - size.x);
+            int startZ = prng.Next(5, mapLength - 5 - size.y);
 
             // Đo khoảng cách đến nhà chính (tâm map) xem có xa hơn 15 ô không
             float distToCenter = Vector2.Distance(new Vector2(startX + size.x / 2f, startZ + size.y / 2f), new Vector2(centerX, centerZ));
