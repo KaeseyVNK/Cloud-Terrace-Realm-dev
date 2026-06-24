@@ -18,8 +18,11 @@ public class WatchTowerGarrisonUI : MonoBehaviour
             HandleLeftClickDeselect();
         }
 
-        // Nhấn chuột phải để chọn tháp canh khi không có unit nào đang được chọn.
-        if (Input.GetMouseButtonDown(1))
+        // Chọn tháp canh bằng chuột phải, hoặc bằng chuột trái/chạm khi không có unit nào đang được chọn.
+        bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
+                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !IsMouseOverPanel());
+
+        if (isSelectTriggered)
         {
             if (UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count > 0)
             {
@@ -50,6 +53,13 @@ public class WatchTowerGarrisonUI : MonoBehaviour
     private void HandleLeftClickDeselect()
     {
         if (selectedWatchTower == null || IsMouseOverPanel())
+        {
+            return;
+        }
+
+        // Avoid deselecting when clicking on UGUI elements
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
         {
             return;
         }

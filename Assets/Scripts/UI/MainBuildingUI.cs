@@ -36,8 +36,11 @@ public class MainBuildingUI : MonoBehaviour
             HandleLeftClickDeselect();
         }
 
-        // Right-click to select main building when no units are selected
-        if (Input.GetMouseButtonDown(1))
+        // Right-click or left-click/touch (when no units are selected) to select main building
+        bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
+                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !IsMouseOverPanel());
+
+        if (isSelectTriggered)
         {
             if (UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count > 0)
             {
@@ -142,6 +145,13 @@ public class MainBuildingUI : MonoBehaviour
     private void HandleLeftClickDeselect()
     {
         if (_selectedMainBuilding == null || IsMouseOverPanel())
+        {
+            return;
+        }
+
+        // Avoid deselecting when clicking on UGUI elements
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
         {
             return;
         }

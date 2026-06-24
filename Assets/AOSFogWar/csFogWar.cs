@@ -423,7 +423,6 @@ namespace FischlWorks_FogWar
                 fogPlaneTextureLerpBuffer.Apply();
             }
 
-            Graphics.CopyTexture(fogPlaneTextureLerpTarget, fogPlaneTextureLerpBuffer);
         }
 
 
@@ -451,8 +450,11 @@ namespace FischlWorks_FogWar
 
             RemoveInvalidFogRevealers();
 
-            foreach (FogRevealer fogRevealer in fogRevealers)
+            bool shouldUpdateFogField = fogRevealers.Count == 0;
+
+            for (int i = 0; i < fogRevealers.Count; i++)
             {
+                FogRevealer fogRevealer = fogRevealers[i];
                 if (fogRevealer == null || fogRevealer._RevealerTransform == null)
                 {
                     continue;
@@ -460,6 +462,7 @@ namespace FischlWorks_FogWar
 
                 if (fogRevealer._UpdateOnlyOnMove == false)
                 {
+                    shouldUpdateFogField = true;
                     break;
                 }
 
@@ -467,13 +470,14 @@ namespace FischlWorks_FogWar
 
                 if (currentLevelCoordinates != fogRevealer._LastSeenAt)
                 {
+                    shouldUpdateFogField = true;
                     break;
                 }
+            }
 
-                if (fogRevealer == fogRevealers.Last())
-                {
-                    return;
-                }
+            if (shouldUpdateFogField == false)
+            {
+                return;
             }
 
             UpdateFogField();
@@ -578,9 +582,6 @@ namespace FischlWorks_FogWar
             fogPlaneTextureTargetPixels = shadowcaster.fogField.GetColors(fogPlaneAlpha, this);
             EnsureFogTexturePixelBuffers();
 
-            fogPlaneTextureLerpTarget.SetPixels(fogPlaneTextureTargetPixels);
-
-            fogPlaneTextureLerpTarget.Apply();
         }
 
 

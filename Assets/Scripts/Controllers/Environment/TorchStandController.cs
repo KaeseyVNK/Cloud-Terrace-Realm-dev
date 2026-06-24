@@ -28,6 +28,8 @@ public class TorchStandController : MonoBehaviour
     private bool _isCompletedCached = false;
     private Coroutine _flickerCoroutine;
     private Vector3 _baseFakeLightScale = Vector3.one;
+    private bool _isLightOn = false;
+    private Coroutine _fadeCoroutine;
 
     private void Awake()
     {
@@ -86,6 +88,7 @@ public class TorchStandController : MonoBehaviour
         }
 
         _isCompletedCached = _building != null && _building.IsCompleted;
+        _isLightOn = false;
         UpdateTorchState();
     }
 
@@ -99,7 +102,13 @@ public class TorchStandController : MonoBehaviour
         {
             WeatherManager.Instance.OnWeatherChanged -= HandleWeatherChanged;
         }
+        if (_fadeCoroutine != null)
+        {
+            StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = null;
+        }
         StopFlicker();
+        _isLightOn = false;
     }
 
     private void Update()
@@ -133,44 +142,108 @@ public class TorchStandController : MonoBehaviour
 
         bool shouldLight = isCompleted && (isNight || isRaining);
 
-        // Ánh sáng thời gian thực (Point Light) - đã được tối ưu culling mask
-        if (_torchLight != null)
-        {
-            bool enableRealLight = shouldLight && _useBuildingPointLight;
-            if (_torchLight.enabled != enableRealLight)
-            {
-                _torchLight.enabled = enableRealLight;
-                _torchLight.intensity = _baseIntensity;
-            }
-        }
+        if (_isLightOn == shouldLight) return;
+        _isLightOn = shouldLight;
 
-        // Ánh sáng giả (Fake Light)
-        if (_fakeLightVisual != null)
+        if (_fadeCoroutine != null)
         {
-            bool enableFakeLight = shouldLight && _useFakeLight;
-            if (_fakeLightVisual.activeSelf != enableFakeLight)
-            {
-                _fakeLightVisual.SetActive(enableFakeLight);
-                if (!enableFakeLight)
-                {
-                    _fakeLightVisual.transform.localScale = _baseFakeLightScale;
-                }
-            }
+            StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = null;
         }
+        StopFlicker();
 
-        // Kích hoạt flicker nếu cần
         if (shouldLight)
         {
-            StartFlicker();
+            _fadeCoroutine = StartCoroutine(FadeLightRoutine(true));
         }
         else
         {
-            StopFlicker();
+            // Tắt từ từ khi trời sáng
+            _fadeCoroutine = StartCoroutine(FadeLightRoutine(false));
+        }
+    }
+
+    private IEnumerator FadeLightRoutine(bool turnOn)
+    {
+        float duration = 1.5f; // Rộng ra từ từ trong 1.5 giây
+        float elapsed = 0f;
+        float startFactor = turnOn ? 0f : 1f;
+        float targetFactor = turnOn ? 1f : 0f;
+
+        float startIntensity = _torchLight != null ? _torchLight.intensity : 0f;
+        float targetIntensity = turnOn ? _baseIntensity : 0f;
+
+        if (turnOn)
+        {
+            if (_useFakeLight && _fakeLightVisual != null)
+            {
+                _fakeLightVisual.SetActive(true);
+                _fakeLightVisual.transform.localScale = Vector3.zero;
+            }
+            if (_useBuildingPointLight && _torchLight != null)
+            {
+                _torchLight.enabled = true;
+                _torchLight.intensity = 0f;
+            }
+            if (_fireVisual != null)
+            {
+                _fireVisual.SetActive(true);
+            }
         }
 
-        if (_fireVisual != null && _fireVisual.activeSelf != shouldLight)
+        while (elapsed < duration)
         {
-            _fireVisual.SetActive(shouldLight);
+            float progress = elapsed / duration;
+            float t = Mathf.SmoothStep(0f, 1f, progress);
+            float currentFactor = Mathf.Lerp(startFactor, targetFactor, t);
+
+            if (_useFakeLight && _fakeLightVisual != null)
+            {
+                _fakeLightVisual.transform.localScale = _baseFakeLightScale * currentFactor;
+            }
+            if (_useBuildingPointLight && _torchLight != null)
+            {
+                _torchLight.intensity = Mathf.Lerp(startIntensity, targetIntensity, t);
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (_useFakeLight && _fakeLightVisual != null)
+        {
+            _fakeLightVisual.transform.localScale = _baseFakeLightScale * targetFactor;
+            if (!turnOn)
+            {
+                _fakeLightVisual.SetActive(false);
+            }
+        }
+        if (_torchLight != null)
+        {
+            if (_useBuildingPointLight)
+            {
+                _torchLight.intensity = targetIntensity;
+                if (!turnOn)
+                {
+                    _torchLight.enabled = false;
+                }
+            }
+            else
+            {
+                _torchLight.enabled = false;
+                _torchLight.intensity = 0f;
+            }
+        }
+        if (_fireVisual != null && !turnOn)
+        {
+            _fireVisual.SetActive(false);
+        }
+
+        _fadeCoroutine = null;
+
+        if (turnOn)
+        {
+            StartFlicker();
         }
     }
 

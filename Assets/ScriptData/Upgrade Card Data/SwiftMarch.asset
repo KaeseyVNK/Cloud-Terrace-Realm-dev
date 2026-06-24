@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
+  m_Name: SwiftMarch
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
+  cardId: card_swift_march
+  cardName: Swift March
+  description: "+20% T\u1ED1c \u0111\u1ED9 di chuy\u1EC3n cho t\u1EA5t c\u1EA3 Binh
+    l\xEDnh."
+  icon: {fileID: -389397255, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
+  cardType: 0
+  unitHealthMultiplier: 1
+  unitDamageMultiplier: 1
+  unitSpeedMultiplier: 1.2
+  villagerSpeedMultiplier: 1
+  villagerCarryCapacityBonus: 0
+  woodGatherMultiplier: 1
+  stoneGatherMultiplier: 1
+  goldGatherMultiplier: 1
+  foodGatherMultiplier: 1
+  buildingToUnlock: {fileID: 0}
+  unitToUnlock: {fileID: 0}
+  instantResourceType: 0
+  instantResourceAmount: 0
+  instantMilitiaCount: 0
+  healMainBuilding: 0

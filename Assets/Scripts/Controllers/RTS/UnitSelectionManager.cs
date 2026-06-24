@@ -21,6 +21,13 @@ public class UnitSelectionManager : MonoBehaviour
     private bool _isGatherMode = false;
     private bool _isBuildMode = false;
 
+    private Vector2 _commandScreenPos;
+    public static bool IsBoxSelectMode { get; set; } = false;
+
+    private float _touchStartTime = 0f;
+    private Vector2 _touchStartPos;
+    private bool _hasTouchMoved = false;
+
     void Awake()
     {
         if (Instance == null)
@@ -114,11 +121,136 @@ public class UnitSelectionManager : MonoBehaviour
             }
         }
 
+        // Xử lý Touch Input trên Mobile / Editor Simulation
+        bool isTouchSupported = false;
+        #if UNITY_ANDROID || UNITY_IOS || UNITY_EDITOR
+        isTouchSupported = (Input.touchCount > 0);
+        #endif
+
+        if (isTouchSupported)
+        {
+            HandleTouchInput();
+        }
+        else
+        {
+            HandleMouseInput();
+        }
+    }
+
+    private void HandleTouchInput()
+    {
+        if (Input.touchCount != 1)
+        {
+            isDragging = false;
+            return;
+        }
+
+        Touch touch = Input.GetTouch(0);
+
+        if (touch.phase == TouchPhase.Began)
+        {
+            if (UnityEngine.EventSystems.EventSystem.current != null && 
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(touch.fingerId))
+            {
+                return;
+            }
+
+            _touchStartTime = Time.time;
+            _touchStartPos = touch.position;
+            _hasTouchMoved = false;
+
+            if (_isAttackMode || _isGatherMode || _isBuildMode)
+            {
+                _commandScreenPos = touch.position;
+                ExecuteTargetingCommand();
+                return;
+            }
+
+            if (IsBoxSelectMode)
+            {
+                startMousePos = touch.position;
+                isDragging = true;
+            }
+        }
+        else if (touch.phase == TouchPhase.Moved)
+        {
+            if (Vector2.Distance(_touchStartPos, touch.position) > 15f)
+            {
+                _hasTouchMoved = true;
+            }
+        }
+        else if (touch.phase == TouchPhase.Ended)
+        {
+            if (isDragging && IsBoxSelectMode)
+            {
+                isDragging = false;
+                if (Vector2.Distance(startMousePos, touch.position) > 15f)
+                {
+                    HandleBoxSelection();
+                }
+                else
+                {
+                    _commandScreenPos = touch.position;
+                    HandleClickSelection();
+                }
+            }
+            else if (!_hasTouchMoved && (Time.time - _touchStartTime < 0.4f))
+            {
+                _commandScreenPos = touch.position;
+
+                if (selectedUnits.Count > 0)
+                {
+                    Ray ray = Camera.main.ScreenPointToRay(touch.position);
+                    bool tappedFriendlyUnit = false;
+
+                    if (Physics.SphereCast(ray, 1f, out RaycastHit hit, 1000f, unitLayerMask))
+                    {
+                        SelectableUnit unit = hit.collider.GetComponentInParent<SelectableUnit>();
+                        if (unit != null)
+                        {
+                            BaseCombatUnitController combatUnit = unit.GetComponent<BaseCombatUnitController>();
+                            VillagerController villager = unit.GetComponent<VillagerController>();
+                            if ((combatUnit != null && combatUnit.faction == UnitFaction.Player) || villager != null)
+                            {
+                                tappedFriendlyUnit = true;
+                            }
+                        }
+                    }
+
+                    if (tappedFriendlyUnit)
+                    {
+                        HandleClickSelection();
+                    }
+                    else
+                    {
+                        HandleRightClickCommand();
+                    }
+                }
+                else
+                {
+                    HandleClickSelection();
+                }
+            }
+
+            isDragging = false;
+        }
+    }
+
+    private void HandleMouseInput()
+    {
         // Bắt đầu click trái
         if (Input.GetMouseButtonDown(0))
         {
+            // Avoid starting selection logic when clicking on UGUI elements
+            if (UnityEngine.EventSystems.EventSystem.current != null && 
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
             if (_isAttackMode || _isGatherMode || _isBuildMode)
             {
+                _commandScreenPos = Input.mousePosition;
                 ExecuteTargetingCommand();
                 return;
             }
@@ -131,13 +263,13 @@ public class UnitSelectionManager : MonoBehaviour
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
-            // Nếu kéo chuột quá 10 pixel thì tính là quét vùng
             if (Vector2.Distance(startMousePos, Input.mousePosition) > 10f)
             {
                 HandleBoxSelection();
             }
             else
             {
+                _commandScreenPos = Input.mousePosition;
                 HandleClickSelection();
             }
         }
@@ -152,6 +284,7 @@ public class UnitSelectionManager : MonoBehaviour
             }
             else
             {
+                _commandScreenPos = Input.mousePosition;
                 HandleRightClickCommand();
             }
         }
@@ -159,7 +292,7 @@ public class UnitSelectionManager : MonoBehaviour
 
     private void ExecuteTargetingCommand()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray ray = Camera.main.ScreenPointToRay(_commandScreenPos);
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
             // Spawn Indicator cho chế độ Chỉ định ra lệnh
@@ -385,6 +518,40 @@ public class UnitSelectionManager : MonoBehaviour
 
     void OnGUI()
     {
+        #if UNITY_ANDROID || UNITY_IOS || UNITY_EDITOR
+        if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WindowsEditor)
+        {
+            // Vẽ nút Toggle chế độ Box Select ở góc phải màn hình
+            Rect toggleRect = new Rect(Screen.width - 250, 10, 240, 45);
+            IsBoxSelectMode = GUI.Toggle(toggleRect, IsBoxSelectMode, " Chế độ Quét Chọn (Box Select)", "Button");
+
+            // Vẽ nút Hủy chọn nhanh (Deselect All) ngay bên dưới
+            if (selectedUnits.Count > 0)
+            {
+                Rect clearRect = new Rect(Screen.width - 250, 65, 240, 45);
+                if (GUI.Button(clearRect, "Hủy chọn tất cả (Deselect)"))
+                {
+                    DeselectAll();
+                }
+            }
+
+            // Vẽ nút Chơi lại (Restart Game) hỗ trợ test nhanh ở góc phải y=295
+            Rect restartRect = new Rect(Screen.width - 250, 295, 240, 45);
+            if (GUI.Button(restartRect, "Chơi Lại (Restart Game)"))
+            {
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.RestartGame();
+                }
+                else
+                {
+                    string activeSceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(activeSceneName);
+                }
+            }
+        }
+        #endif
+
         if (isDragging && Vector2.Distance(startMousePos, Input.mousePosition) > 10f)
         {
             float startY = Screen.height - startMousePos.y;
@@ -418,7 +585,7 @@ public class UnitSelectionManager : MonoBehaviour
             return;
         }
 
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray ray = Camera.main.ScreenPointToRay(_commandScreenPos);
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
             Debug.Log($"[RTS] Raycast RightClick trúng: {hit.collider.gameObject.name} tại điểm {hit.point}");
@@ -701,7 +868,7 @@ public class UnitSelectionManager : MonoBehaviour
         bool isDoubleClick = timeSinceLastClick < DoubleClickTimeThreshold;
         _lastClickTime = Time.time;
 
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray ray = Camera.main.ScreenPointToRay(_commandScreenPos);
         // Sử dụng SphereCast (bán kính 1f) thay vì Raycast để dễ click trúng Unit nhỏ hoặc đang di chuyển
         if (Physics.SphereCast(ray, 1f, out RaycastHit hit, 1000f, unitLayerMask))
         {

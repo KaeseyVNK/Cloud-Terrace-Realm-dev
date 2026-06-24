@@ -42,6 +42,7 @@ public class DayNightCycle : MonoBehaviour
 
     [Header("Weather Transitions")]
     [SerializeField] private float weatherTransitionSpeed = 0.5f;
+    [SerializeField] private float bloodMoonTransitionSpeed = 0.05f; // Tốc độ trăng máu chuyển đỏ từ từ (khoảng 20 giây)
 
     [Header("Fog Settings")]
     [SerializeField] private bool _enableFog = false;
@@ -111,7 +112,7 @@ public class DayNightCycle : MonoBehaviour
         float targetBloodMoon = (weather == WeatherState.BloodMoon) ? 1f : 0f;
 
         _currentRainIntensity = Mathf.MoveTowards(_currentRainIntensity, targetRain, weatherTransitionSpeed * Time.deltaTime);
-        _currentBloodMoonIntensity = Mathf.MoveTowards(_currentBloodMoonIntensity, targetBloodMoon, weatherTransitionSpeed * Time.deltaTime);
+        _currentBloodMoonIntensity = Mathf.MoveTowards(_currentBloodMoonIntensity, targetBloodMoon, bloodMoonTransitionSpeed * Time.deltaTime);
 
         // Golden hour: 1 at sunrise/sunset, 0 at midday/midnight
         float dawnDuskBlend = Mathf.Clamp01(1f - Mathf.Abs(Mathf.Sin(timeRatio * Mathf.PI * 2f)));

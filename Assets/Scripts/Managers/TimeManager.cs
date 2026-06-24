@@ -9,6 +9,8 @@ public class TimeManager : MonoBehaviour
     public float dayDuration = 120f; // 1 ngày = 120 giây
     public float currentTime = 0f;
     public int dayCount = 1; // Số ngày sinh tồn
+    [Range(0f, 1f)]
+    public float nightStartRatio = 0.55f; // Đêm bắt đầu trễ hơn (55% chu kỳ ngày)
 
     // Sự kiện khi chuyển đổi Ngày / Đêm
     public event Action<bool> OnDayNightChanged;
@@ -43,7 +45,7 @@ public class TimeManager : MonoBehaviour
 
         // Cập nhật trạng thái Ngày/Đêm
         float ratio = currentTime / dayDuration;
-        bool currentlyIsNight = (ratio >= 0.5f);
+        bool currentlyIsNight = (ratio >= nightStartRatio);
 
         if (currentlyIsNight != IsNight)
         {

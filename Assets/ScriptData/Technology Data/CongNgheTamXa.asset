@@ -13,11 +13,20 @@ MonoBehaviour:
   m_Name: CongNgheTamXa
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: ranged_weapons
-  technologyName: "Công Nghệ Tầm Xa"
-  description: "Mở khóa các đơn vị tấn công tầm xa như Cung Thủ."
+  technologyName: "C\xF4ng Ngh\u1EC7 T\u1EA7m Xa"
+  description: "M\u1EDF kh\xF3a c\xE1c \u0111\u01A1n v\u1ECB t\u1EA5n c\xF4ng t\u1EA7m
+    xa nh\u01B0 Cung Th\u1EE7."
+  icon: {fileID: 148914426, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   researchTime: 12
   researchCosts:
   - resourceType: 0
     amount: 120
   - resourceType: 4
     amount: 80
+  villagerCarryCapacityBonus: 0
+  villagerMoveSpeedMultiplier: 1
+  woodGatherSpeedMultiplier: 1
+  stoneGatherSpeedMultiplier: 1
+  goldGatherSpeedMultiplier: 1
+  foodGatherSpeedMultiplier: 1
+  storageCapacityBonus: 0

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
+  m_Name: EmergencyGold
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
+  cardId: card_emergency_gold
+  cardName: Emergency Gold
+  description: "Nh\u1EADn ngay 500 V\xE0ng kh\u1EA9n c\u1EA5p."
+  icon: {fileID: 1995341195, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
+  cardType: 2
+  unitHealthMultiplier: 1
+  unitDamageMultiplier: 1
+  unitSpeedMultiplier: 1
+  villagerSpeedMultiplier: 1
+  villagerCarryCapacityBonus: 0
+  woodGatherMultiplier: 1
+  stoneGatherMultiplier: 1
+  goldGatherMultiplier: 1
+  foodGatherMultiplier: 1
+  buildingToUnlock: {fileID: 0}
+  unitToUnlock: {fileID: 0}
+  instantResourceType: 4
+  instantResourceAmount: 500
+  instantMilitiaCount: 0
+  healMainBuilding: 0

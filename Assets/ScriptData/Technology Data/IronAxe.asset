@@ -16,6 +16,7 @@ MonoBehaviour:
   technologyName: "R\xECu s\u1EAFt"
   description: "T\u0103ng t\u1ED1c \u0111\u1ED9 khai th\xE1c g\u1ED7 c\u1EE7a d\xE2n
     l\xE0ng."
+  icon: {fileID: -469280310, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   researchTime: 16
   researchCosts:
   - resourceType: 4
@@ -26,3 +27,4 @@ MonoBehaviour:
   stoneGatherSpeedMultiplier: 1
   goldGatherSpeedMultiplier: 1
   foodGatherSpeedMultiplier: 1
+  storageCapacityBonus: 0

@@ -18,9 +18,14 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         public Image fillImage;
         public TextMeshProUGUI hpText;
         public bool isUsed;
+        public BaseCombatUnitController owner;
+        public int lastCurrentHealth = int.MinValue;
+        public int lastMaxHealth = int.MinValue;
+        public string lastNameText;
 
         public void SetActive(bool active)
         {
+            if (gameObject.activeSelf != active)
             if (gameObject.activeSelf != active)
             {
                 gameObject.SetActive(active);
@@ -82,10 +87,21 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     [SerializeField] private Sprite _foodSprite;
     [SerializeField] private Sprite _goldSprite;
 
+    public Sprite WoodSprite => _woodSprite;
+    public Sprite StoneSprite => _stoneSprite;
+    public Sprite FoodSprite => _foodSprite;
+    public Sprite GoldSprite => _goldSprite;
+
     private Camera _mainCamera;
     private float _nextRefreshTime = 0f;
+    private float _nextHoverRaycastTime = 0f;
+    private bool _isPointerOverUI;
+    private Vector2 _lastHoverMousePosition = new Vector2(float.MinValue, float.MinValue);
     private ResourceNode _hoveredResourceNode;
     private BuildingMenuUI _buildingMenuUI;
+    private const float ReferenceRefreshInterval = 2f;
+    private const float HoverRaycastInterval = 0.08f;
+    private const float HoverMouseMoveThresholdSqr = 4f;
     
     // Canvas hiển thị UGUI
     private Canvas _canvas;
@@ -182,19 +198,30 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         // CHỈ quét tìm các đối tượng và UI mỗi giây một lần để tiết kiệm CPU tối đa
         if (Time.time >= _nextRefreshTime)
         {
-            _nextRefreshTime = Time.time + 1.0f;
+            _nextRefreshTime = Time.time + ReferenceRefreshInterval;
             RefreshCachedReferences();
         }
 
         // Bắn tia Raycast phát hiện ResourceNode dưới chuột (lọc tài nguyên trong sương mù)
         // Bỏ qua nếu con trỏ đang đè lên phần tử UI (EventSystem) để tránh đè lấp hiển thị tooltip trong menu xây dựng
-        if (IsPointerOverUI())
+        _isPointerOverUI = IsPointerOverUI();
+
+        if (_isPointerOverUI)
         {
             _hoveredResourceNode = null;
         }
         else if (_mainCamera != null && UnityEngine.InputSystem.Mouse.current != null)
         {
             Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+            bool mouseMovedEnough = (mousePos - _lastHoverMousePosition).sqrMagnitude >= HoverMouseMoveThresholdSqr;
+            if (Time.unscaledTime < _nextHoverRaycastTime && !mouseMovedEnough)
+            {
+                return;
+            }
+
+            _lastHoverMousePosition = mousePos;
+            _nextHoverRaycastTime = Time.unscaledTime + HoverRaycastInterval;
+
             Ray ray = _mainCamera.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
             if (Physics.Raycast(ray, out RaycastHit hit, 200f))
             {
@@ -654,7 +681,14 @@ public class WorldSpaceOverlayManager : MonoBehaviour
 
         if (bar.hpText != null)
         {
-            bar.hpText.text = $"{combat.currentHealth}/{combat.maxHealth}";
+            if (bar.owner != combat || bar.lastCurrentHealth != combat.currentHealth || bar.lastMaxHealth != combat.maxHealth)
+            {
+                bar.hpText.text = $"{combat.currentHealth}/{combat.maxHealth}";
+                bar.owner = combat;
+                bar.lastCurrentHealth = combat.currentHealth;
+                bar.lastMaxHealth = combat.maxHealth;
+                bar.lastNameText = null;
+            }
             if (_healthBarPrefab == null)
             {
                 bar.hpText.fontSize = 9f;
@@ -720,7 +754,14 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         if (bar.hpText != null)
         {
             string nameText = string.IsNullOrEmpty(combat.unitName) ? "Building" : combat.unitName;
-            bar.hpText.text = $"{nameText}: {combat.currentHealth}/{combat.maxHealth}";
+            if (bar.owner != combat || bar.lastCurrentHealth != combat.currentHealth || bar.lastMaxHealth != combat.maxHealth || bar.lastNameText != nameText)
+            {
+                bar.hpText.text = $"{nameText}: {combat.currentHealth}/{combat.maxHealth}";
+                bar.owner = combat;
+                bar.lastCurrentHealth = combat.currentHealth;
+                bar.lastMaxHealth = combat.maxHealth;
+                bar.lastNameText = nameText;
+            }
             if (_healthBarPrefab == null)
             {
                 bar.hpText.fontSize = 10f;
@@ -840,7 +881,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
 
     private void DrawHoveredResourceTooltipUGUI()
     {
-        if (_hoveredResourceNode == null || !_hoveredResourceNode.CanHarvest || _mainCamera == null || IsPointerOverUI())
+        if (_hoveredResourceNode == null || !_hoveredResourceNode.CanHarvest || _mainCamera == null || _isPointerOverUI)
         {
             if (_tooltipElement != null) _tooltipElement.SetActive(false);
             return;

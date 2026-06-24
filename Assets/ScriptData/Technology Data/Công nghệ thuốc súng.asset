@@ -13,9 +13,18 @@ MonoBehaviour:
   m_Name: "C\xF4ng ngh\u1EC7 thu\u1ED1c s\xFAng"
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: bom_weapon
-  technologyName: "Công Nghệ Thuốc Súng"
-  description: "Mở khóa và tăng cường sức mạnh cho các đơn vị sử dụng chất nổ."
+  technologyName: "C\xF4ng Ngh\u1EC7 Thu\u1ED1c S\xFAng"
+  description: "M\u1EDF kh\xF3a v\xE0 t\u0103ng c\u01B0\u1EDDng s\u1EE9c m\u1EA1nh
+    cho c\xE1c \u0111\u01A1n v\u1ECB s\u1EED d\u1EE5ng ch\u1EA5t n\u1ED5."
+  icon: {fileID: -1617244215, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   researchTime: 10
   researchCosts:
   - resourceType: 4
     amount: 60
+  villagerCarryCapacityBonus: 0
+  villagerMoveSpeedMultiplier: 1
+  woodGatherSpeedMultiplier: 1
+  stoneGatherSpeedMultiplier: 1
+  goldGatherSpeedMultiplier: 1
+  foodGatherSpeedMultiplier: 1
+  storageCapacityBonus: 0

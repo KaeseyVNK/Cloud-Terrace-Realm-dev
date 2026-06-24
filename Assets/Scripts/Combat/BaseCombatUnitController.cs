@@ -70,6 +70,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     private BaseCombatUnitController cachedMovingScanTarget;
     private float knockupRecoveryUntil;
     private float movingAnimationHoldUntil;
+    private float _nextChaseRepathTime = 0f;
 
     // Cache tĩnh dùng chung cho các hàm Physics.OverlapSphereNonAlloc
     protected static readonly Collider[] s_overlapCache = new Collider[256];
@@ -199,6 +200,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
         float healthMult = 1f;
         float damageMult = 1f;
+        float speedMult = 1f;
 
         if (TechnologyManager.HasInstance)
         {
@@ -209,9 +211,25 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             }
         }
 
+        if (CardManager.Instance != null)
+        {
+            healthMult *= CardManager.Instance.CombatUnitMaxHealthMultiplier;
+            damageMult *= CardManager.Instance.CombatUnitAttackDamageMultiplier;
+            speedMult *= CardManager.Instance.CombatUnitMoveSpeedMultiplier;
+        }
+
         int prevMaxHealth = maxHealth;
         maxHealth = Mathf.RoundToInt(baseMaxHealth * healthMult);
         attackDamage = Mathf.RoundToInt(baseAttackDamage * damageMult);
+
+        if (navAgent == null)
+        {
+            navAgent = GetComponent<NavMeshAgent>();
+        }
+        if (navAgent != null && baseSpeed > 0)
+        {
+            navAgent.speed = baseSpeed * speedMult;
+        }
 
         if (maxHealth != prevMaxHealth)
         {
@@ -442,7 +460,13 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             if (IsNavAgentReady())
             {
                 navAgent.isStopped = false;
-                navAgent.SetDestination(GetChaseDestination());
+
+                // Throttled SetDestination to avoid NavMesh stuttering
+                if (Time.time >= _nextChaseRepathTime || !navAgent.hasPath)
+                {
+                    _nextChaseRepathTime = Time.time + 0.2f + Random.Range(0f, 0.05f);
+                    navAgent.SetDestination(GetChaseDestination());
+                }
 
                 // Chống kẹt: Nếu đang di chuyển đuổi theo nhưng bị các đồng đội đi trước chặn đường (vận tốc ~ 0)
                 if (navAgent.velocity.sqrMagnitude < 0.05f && navAgent.hasPath)
@@ -581,6 +605,15 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
         if (currentHealth <= 0)
         {
+            if (attacker != null)
+            {
+                Vector3 direction = attacker.transform.position - transform.position;
+                direction.y = 0f;
+                if (direction.sqrMagnitude > 0.01f)
+                {
+                    transform.rotation = Quaternion.LookRotation(direction.normalized);
+                }
+            }
             Die();
         }
     }
@@ -811,8 +844,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     {
         isManualMoveCommand = false;
         isManualAttackTarget = manualAttack;
-        chaseAnchorPosition = transform.position;
-        hasChaseAnchor = true;
+        if (!hasChaseAnchor)
+        {
+            chaseAnchorPosition = transform.position;
+            hasChaseAnchor = true;
+        }
         currentTarget = target;
         ChangeState(CombatState.Chasing);
     }
@@ -823,16 +859,34 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         blockedTimer = 0f;
         isManualMoveCommand = false;
         isManualAttackTarget = false;
-        hasChaseAnchor = false;
 
-        if (IsNavAgentReady())
+        if (hasChaseAnchor)
         {
-            navAgent.isStopped = true;
-            navAgent.ResetPath();
-            navAgent.velocity = Vector3.zero;
-        }
+            Vector3 targetDest = chaseAnchorPosition;
+            hasChaseAnchor = false;
 
-        ChangeState(CombatState.Idle);
+            if (IsNavAgentReady())
+            {
+                navAgent.stoppingDistance = 0.2f;
+                navAgent.isStopped = false;
+                navAgent.SetDestination(targetDest);
+                ChangeState(CombatState.Moving);
+            }
+            else
+            {
+                ChangeState(CombatState.Idle);
+            }
+        }
+        else
+        {
+            if (IsNavAgentReady())
+            {
+                navAgent.isStopped = true;
+                navAgent.ResetPath();
+                navAgent.velocity = Vector3.zero;
+            }
+            ChangeState(CombatState.Idle);
+        }
     }
 
     // --- TIỆN ÍCH DÒ TÌM KẺ ĐỊCH ---

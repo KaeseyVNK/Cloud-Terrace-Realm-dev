@@ -492,7 +492,7 @@ public class BuildingCardUI : MonoBehaviour,
     {
         if (root != null)
         {
-            root.SetActive(amount > 0);
+            root.SetActive(true);
         }
 
         if (amountText != null)

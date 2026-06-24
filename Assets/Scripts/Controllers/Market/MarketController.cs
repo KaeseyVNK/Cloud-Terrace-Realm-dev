@@ -55,9 +55,22 @@ public class MarketController : MonoBehaviour
         InitializePrices();
 
         // Chợ trung lập bị ẩn trong sương mù, người chơi phải tự đi khám phá
-        if (isNeutral && GetComponent<FogVisibilityTarget>() == null)
+        if (isNeutral)
         {
-            gameObject.AddComponent<FogVisibilityTarget>();
+            Transform targetTransform = transform;
+            // Tìm GameObject cha cao nhất đại diện cho công trình
+            // để đảm bảo FogVisibilityTarget được gắn vào root (chứa toàn bộ renderers của công trình)
+            while (targetTransform.parent != null && 
+                   targetTransform.parent.name != "SpawnedBuildings" && 
+                   targetTransform.parent.GetComponent<Canvas>() == null)
+            {
+                targetTransform = targetTransform.parent;
+            }
+
+            if (targetTransform.GetComponent<FogVisibilityTarget>() == null)
+            {
+                targetTransform.gameObject.AddComponent<FogVisibilityTarget>();
+            }
         }
     }
 

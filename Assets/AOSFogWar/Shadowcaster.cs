@@ -57,16 +57,23 @@ namespace FischlWorks_FogWar
 
             public Color[] GetColors(float fogPlaneAlpha, csFogWar fogWar)
             {
-                if (colors == null)
+                int width = levelRow.Count;
+                int height = levelRow.Count > 0 ? levelRow[0].Count() : 0;
+                int pixelCount = width * height;
+
+                if (colors == null || colors.Length != pixelCount)
                 {
-                    colors = new Color[levelRow.Count * levelRow[0].Count()];
+                    colors = new Color[pixelCount];
                 }
 
-                for (int xIterator = 0; xIterator < levelRow[0].Count(); xIterator++)
+                for (int xIterator = 0; xIterator < height; xIterator++)
                 {
-                    for (int yIterator = 0; yIterator < levelRow.Count; yIterator++)
+                    int xOffset = width * (xIterator + 1);
+                    int heightMinusOneMinusX = height - 1 - xIterator;
+
+                    for (int yIterator = 0; yIterator < width; yIterator++)
                     {
-                        int visibility = (int)levelRow[yIterator][levelRow[0].Count() - 1 - xIterator];
+                        int visibility = (int)levelRow[yIterator][heightMinusOneMinusX];
 
                         float tileOpacity = 1 - visibility;
 
@@ -76,8 +83,7 @@ namespace FischlWorks_FogWar
                         }
 
                         // The reason that the darker side is the revealed ones is to let users customize fog's color
-                        colors[levelRow.Count() * (xIterator + 1) - (yIterator + 1)] =
-                        new Color(1, 1, 1, (tileOpacity) * fogPlaneAlpha);
+                        colors[xOffset - (yIterator + 1)] = new Color(1, 1, 1, tileOpacity * fogPlaneAlpha);
                     }
                 }
 
@@ -254,9 +260,9 @@ namespace FischlWorks_FogWar
                 this.endSlope = endSlope;
             }
 
-            public List<Vector2Int> GetTiles()
+            public void FillTiles(List<Vector2Int> quadrantPoints)
             {
-                List<Vector2Int> quadrantPoints = new List<Vector2Int>();
+                quadrantPoints.Clear();
 
                 int minRow = Mathf.RoundToInt(depth * startSlope);
                 int maxRow = Mathf.RoundToInt(depth * endSlope);
@@ -270,8 +276,14 @@ namespace FischlWorks_FogWar
                 {
                     quadrantPoints.RemoveAt(quadrantPoints.Count - 1);
                 }
+            }
 
-                return quadrantPoints;
+            public void Reset(int depth, int maxDepth, float startSlope, float endSlope)
+            {
+                this.depth = depth;
+                this.maxDepth = maxDepth;
+                this.startSlope = startSlope;
+                this.endSlope = endSlope;
             }
 
             public bool IsProceedable()
@@ -305,6 +317,30 @@ namespace FischlWorks_FogWar
 
         // We declare this here to prevent creating and destroying the same object over and over
         private QuadrantIterator quadrantIterator = null;
+        private static readonly QuadrantIterator.ECardinal[] cardinalDirections = {
+            QuadrantIterator.ECardinal.East,
+            QuadrantIterator.ECardinal.North,
+            QuadrantIterator.ECardinal.West,
+            QuadrantIterator.ECardinal.South
+        };
+        private readonly Queue<ColumnIterator> columnIteratorQueue = new Queue<ColumnIterator>(64);
+        private readonly Stack<ColumnIterator> columnIteratorPool = new Stack<ColumnIterator>(64);
+        private readonly List<Vector2Int> quadrantPointBuffer = new List<Vector2Int>(64);
+
+        private ColumnIterator RentColumnIterator(int depth, int maxDepth, float startSlope, float endSlope)
+        {
+            ColumnIterator iterator = columnIteratorPool.Count > 0
+                ? columnIteratorPool.Pop()
+                : new ColumnIterator(depth, maxDepth, startSlope, endSlope);
+
+            iterator.Reset(depth, maxDepth, startSlope, endSlope);
+            return iterator;
+        }
+
+        private void ReturnColumnIterator(ColumnIterator iterator)
+        {
+            columnIteratorPool.Push(iterator);
+        }
 
 
 
@@ -343,22 +379,23 @@ namespace FischlWorks_FogWar
             quadrantIterator.originPoint = revealerPoint;
 
             // We deal with 90 degrees each, anti-clockwise, starting from east to west
-            foreach (int cardinal in System.Enum.GetValues(typeof(QuadrantIterator.ECardinal)))
+            foreach (QuadrantIterator.ECardinal cardinal in cardinalDirections)
             {
-                quadrantIterator.cardinal = (QuadrantIterator.ECardinal)cardinal;
+                quadrantIterator.cardinal = cardinal;
 
                 // Here goes the BFS algorithm, we queue a new pass during each pass if needed, then start the new one
-                Queue<ColumnIterator> columnIterators = new Queue<ColumnIterator>();
+                columnIteratorQueue.Clear();
 
                 // The first pass of the given quadrant, start from slope -1 to slope 1
-                columnIterators.Enqueue(new ColumnIterator(1, sightRange, -1, 1));
+                columnIteratorQueue.Enqueue(RentColumnIterator(1, sightRange, -1, 1));
 
-                while (columnIterators.Count > 0)
+                while (columnIteratorQueue.Count > 0)
                 {
-                    ColumnIterator columnIterator = columnIterators.Dequeue();
+                    ColumnIterator columnIterator = columnIteratorQueue.Dequeue();
+                    bool requeuedColumnIterator = false;
 
                     // Note that the given points may have negative y values instead of starting from zero
-                    List<Vector2Int> quadrantPoints = columnIterator.GetTiles();
+                    columnIterator.FillTiles(quadrantPointBuffer);
 
                     // This is to detect points where the obstacle tile and the empty tile are adjacent
                     Vector2Int lastQuadrantPoint = new Vector2Int();
@@ -366,7 +403,7 @@ namespace FischlWorks_FogWar
                     // This is to skip the first pass where the lastQuadrantPoint variable is not assigned yet
                     bool firstStepFlag = true;
 
-                    foreach (Vector2Int quadrantPoint in quadrantPoints)
+                    foreach (Vector2Int quadrantPoint in quadrantPointBuffer)
                     {
                         if (IsTileObstacle(quadrantPoint) == true || IsTileVisible(columnIterator, quadrantPoint))
                         {
@@ -387,7 +424,7 @@ namespace FischlWorks_FogWar
                                     continue;
                                 }
 
-                                ColumnIterator nextColumnIterator = new ColumnIterator(
+                                ColumnIterator nextColumnIterator = RentColumnIterator(
                                     columnIterator.depth,
                                     sightRange,
                                     columnIterator.startSlope,
@@ -395,7 +432,7 @@ namespace FischlWorks_FogWar
 
                                 nextColumnIterator.ProceedIfPossible();
 
-                                columnIterators.Enqueue(nextColumnIterator);
+                                columnIteratorQueue.Enqueue(nextColumnIterator);
                             }
                         }
 
@@ -408,7 +445,13 @@ namespace FischlWorks_FogWar
                     {
                         columnIterator.ProceedIfPossible();
 
-                        columnIterators.Enqueue(columnIterator);
+                        columnIteratorQueue.Enqueue(columnIterator);
+                        requeuedColumnIterator = true;
+                    }
+
+                    if (requeuedColumnIterator == false)
+                    {
+                        ReturnColumnIterator(columnIterator);
                     }
                 }
             }

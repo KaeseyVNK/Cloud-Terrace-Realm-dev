@@ -31,8 +31,10 @@ public class HUDManager : MonoBehaviour
     [Header("Population")]
     [SerializeField] private TextMeshProUGUI _populationText;
     [SerializeField] private float _populationRefreshInterval = 0.25f;
+    [SerializeField] private float _gathererRefreshInterval = 0.25f;
 
     private float _nextPopulationRefreshTime;
+    private float _nextGathererRefreshTime;
 
     // Cache variables for resource and UI animations
     private int _prevWood = -1;
@@ -219,7 +221,11 @@ public class HUDManager : MonoBehaviour
             }
         }
 
-        UpdateGathererCountsIfNeeded();
+        if (Time.unscaledTime >= _nextGathererRefreshTime)
+        {
+            _nextGathererRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, _gathererRefreshInterval);
+            UpdateGathererCountsIfNeeded();
+        }
     }
 
     private void UpdateGathererCountsIfNeeded()

@@ -5,6 +5,18 @@ using System.Collections;
 
 public class BuildingProduction : MonoBehaviour
 {
+    public static readonly List<BuildingProduction> Registry = new List<BuildingProduction>();
+
+    private void OnEnable()
+    {
+        Registry.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        Registry.Remove(this);
+    }
+
     [UnityEngine.Serialization.FormerlySerializedAs("buildingData")]
     [SerializeField] private BuildingData _buildingData;
     

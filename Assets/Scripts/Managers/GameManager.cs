@@ -314,4 +314,29 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+
+    public void RestartGame()
+    {
+        Debug.Log("[GameManager] Dang khoi dong lai game, dang don dep cac doi tuong DontDestroyOnLoad...");
+
+        // Tao mot do tuong tam thoi de lay reference den DontDestroyOnLoad scene
+        GameObject tempObj = new GameObject();
+        DontDestroyOnLoad(tempObj);
+        UnityEngine.SceneManagement.Scene dontDestroyScene = tempObj.scene;
+        Destroy(tempObj);
+
+        // Huy tat ca cac root objects trong DontDestroyOnLoad scene de reset hoan toan cac singleton
+        GameObject[] rootObjects = dontDestroyScene.GetRootGameObjects();
+        for (int i = 0; i < rootObjects.Length; i++)
+        {
+            if (rootObjects[i] != null)
+            {
+                Destroy(rootObjects[i]);
+            }
+        }
+
+        // Load lai scene hien tai
+        string activeSceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(activeSceneName);
+    }
 }

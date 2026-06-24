@@ -8,6 +8,7 @@ public class TechnologyData : ScriptableObject
     public string technologyId;
     public string technologyName;
     [TextArea] public string description;
+    public Sprite icon;
 
     [Header("Research Requirements")]
     public float researchTime = 10f;

@@ -37,6 +37,20 @@ public class CursorManager : MonoBehaviour
     private bool _isGatherTargetingMode = false;
     private bool _isBuildTargetingMode = false;
     private Texture2D _activeTexture;
+    private Texture2D _appliedTexture;
+    private Camera _mainCamera;
+    private GridSystem _gridSystem;
+    private readonly RaycastHit[] _hoverHits = new RaycastHit[32];
+    private bool _cachedSelectionHasVillagers;
+    private bool _cachedSelectionHasCombatUnits;
+    private int _cachedSelectionFrame = -1;
+
+    private readonly Dictionary<Collider, WatchTowerGarrison> _watchTowerCache = new Dictionary<Collider, WatchTowerGarrison>();
+    private readonly Dictionary<Collider, BaseCombatUnitController> _combatUnitCache = new Dictionary<Collider, BaseCombatUnitController>();
+    private readonly Dictionary<Collider, ConstructibleBuilding> _buildingCache = new Dictionary<Collider, ConstructibleBuilding>();
+    private readonly Dictionary<Collider, ResourceNode> _resourceNodeCache = new Dictionary<Collider, ResourceNode>();
+    private readonly Dictionary<GameObject, FogVisibilityTarget> _visibilityCache = new Dictionary<GameObject, FogVisibilityTarget>();
+    private int _frameCountSinceLastCacheClear = 0;
 
     // Chế độ debug bàn phím
     private bool _debugMode = false;
@@ -101,6 +115,8 @@ public class CursorManager : MonoBehaviour
 
     void Start()
     {
+        _mainCamera = Camera.main;
+        _gridSystem = FindAnyObjectByType<GridSystem>();
         SetCursorType(CursorType.Default);
     }
 
@@ -132,6 +148,13 @@ public class CursorManager : MonoBehaviour
                 }
             }
             return;
+        }
+
+        _frameCountSinceLastCacheClear++;
+        if (_frameCountSinceLastCacheClear >= 300)
+        {
+            ClearCache();
+            _frameCountSinceLastCacheClear = 0;
         }
 
         UpdateHoverCursor();
@@ -193,6 +216,11 @@ public class CursorManager : MonoBehaviour
             }
         }
 
+        if (_activeTexture == _appliedTexture)
+        {
+            return;
+        }
+
         if (_activeTexture != null)
         {
             Cursor.SetCursor(_activeTexture, _cursorHotspot, CursorMode.Auto);
@@ -201,11 +229,18 @@ public class CursorManager : MonoBehaviour
         {
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         }
+
+        _appliedTexture = _activeTexture;
     }
 
     private void UpdateHoverCursor()
     {
-        if (UnitSelectionManager.Instance == null || Camera.main == null)
+        if (_mainCamera == null)
+        {
+            _mainCamera = Camera.main;
+        }
+
+        if (UnitSelectionManager.Instance == null || _mainCamera == null)
         {
             SetCursorType(CursorType.Default);
             return;
@@ -230,11 +265,11 @@ public class CursorManager : MonoBehaviour
             return;
         }
 
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
         if (TryGetHoverHit(ray, out RaycastHit hit))
         {
             // 1. Kiểm tra Tháp Canh
-            WatchTowerGarrison clickedWatchTower = hit.collider.GetComponentInParent<WatchTowerGarrison>();
+            WatchTowerGarrison clickedWatchTower = GetCachedComponent(hit.collider, _watchTowerCache);
             if (clickedWatchTower != null)
             {
                 SetCursorType(CursorType.Garrison);
@@ -242,19 +277,12 @@ public class CursorManager : MonoBehaviour
             }
 
             // Phân loại các đơn vị đang chọn
-            bool hasVillagers = false;
-            bool hasCombatUnits = false;
-            foreach (var unit in selected)
-            {
-                if (unit != null)
-                {
-                    if (unit.GetComponent<VillagerController>() != null) hasVillagers = true;
-                    else if (unit.GetComponent<BaseCombatUnitController>() != null) hasCombatUnits = true;
-                }
-            }
+            CacheSelectedUnitTypes(selected);
+            bool hasVillagers = _cachedSelectionHasVillagers;
+            bool hasCombatUnits = _cachedSelectionHasCombatUnits;
 
             // 2. Kiểm tra Kẻ địch hoặc Động vật hoang dã
-            BaseCombatUnitController clickedUnit = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+            BaseCombatUnitController clickedUnit = GetCachedComponent(hit.collider, _combatUnitCache);
             if (clickedUnit != null && clickedUnit.currentState != CombatState.Dead)
             {
                 if (clickedUnit.faction == UnitFaction.Enemy || clickedUnit.faction == UnitFaction.Neutral)
@@ -277,7 +305,7 @@ public class CursorManager : MonoBehaviour
             }
 
             // 3. Kiểm tra công trình đang xây dựng dở dang
-            ConstructibleBuilding clickedBuilding = hit.collider.GetComponentInParent<ConstructibleBuilding>();
+            ConstructibleBuilding clickedBuilding = GetCachedComponent(hit.collider, _buildingCache);
             if (clickedBuilding != null && !clickedBuilding.IsCompleted)
             {
                 if (hasVillagers)
@@ -288,14 +316,18 @@ public class CursorManager : MonoBehaviour
             }
 
             // 4. Kiểm tra mỏ tài nguyên (cây, đá, vàng, thức ăn)
-            ResourceNode clickedNode = hit.collider.GetComponentInParent<ResourceNode>();
+            ResourceNode clickedNode = GetCachedComponent(hit.collider, _resourceNodeCache);
             if (clickedNode == null)
             {
-                GridSystem grid = FindAnyObjectByType<GridSystem>();
-                if (grid != null)
+                if (_gridSystem == null)
                 {
-                    grid.GetXY(hit.point, out int gridX, out int gridZ);
-                    GridCell cell = grid.GetCell(gridX, gridZ);
+                    _gridSystem = FindAnyObjectByType<GridSystem>();
+                }
+
+                if (_gridSystem != null)
+                {
+                    _gridSystem.GetXY(hit.point, out int gridX, out int gridZ);
+                    GridCell cell = _gridSystem.GetCell(gridX, gridZ);
                     if (cell != null && cell.hasResource && cell.resourceObject != null)
                     {
                         if (!IsHiddenByFog(cell.resourceObject))
@@ -354,15 +386,25 @@ public class CursorManager : MonoBehaviour
 
     private bool TryGetHoverHit(Ray ray, out RaycastHit hoverHit)
     {
-        RaycastHit[] hits = Physics.RaycastAll(ray, 1000f);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        int hitCount = Physics.RaycastNonAlloc(ray, _hoverHits, 1000f);
+        int bestIndex = -1;
+        float bestDistance = float.MaxValue;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            if (hits[i].collider == null) continue;
-            if (IsHiddenByFog(hits[i].collider.gameObject)) continue;
+            if (_hoverHits[i].collider == null) continue;
+            if (IsHiddenByFog(_hoverHits[i].collider.gameObject)) continue;
 
-            hoverHit = hits[i];
+            if (_hoverHits[i].distance < bestDistance)
+            {
+                bestDistance = _hoverHits[i].distance;
+                bestIndex = i;
+            }
+        }
+
+        if (bestIndex >= 0)
+        {
+            hoverHit = _hoverHits[bestIndex];
             return true;
         }
 
@@ -370,10 +412,92 @@ public class CursorManager : MonoBehaviour
         return false;
     }
 
+    private void CacheSelectedUnitTypes(List<SelectableUnit> selected)
+    {
+        if (_cachedSelectionFrame == Time.frameCount)
+        {
+            return;
+        }
+
+        _cachedSelectionFrame = Time.frameCount;
+        _cachedSelectionHasVillagers = false;
+        _cachedSelectionHasCombatUnits = false;
+
+        for (int i = 0; i < selected.Count; i++)
+        {
+            SelectableUnit unit = selected[i];
+            if (unit == null)
+            {
+                continue;
+            }
+
+            if (!_cachedSelectionHasVillagers && unit.GetComponent<VillagerController>() != null)
+            {
+                _cachedSelectionHasVillagers = true;
+            }
+            else if (!_cachedSelectionHasCombatUnits && unit.GetComponent<BaseCombatUnitController>() != null)
+            {
+                _cachedSelectionHasCombatUnits = true;
+            }
+
+            if (_cachedSelectionHasVillagers && _cachedSelectionHasCombatUnits)
+            {
+                return;
+            }
+        }
+    }
+
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        ClearCache();
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        ClearCache();
+    }
+
+    private void ClearCache()
+    {
+        _watchTowerCache.Clear();
+        _combatUnitCache.Clear();
+        _buildingCache.Clear();
+        _resourceNodeCache.Clear();
+        _visibilityCache.Clear();
+    }
+
+    private T GetCachedComponent<T>(Collider col, Dictionary<Collider, T> cache) where T : Component
+    {
+        if (col == null) return null;
+        if (!cache.TryGetValue(col, out T component))
+        {
+            component = col.GetComponentInParent<T>();
+            cache[col] = component;
+        }
+        return component;
+    }
+
+    private FogVisibilityTarget GetCachedVisibilityTarget(GameObject go)
+    {
+        if (go == null) return null;
+        if (!_visibilityCache.TryGetValue(go, out FogVisibilityTarget component))
+        {
+            component = go.GetComponentInParent<FogVisibilityTarget>();
+            _visibilityCache[go] = component;
+        }
+        return component;
+    }
+
     private bool IsHiddenByFog(GameObject target)
     {
         if (target == null) return false;
-        FogVisibilityTarget visibilityTarget = target.GetComponentInParent<FogVisibilityTarget>();
+        FogVisibilityTarget visibilityTarget = GetCachedVisibilityTarget(target);
         return visibilityTarget != null && !visibilityTarget.IsVisible;
     }
 

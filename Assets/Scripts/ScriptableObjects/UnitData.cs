@@ -18,6 +18,11 @@ public class UnitData : ScriptableObject
 
     public bool AreTechnologyRequirementsMet()
     {
+        if (CardManager.Instance != null && CardManager.Instance.IsUnitUnlocked(this))
+        {
+            return true;
+        }
+
         if (requiredTechnologies == null || requiredTechnologies.Count == 0)
         {
             return true;

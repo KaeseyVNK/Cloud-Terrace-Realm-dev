@@ -16,37 +16,29 @@ public static class PopulationManager
         }
         _lastRefreshTime = Time.time;
 
-        // 1. Quét dân làng
-        VillagerController[] villagers = Object.FindObjectsByType<VillagerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        _cachedCurrentVillagers = villagers != null ? villagers.Length : 0;
+        // 1. Quét dân làng từ danh sách SpawnedVillagers tĩnh
+        _cachedCurrentVillagers = VillagerController.SpawnedVillagers.Count;
 
-        // 2. Quét sức chứa nhà dân
+        // 2. Quét sức chứa nhà dân từ Registry tĩnh của HouseShelter
         int capacity = 0;
-        HouseShelter[] shelters = Object.FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        if (shelters != null)
+        for (int i = 0; i < HouseShelter.Registry.Count; i++)
         {
-            for (int i = 0; i < shelters.Length; i++)
+            HouseShelter shelter = HouseShelter.Registry[i];
+            if (shelter != null && shelter.gameObject.activeInHierarchy && shelter.IsOperational())
             {
-                HouseShelter shelter = shelters[i];
-                if (shelter != null && shelter.IsOperational())
-                {
-                    capacity += Mathf.Max(0, shelter.Capacity);
-                }
+                capacity += Mathf.Max(0, shelter.Capacity);
             }
         }
         _cachedMaxVillagers = capacity;
 
-        // 3. Quét hàng chờ sản xuất lính
+        // 3. Quét hàng chờ sản xuất lính từ Registry tĩnh của BuildingProduction
         int reserved = 0;
-        BuildingProduction[] productions = Object.FindObjectsByType<BuildingProduction>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        if (productions != null)
+        for (int i = 0; i < BuildingProduction.Registry.Count; i++)
         {
-            for (int i = 0; i < productions.Length; i++)
+            BuildingProduction production = BuildingProduction.Registry[i];
+            if (production != null && production.gameObject.activeInHierarchy)
             {
-                if (productions[i] != null)
-                {
-                    reserved += productions[i].QueuedVillagerCount;
-                }
+                reserved += production.QueuedVillagerCount;
             }
         }
         _cachedReservedVillagers = reserved;

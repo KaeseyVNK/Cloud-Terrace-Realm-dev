@@ -13,8 +13,10 @@ MonoBehaviour:
   m_Name: ChienBinhKienCuong
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: resilient_warriors
-  technologyName: "Chiến Binh Kiên Cường"
-  description: "Mở khóa các đơn vị chiến đấu cận chiến hạng nặng như Lính Quăng Bom."
+  technologyName: "Chi\u1EBFn Binh Ki\xEAn C\u01B0\u1EDDng"
+  description: "M\u1EDF kh\xF3a c\xE1c \u0111\u01A1n v\u1ECB chi\u1EBFn \u0111\u1EA5u
+    c\u1EADn chi\u1EBFn h\u1EA1ng n\u1EB7ng nh\u01B0 L\xEDnh Qu\u0103ng Bom."
+  icon: {fileID: -1617244215, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   researchTime: 16
   researchCosts:
   - resourceType: 1
@@ -23,3 +25,10 @@ MonoBehaviour:
     amount: 120
   - resourceType: 2
     amount: 80
+  villagerCarryCapacityBonus: 0
+  villagerMoveSpeedMultiplier: 1
+  woodGatherSpeedMultiplier: 1
+  stoneGatherSpeedMultiplier: 1
+  goldGatherSpeedMultiplier: 1
+  foodGatherSpeedMultiplier: 1
+  storageCapacityBonus: 0

@@ -155,6 +155,7 @@ public class VillagerController : MonoBehaviour
     private static readonly List<VillagerController> s_tempCompletedBuilders = new(32);
 
     public static readonly List<VillagerController> AllVillagers = new List<VillagerController>();
+    public static readonly List<VillagerController> SpawnedVillagers = new List<VillagerController>();
     public static bool ShouldShelterAtNight { get; set; } = true;
 
     #endregion
@@ -313,6 +314,7 @@ public class VillagerController : MonoBehaviour
 
     private void Awake()
     {
+        SpawnedVillagers.Add(this);
         _gridSystem = FindAnyObjectByType<GridSystem>();
         
 
@@ -668,6 +670,7 @@ public class VillagerController : MonoBehaviour
 
     private void OnDestroy()
     {
+        SpawnedVillagers.Remove(this);
         ReleaseReservedSlot();
         TargetBuilding = null;
     }
@@ -2954,6 +2957,10 @@ public class VillagerController : MonoBehaviour
         if (_navAgent != null)
         {
             float speedMultiplier = TechnologyManager.HasInstance ? TechnologyManager.Instance.VillagerMoveSpeedMultiplier : 1f;
+            if (CardManager.Instance != null)
+            {
+                speedMultiplier *= CardManager.Instance.VillagerMoveSpeedMultiplier;
+            }
             float hungerMultiplier = _isHungry ? 0.7f : 1f;
             _navAgent.speed = _baseAgentSpeed * speedMultiplier * hungerMultiplier;
         }
@@ -2976,6 +2983,10 @@ public class VillagerController : MonoBehaviour
             {
                 capacity += TechnologyManager.Instance.VillagerCarryCapacityBonus;
             }
+            if (CardManager.Instance != null)
+            {
+                capacity += CardManager.Instance.VillagerCarryCapacityBonus;
+            }
             return capacity;
         }
     }
@@ -2987,6 +2998,10 @@ public class VillagerController : MonoBehaviour
     {
         float baseTime = _timeToGather;
         float techMultiplier = TechnologyManager.HasInstance ? TechnologyManager.Instance.GetVillagerGatherSpeedMultiplier(resourceType) : 1f;
+        if (CardManager.Instance != null)
+        {
+            techMultiplier *= CardManager.Instance.GetVillagerGatherSpeedMultiplier(resourceType);
+        }
         if (techMultiplier > 0f)
         {
             baseTime /= techMultiplier;

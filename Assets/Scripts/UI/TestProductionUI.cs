@@ -20,6 +20,7 @@ public class TestProductionUI : MonoBehaviour
 
     private Vector2 productionScrollPosition;
     private Vector2 researchScrollPosition;
+    private bool _isRallyTargetingMode = false;
 
     private void Awake()
     {
@@ -28,13 +29,39 @@ public class TestProductionUI : MonoBehaviour
 
     void Update()
     {
+        // Nhấn Esc để hủy chế độ đặt Rally Point
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            _isRallyTargetingMode = false;
+        }
+
+        if (_isRallyTargetingMode)
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                if (!IsMouseOverActivePanel())
+                {
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    if (Physics.Raycast(ray, out RaycastHit hit))
+                    {
+                        selectedProduction.SetRallyFromHit(hit);
+                    }
+                    _isRallyTargetingMode = false;
+                }
+            }
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             HandleLeftClickDeselect();
         }
 
-        // Nhấn chuột phải để chọn công trình hoặc đặt rally point khi không có unit nào đang được chọn.
-        if (Input.GetMouseButtonDown(1))
+        // Chọn công trình bằng chuột phải, hoặc bằng chuột trái/chạm khi không có unit nào đang được chọn.
+        bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
+                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !IsMouseOverActivePanel());
+
+        if (isSelectTriggered)
         {
             if (UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count > 0)
             {
@@ -74,17 +101,25 @@ public class TestProductionUI : MonoBehaviour
                     return;
                 }
 
-                if (selectedProduction != null)
+                // Nếu click chuột phải (hoặc tap khi đã chọn công trình sản xuất và không bấm trúng cái gì khác)
+                // Ta chỉ đặt rally point bằng chuột phải. Nếu là chuột trái, ta không tự động đặt rally point ở đây (tránh nhầm lẫn với deselect).
+                if (Input.GetMouseButtonDown(1) && selectedProduction != null)
                 {
                     selectedProduction.SetRallyFromHit(hit);
                     return;
                 }
 
-                Debug.Log("Không có công trình sản xuất nào đang được chọn để đặt rally point.");
+                if (Input.GetMouseButtonDown(1))
+                {
+                    Debug.Log("Không có công trình sản xuất nào đang được chọn để đặt rally point.");
+                }
             }
             else
             {
-                Debug.Log("Chuột phải không trúng bất kỳ Collider nào!");
+                if (Input.GetMouseButtonDown(1))
+                {
+                    Debug.Log("Chuột phải không trúng bất kỳ Collider nào!");
+                }
             }
         }
     }
@@ -92,6 +127,13 @@ public class TestProductionUI : MonoBehaviour
     private void HandleLeftClickDeselect()
     {
         if ((selectedProduction == null && selectedResearch == null) || IsMouseOverActivePanel())
+        {
+            return;
+        }
+
+        // Avoid deselecting when clicking on UGUI elements (e.g. blacksmith cards)
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
         {
             return;
         }
@@ -156,6 +198,7 @@ public class TestProductionUI : MonoBehaviour
         }
 
         selectedProduction = null;
+        _isRallyTargetingMode = false;
     }
 
     private void SelectResearch(BlacksmithResearch research)
@@ -272,15 +315,24 @@ public class TestProductionUI : MonoBehaviour
 
     void OnGUI()
     {
+        if (_isRallyTargetingMode)
+        {
+            Rect hintRect = new Rect(Screen.width / 2f - 220f, 10f, 440f, 40f);
+            GUI.Box(hintRect, "");
+            GUI.Label(new Rect(hintRect.x + 10f, hintRect.y + 10f, hintRect.width - 20f, 20f), 
+                "Chế độ đặt Rally Point: Chạm/Click lên bản đồ để chọn điểm tập kết...", 
+                new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold });
+        }
+
         if (selectedResearch != null)
         {
-            DrawResearchPanel();
+            // DrawResearchPanel(); // Handled by the new UGUI BlacksmithUIController
             return;
         }
 
         if (selectedProduction == null)
         {
-            GUI.Label(new Rect(10, 10, 420, 20), "Bấm CHUỘT PHẢI vào một công trình để sản xuất hoặc nghiên cứu.");
+            GUI.Label(new Rect(10, 10, 420, 20), "Bấm CHUỘT PHẢI hoặc CHẠM vào công trình để sản xuất/nghiên cứu.");
             return;
         }
 
@@ -304,8 +356,15 @@ public class TestProductionUI : MonoBehaviour
         Rect panelRect = GetProductionPanelRect();
         GUI.Box(panelRect, "Sản Xuất: " + selectedProduction.BuildingData.buildingName);
 
-        GUI.Label(new Rect(panelRect.x + 10f, panelRect.y + 26f, panelRect.width - 20f, 20f),
+        GUI.Label(new Rect(panelRect.x + 10f, panelRect.y + 26f, panelRect.width - 180f, 20f),
             $"Dân làng: {PopulationManager.CurrentVillagers} + {PopulationManager.ReservedVillagers} / {PopulationManager.MaxVillagers}");
+
+        // Nút đặt Rally Point hỗ trợ cảm ứng di động
+        string rallyBtnText = _isRallyTargetingMode ? "Hủy Đặt Rally" : "Đặt Rally Point";
+        if (GUI.Button(new Rect(panelRect.x + panelRect.width - 160f, panelRect.y + 22f, 150f, 25f), rallyBtnText))
+        {
+            _isRallyTargetingMode = !_isRallyTargetingMode;
+        }
 
         Rect viewport = new Rect(panelRect.x + 10f, panelRect.y + 50f, panelRect.width - 20f, panelRect.height - 60f - extraHeight);
         Rect content = new Rect(0f, 0f, viewport.width - 18f, GetProductionContentHeight());

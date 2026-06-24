@@ -128,19 +128,20 @@ public class WeatherManager : MonoBehaviour
 
     private void AwardBloodMoonSurvivalReward()
     {
-        if (ResourceManager.Instance != null)
+        Debug.Log("[WeatherManager] Đã sống sót qua Trăng Máu! Kích hoạt chọn thẻ nâng cấp.");
+        
+        if (CardManager.Instance != null)
         {
-            ResourceManager.Instance.AddResource(ResourceType.AncientRelic, 1);
-            Debug.Log("[WeatherManager] Đã sống sót qua Trăng Máu! Nhận 1 Cổ vật Cổ đại.");
-            
-            if (HUDManager.Instance != null)
-            {
-                HUDManager.Instance.ShowBloodMoonAlert(
-                    "SỐNG SÓT THÀNH CÔNG",
-                    "Bạn đã vượt qua đêm Trăng Máu và nhận được 1 Cổ Vật Cổ Đại! 🏆",
-                    5f
-                );
-            }
+            CardManager.Instance.TriggerCardDraft();
+        }
+
+        if (HUDManager.Instance != null)
+        {
+            HUDManager.Instance.ShowBloodMoonAlert(
+                "SỐNG SÓT THÀNH CÔNG",
+                "Bạn đã vượt qua đêm Trăng Máu! Hãy chọn một Thẻ Nâng Cấp bổ sung! 🏆",
+                5f
+            );
         }
     }
 

@@ -15,7 +15,7 @@ public class BlacksmithResearch : MonoBehaviour
 
     private void Start()
     {
-        CreateAndRegisterAncientTech();
+        // CreateAndRegisterAncientTech();
     }
 
     private void CreateAndRegisterAncientTech()

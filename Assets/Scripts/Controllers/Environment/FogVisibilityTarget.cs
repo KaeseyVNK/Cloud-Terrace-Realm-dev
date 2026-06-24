@@ -23,25 +23,26 @@ public class FogVisibilityTarget : MonoBehaviour
     private void Start()
     {
         fogWar = FindAnyObjectByType<csFogWar>(FindObjectsInactive.Include);
-        updateTimer = Random.Range(0f, updateInterval);
         RefreshVisibility(true);
     }
 
-    private void Update()
+    private void OnEnable()
     {
-        updateTimer += Time.deltaTime;
-        if (updateTimer < updateInterval)
-        {
-            return;
-        }
-
-        updateTimer = 0f;
-        RefreshVisibility(false);
+        FogVisibilityManager.Register(this);
     }
 
     private void OnDisable()
     {
+        FogVisibilityManager.Unregister(this);
         SetVisible(true, true);
+    }
+
+    /// <summary>
+    /// Called by FogVisibilityManager to batch visibility updates.
+    /// </summary>
+    public void ManualUpdate()
+    {
+        RefreshVisibility(false);
     }
 
     private void RefreshVisibility(bool force)
@@ -57,20 +58,31 @@ public class FogVisibilityTarget : MonoBehaviour
             return;
         }
 
+        // Dọn dẹp các renderer bị null trước tiên (do trích xuất mesh hoặc hủy đối tượng con)
+        renderers.RemoveAll(r => r == null);
+
+        // Nếu danh sách rỗng, ta tìm lại tất cả renderers con (đảm bảo ẩn/hiện chính xác kể cả khi mesh được trích xuất động)
+        if (renderers.Count == 0)
+        {
+            GetComponentsInChildren<Renderer>(true, renderers);
+            if (renderers.Count > 0)
+            {
+                force = true; // Ép buộc cập nhật trạng thái hiển thị cho các renderer mới tìm thấy
+            }
+        }
+
         bool isVisible = fogWar.CheckWorldGridRange(transform.position) && 
                           fogWar.CheckVisibility(transform.position, additionalRadius);
 
         // Kiểm tra an toàn: Nếu mục tiêu đang ẩn, ta muốn chắc chắn không có renderer nào đang hiển thị.
-        // Nếu phát hiện thấy có renderer đang enabled, ta ép buộc ẩn. Ta dọn dẹp các renderers bị null.
+        // Nếu phát hiện thấy có renderer đang enabled, ta ép buộc ẩn.
         if (!isVisible && !force)
         {
-            renderers.RemoveAll(r => r == null);
-            
             if (renderers.Count > 0)
             {
                 for (int i = 0; i < renderers.Count; i++)
                 {
-                    if (renderers[i].enabled)
+                    if (renderers[i] != null && renderers[i].enabled)
                     {
                         force = true;
                         break;
@@ -91,15 +103,13 @@ public class FogVisibilityTarget : MonoBehaviour
 
         currentVisible = visible;
 
-        // Chỉ quét lại toàn bộ renderers khi thực sự cần thiết (danh sách rỗng nhưng cần hiện)
-        // Thay vì gọi GetComponentsInChildren vô điều kiện mỗi frame/mỗi lần force
-        if (renderers.Count == 0 && visible)
+        // Dọn dẹp các renderer đã bị hủy (null) do trích xuất Mesh hoặc hủy đối tượng con
+        renderers.RemoveAll(r => r == null);
+
+        // Nếu danh sách rỗng, tìm lại tất cả renderers con (đảm bảo ẩn/hiện chính xác kể cả khi mesh được trích xuất động)
+        if (renderers.Count == 0)
         {
             GetComponentsInChildren<Renderer>(true, renderers);
-        }
-        else
-        {
-            renderers.RemoveAll(r => r == null);
         }
 
         for (int i = 0; i < renderers.Count; i++)

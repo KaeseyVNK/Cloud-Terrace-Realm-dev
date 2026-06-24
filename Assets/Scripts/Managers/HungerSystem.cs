@@ -67,8 +67,8 @@ public class HungerSystem : MonoBehaviour
             return;
         }
 
-        // Lấy danh sách cư dân từ AllVillagers tĩnh (đã loại bỏ GC Allocations)
-        List<VillagerController> villagers = VillagerController.AllVillagers;
+        // Lấy danh sách cư dân từ SpawnedVillagers tĩnh để bao gồm cả cư dân đang trú ẩn
+        List<VillagerController> villagers = VillagerController.SpawnedVillagers;
         int foodNeeded = villagers.Count;
 
         if (foodNeeded <= 0)

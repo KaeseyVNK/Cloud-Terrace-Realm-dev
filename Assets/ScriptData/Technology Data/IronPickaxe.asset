@@ -16,6 +16,7 @@ MonoBehaviour:
   technologyName: "Cu\u1ED1c s\u1EAFt"
   description: "T\u0103ng t\u1ED1c \u0111\u1ED9 khai th\xE1c \u0111\xE1 v\xE0 v\xE0ng
     c\u1EE7a d\xE2n l\xE0ng."
+  icon: {fileID: 327041701, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   researchTime: 16
   researchCosts:
   - resourceType: 4
@@ -26,3 +27,4 @@ MonoBehaviour:
   stoneGatherSpeedMultiplier: 1.25
   goldGatherSpeedMultiplier: 1.25
   foodGatherSpeedMultiplier: 1
+  storageCapacityBonus: 0

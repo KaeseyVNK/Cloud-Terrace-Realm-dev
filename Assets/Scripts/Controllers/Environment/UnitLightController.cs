@@ -35,7 +35,8 @@ public class UnitLightController : MonoBehaviour
     private void OnEnable()
     {
         RegisterEvents();
-        RefreshLightStateInstant();
+        _isLightOn = false;
+        EvaluateAndTransitionLight();
     }
 
     private void OnDisable()
@@ -181,8 +182,8 @@ public class UnitLightController : MonoBehaviour
         }
         else
         {
-            // Tắt ngay lập tức khi trời sáng để tránh kẹt Fake Light ban ngày
-            RefreshLightStateInstant();
+            // Tắt từ từ khi trời sáng
+            _fadeCoroutine = StartCoroutine(FadeLightRoutine(false));
         }
     }
 

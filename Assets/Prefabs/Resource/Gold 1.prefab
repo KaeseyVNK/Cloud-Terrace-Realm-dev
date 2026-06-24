@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4527352441918423377}
   - component: {fileID: 9037478754320301611}
   - component: {fileID: -3746391042308170451}
-  - component: {fileID: 7442869051973466001}
+  - component: {fileID: 3805167782629083075}
   m_Layer: 0
   m_Name: Gold 1
   m_TagString: Untagged
@@ -102,14 +102,14 @@ NavMeshObstacle:
   m_Enabled: 1
   serializedVersion: 3
   m_Shape: 0
-  m_Extents: {x: 0.93, y: 0.497, z: 0.93}
+  m_Extents: {x: 1.44, y: 0.59, z: 1.44}
   m_MoveThreshold: 0.1
   m_Carve: 1
   m_CarveOnlyStationary: 1
   m_Center: {x: -0, y: 0.48200002, z: -0.132}
   m_TimeToStationary: 0.5
---- !u!64 &7442869051973466001
-MeshCollider:
+--- !u!65 &3805167782629083075
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -126,7 +126,6 @@ MeshCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -2448730998742419159, guid: aaad660e0207af24e8d2221024315475, type: 3}
+  serializedVersion: 3
+  m_Size: {x: 2.34802, y: 1.3320003, z: 2.0062828}
+  m_Center: {x: -0.04922855, y: 0.6659999, z: -0.07553187}
