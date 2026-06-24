@@ -109,9 +109,15 @@ public class MarketUI : MonoBehaviour
         }
 
         // Open UGUI Market UI
-        if (MarketUIController.Instance != null)
+        MarketUIController uiController = MarketUIController.Instance;
+        if (uiController == null)
         {
-            MarketUIController.Instance.OpenMenu(market);
+            uiController = FindAnyObjectByType<MarketUIController>(FindObjectsInactive.Include);
+        }
+
+        if (uiController != null)
+        {
+            uiController.OpenMenu(market);
         }
     }
 
@@ -123,9 +129,15 @@ public class MarketUI : MonoBehaviour
         _selectedMarket = null;
 
         // Close UGUI Market UI
-        if (MarketUIController.Instance != null)
+        MarketUIController uiController = MarketUIController.Instance;
+        if (uiController == null)
         {
-            MarketUIController.Instance.CloseMenu();
+            uiController = FindAnyObjectByType<MarketUIController>(FindObjectsInactive.Include);
+        }
+
+        if (uiController != null)
+        {
+            uiController.CloseMenu();
         }
     }
 

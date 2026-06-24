@@ -51,8 +51,9 @@ public class CardDraftUIController : MonoBehaviour
         {
             if (i < cards.Count)
             {
+                _cardSlots[i].gameObject.SetActive(true);
                 _cardSlots[i].Setup(cards[i], OnCardSelected);
-                _cardSlots[i].AnimatePopIn(i * 0.08f); // Hiệu ứng lật thẻ so le
+                _cardSlots[i].AnimatePopIn(i * 0.08f, i); // Hiệu ứng quay thẻ so le
             }
             else
             {
@@ -80,7 +81,10 @@ public class CardDraftUIController : MonoBehaviour
     {
         if (_panelRoot != null)
         {
-            _panelRoot.SetActive(active);
+            if (_panelRoot != gameObject || active)
+            {
+                _panelRoot.SetActive(active);
+            }
         }
 
         if (_canvasGroup != null)
@@ -133,7 +137,10 @@ public class CardDraftUIController : MonoBehaviour
 
         if (!show && _panelRoot != null)
         {
-            _panelRoot.SetActive(false);
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(false);
+            }
         }
 
         _fadeCoroutine = null;

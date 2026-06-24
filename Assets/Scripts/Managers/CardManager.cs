@@ -10,6 +10,8 @@ public class CardManager : MonoBehaviour
     [SerializeField] private List<UpgradeCardData> _allCards = new List<UpgradeCardData>();
     [SerializeField] private List<UpgradeCardData> _unlockedCards = new List<UpgradeCardData>();
 
+    public List<UpgradeCardData> AllCards => _allCards;
+
     [Header("Instant Spawning")]
     [SerializeField] private GameObject _militiaPrefab;
 

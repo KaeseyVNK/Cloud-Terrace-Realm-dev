@@ -113,6 +113,9 @@ MonoBehaviour:
   priceChangeRate: 0.001
   priceRecoverySpeed: 0.05
   _caravanPrefab: {fileID: 6652035122876151455, guid: a44074537efe97e4ab4228626ee3b97e, type: 3}
+  _mercenaryPrefab: {fileID: 12324393601355489, guid: ea5aeb9a31ec84445a08e415d3c39324, type: 3}
+  _mercenaryCost: 100
+  _maxMercenaries: 4
 --- !u!65 &5948322758967036538
 BoxCollider:
   m_ObjectHideFlags: 0

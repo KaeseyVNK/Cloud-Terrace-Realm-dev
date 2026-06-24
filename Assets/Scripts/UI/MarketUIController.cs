@@ -22,6 +22,10 @@ public class MarketUIController : MonoBehaviour
     [Header("Footer References")]
     [SerializeField] private Button _closeButton;
 
+    [Header("Mercenary UI")]
+    [SerializeField] private Button _hireMercenaryButton;
+    [SerializeField] private TMP_Text _mercenaryStatusText;
+
     private MarketController _currentMarket;
     private CanvasGroup _canvasGroup;
 
@@ -46,6 +50,11 @@ public class MarketUIController : MonoBehaviour
         if (_closeButton != null)
         {
             _closeButton.onClick.AddListener(CloseMenu);
+        }
+
+        if (_hireMercenaryButton != null)
+        {
+            _hireMercenaryButton.onClick.AddListener(OnHireMercenaryClicked);
         }
 
         SetPanelActive(false);
@@ -85,6 +94,8 @@ public class MarketUIController : MonoBehaviour
         if (_stoneColumn != null) _stoneColumn.Setup(market);
         if (_foodColumn != null) _foodColumn.Setup(market);
         if (_goldColumn != null) _goldColumn.Setup(market);
+
+        UpdateMercenaryUI();
     }
 
     /// <summary>
@@ -111,6 +122,44 @@ public class MarketUIController : MonoBehaviour
         if (_stoneColumn != null) _stoneColumn.RefreshUI();
         if (_foodColumn != null) _foodColumn.RefreshUI();
         if (_goldColumn != null) _goldColumn.RefreshUI();
+
+        UpdateMercenaryUI();
+    }
+
+    private void OnHireMercenaryClicked()
+    {
+        if (_currentMarket != null)
+        {
+            if (_currentMarket.TryHireMercenary())
+            {
+                UpdateMercenaryUI();
+            }
+        }
+    }
+
+    private void UpdateMercenaryUI()
+    {
+        if (_currentMarket == null) return;
+
+        if (_mercenaryStatusText != null)
+        {
+            if (_currentMarket.isNeutral)
+            {
+                _mercenaryStatusText.text = $"Vệ sĩ: {_currentMarket.HiredGuardCount}/{_currentMarket.MaxMercenaries} ({_currentMarket.MercenaryCost} Vàng)";
+            }
+            else
+            {
+                _mercenaryStatusText.text = "";
+            }
+        }
+
+        if (_hireMercenaryButton != null)
+        {
+            _hireMercenaryButton.gameObject.SetActive(_currentMarket.isNeutral);
+            bool hasSpace = _currentMarket.HiredGuardCount < _currentMarket.MaxMercenaries;
+            bool canAfford = ResourceManager.Instance != null && ResourceManager.Instance.GetResourceAmount(ResourceType.Gold) >= _currentMarket.MercenaryCost;
+            _hireMercenaryButton.interactable = hasSpace && canAfford;
+        }
     }
 
     private Coroutine _activeTransition;
@@ -118,6 +167,11 @@ public class MarketUIController : MonoBehaviour
     private void SetPanelActive(bool active)
     {
         if (_panelRoot == null) return;
+
+        if (active)
+        {
+            _panelRoot.SetActive(true);
+        }
 
         if (_activeTransition != null)
         {

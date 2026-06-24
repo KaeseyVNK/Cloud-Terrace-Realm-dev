@@ -22,6 +22,37 @@ public class MarketController : MonoBehaviour
     [Tooltip("Prefab của dân làng/xe chở hàng dùng để đi giao thương ban đêm")]
     [SerializeField] private GameObject _caravanPrefab;
 
+    [Header("Mercenary Settings")]
+    [Tooltip("Prefab lính đánh thuê hộ tống (ví dụ: Militia hoặc Shield Knight)")]
+    [SerializeField] private GameObject _mercenaryPrefab;
+    [Tooltip("Chi phí thuê 1 lính đánh thuê")]
+    [SerializeField] private int _mercenaryCost = 100;
+    [Tooltip("Số lượng lính tối đa có thể thuê hộ tống mỗi đêm")]
+    [SerializeField] private int _maxMercenaries = 2;
+
+    private int _hiredGuardCount = 0;
+    public int HiredGuardCount => _hiredGuardCount;
+    public int MercenaryCost => _mercenaryCost;
+    public int MaxMercenaries => _maxMercenaries;
+
+    public bool TryHireMercenary()
+    {
+        if (_hiredGuardCount >= _maxMercenaries)
+        {
+            Debug.LogWarning("[Market] Đã đạt giới hạn thuê lính hộ tống tối đa!");
+            return false;
+        }
+
+        if (ResourceManager.Instance != null && ResourceManager.Instance.TryConsumeResource(ResourceType.Gold, _mercenaryCost))
+        {
+            _hiredGuardCount++;
+            Debug.Log($"[Market] Thuê thành công 1 Lính Hộ Tống! Số lượng hiện tại: {_hiredGuardCount}/{_maxMercenaries}");
+            return true;
+        }
+
+        return false;
+    }
+
     // Giá hiện tại của các tài nguyên tại chợ này
     private Dictionary<ResourceType, float> _currentPrices = new Dictionary<ResourceType, float>();
     public Dictionary<ResourceType, float> CurrentPrices => _currentPrices;
@@ -321,6 +352,25 @@ public class MarketController : MonoBehaviour
         // Thêm TradeCaravanController
         TradeCaravanController caravan = caravanObj.AddComponent<TradeCaravanController>();
         caravan.Initialize(type, amount, destination);
+
+        // Sinh lính hộ tống nếu có thuê trước đó
+        if (isNeutral && _hiredGuardCount > 0 && _mercenaryPrefab != null)
+        {
+            int guardsToSpawn = _hiredGuardCount;
+            _hiredGuardCount = 0; // Reset số lượng lính sau khi đã cho xuất phát
+            
+            for (int i = 0; i < guardsToSpawn; i++)
+            {
+                Vector3 guardSpawnPos = spawnPos + new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), 0f, UnityEngine.Random.Range(-1.5f, 1.5f));
+                GameObject guardObj = Instantiate(_mercenaryPrefab, guardSpawnPos, Quaternion.identity);
+                if (guardObj != null)
+                {
+                    guardObj.name = $"MercenaryGuard_{i + 1}";
+                    var guardScript = guardObj.AddComponent<MercenaryGuard>();
+                    guardScript.Initialize(caravanObj.transform);
+                }
+            }
+        }
 
         // Vô hiệu hóa các script quản lý dân làng thông thường để tránh người chơi điều khiển
         VillagerController vc = caravanObj.GetComponent<VillagerController>();
