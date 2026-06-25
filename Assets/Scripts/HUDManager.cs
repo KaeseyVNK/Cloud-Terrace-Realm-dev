@@ -444,19 +444,19 @@ public class HUDManager : MonoBehaviour
             float elapsed = 0f;
             while (elapsed < 0.2f)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 rect.localScale = Vector3.Lerp(Vector3.one * 0.8f, Vector3.one, elapsed / 0.2f);
                 yield return null;
             }
             rect.localScale = Vector3.one;
 
-            yield return new WaitForSeconds(duration);
+            yield return new WaitForSecondsRealtime(duration);
 
             // Hiệu ứng mờ dần (Fade out)
             elapsed = 0f;
             while (elapsed < 0.5f)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 _bloodMoonBannerText.alpha = Mathf.Lerp(1f, 0f, elapsed / 0.5f);
                 yield return null;
             }

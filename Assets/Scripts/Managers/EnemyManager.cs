@@ -887,7 +887,7 @@ public class EnemyManager : MonoBehaviour
         return successfulSpawns;
     }
 
-    private void GetEnemyStatMultipliers(int nightNumber, out float healthMultiplier, out float damageMultiplier, out float speedMultiplier)
+    public void GetEnemyStatMultipliers(int nightNumber, out float healthMultiplier, out float damageMultiplier, out float speedMultiplier)
     {
         EnsureStatsScaler();
         WeatherState weather = WeatherManager.Instance != null ? WeatherManager.Instance.CurrentWeather : WeatherState.Clear;
@@ -944,6 +944,36 @@ public class EnemyManager : MonoBehaviour
             _avoidRepeatingSpawnEdge,
             out centerSpawnPos,
             out edgeName);
+    }
+
+    public GameObject GetEnemyPrefabByName(string name)
+    {
+        if (_enemyPrefab != null && _enemyPrefab.name == name) return _enemyPrefab;
+        if (_enemyArcherPrefab != null && _enemyArcherPrefab.name == name) return _enemyArcherPrefab;
+
+        if (_enemyRoster != null)
+        {
+            foreach (var entry in _enemyRoster)
+            {
+                if (entry.prefab != null && entry.prefab.name == name)
+                {
+                    return entry.prefab;
+                }
+            }
+        }
+
+        if (_enemyRosterData != null && _enemyRosterData.roster != null)
+        {
+            foreach (var entry in _enemyRosterData.roster)
+            {
+                if (entry.prefab != null && entry.prefab.name == name)
+                {
+                    return entry.prefab;
+                }
+            }
+        }
+
+        return null;
     }
 
     private void CleanupActiveEnemies()

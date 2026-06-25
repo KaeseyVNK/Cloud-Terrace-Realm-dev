@@ -68,6 +68,20 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject _deerPrefab;
     [SerializeField] private GameObject _foodPrefab;
 
+    [Header("Ancient Ruins Settings")]
+    [SerializeField] private GameObject[] _ancientRuinsPrefabs;
+
+    [Header("Map Event Settings")]
+    [SerializeField] private GameObject _rewardKnightPrefab;
+    [SerializeField] private GameObject _rewardArcherPrefab;
+    [SerializeField] private GameObject _voidPortalPrefab;
+    [SerializeField] private GameObject _merchantCaravanPrefab;
+
+    public GameObject RewardKnightPrefab => _rewardKnightPrefab;
+    public GameObject RewardArcherPrefab => _rewardArcherPrefab;
+    public GameObject VoidPortalPrefab => _voidPortalPrefab;
+    public GameObject MerchantCaravanPrefab => _merchantCaravanPrefab;
+
     void Awake()
     {
         if (s_instance == null)
@@ -98,6 +112,22 @@ public class GameManager : MonoBehaviour
         {
             cursorManager = gameObject.AddComponent<CursorManager>();
         }
+
+        // Dynamically setup AncientRuinsSpawner
+        AncientRuinsSpawner ruinsSpawner = gameObject.GetComponent<AncientRuinsSpawner>();
+        if (ruinsSpawner == null)
+        {
+            ruinsSpawner = gameObject.AddComponent<AncientRuinsSpawner>();
+        }
+        ruinsSpawner.SetPrefabs(_ancientRuinsPrefabs);
+
+        // Dynamically setup MapEventManager
+        MapEventManager eventManager = gameObject.GetComponent<MapEventManager>();
+        if (eventManager == null)
+        {
+            eventManager = gameObject.AddComponent<MapEventManager>();
+        }
+        eventManager.SetupPrefabs(_voidPortalPrefab, _merchantCaravanPrefab);
     }
 
     void Start()
@@ -161,6 +191,36 @@ public class GameManager : MonoBehaviour
         {
             _foodPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/ResourceCaple/Food.prefab");
         }
+
+        if (_ancientRuinsPrefabs == null || _ancientRuinsPrefabs.Length == 0)
+        {
+            _ancientRuinsPrefabs = new GameObject[]
+            {
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/AncientRuins_Rock1.prefab"),
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/AncientRuins_Rock2.prefab"),
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/AncientRuins_Rock3.prefab"),
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/AncientRuins_Rock4.prefab"),
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/AncientRuins_Shell.prefab"),
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/RuinsSword.prefab")
+            };
+        }
+
+        if (_rewardKnightPrefab == null)
+        {
+            _rewardKnightPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Unit/Player/Knight.prefab");
+        }
+        if (_rewardArcherPrefab == null)
+        {
+            _rewardArcherPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Unit/Player/PlayerArcher.prefab");
+        }
+        if (_voidPortalPrefab == null)
+        {
+            _voidPortalPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/VoidPortalPrefab.prefab");
+        }
+        if (_merchantCaravanPrefab == null)
+        {
+            _merchantCaravanPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Event/MerchantCaravan.prefab");
+        }
     }
 #endif
 
@@ -194,6 +254,12 @@ public class GameManager : MonoBehaviour
 
         // Spawn chợ trung lập ngẫu nhiên
         SpawnNeutralMarkets();
+
+        // Spawn phế tích cổ ngẫu nhiên khởi tạo
+        if (AncientRuinsSpawner.Instance != null)
+        {
+            AncientRuinsSpawner.Instance.SpawnInitialRuins();
+        }
     }
 
     private void SpawnNeutralMarkets()
@@ -312,6 +378,22 @@ public class GameManager : MonoBehaviour
                     spawnedCount++;
                 }
             }
+        }
+    }
+
+    public void AddVillager(Vector3 position)
+    {
+        if (_villagerPrefab != null)
+        {
+            GameObject villagerObj = Instantiate(_villagerPrefab, position, Quaternion.identity);
+            if (villagerObj != null)
+            {
+                villagerObj.transform.SetParent(VillagersContainer);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] Villager prefab is null!");
         }
     }
 

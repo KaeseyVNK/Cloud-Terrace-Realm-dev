@@ -770,7 +770,6 @@ GameObject:
   - component: {fileID: 7430457049007417235}
   - component: {fileID: 8824806831706104645}
   - component: {fileID: 3065228670912742657}
-  - component: {fileID: 6864289436128823353}
   - component: {fileID: 5046667633422415988}
   m_Layer: 8
   m_Name: Skeleton_Mage
@@ -897,20 +896,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 0
---- !u!114 &6864289436128823353
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4124591595950808763}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0a5fa899fff48ac4fbe74c24c58ba761, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VisionSource
-  visionRadius: 12
-  revealWhileInactive: 0
 --- !u!114 &5046667633422415988
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -707,15 +707,24 @@ public class WorldSpaceOverlayManager : MonoBehaviour
 
             bool isMainBuilding = combat is MainBuildingCombatTarget;
             bool isBuilding = combat is BuildingCombatTarget;
+            bool isPortal = combat is VoidPortal;
 
-            if (isMainBuilding || isBuilding)
+            if (isMainBuilding || isBuilding || isPortal)
             {
                 bool isSelected = IsBuildingSelected(combat);
                 bool isDamaged = combat.currentHealth < combat.maxHealth;
 
-                if (isSelected || isDamaged)
+                // Để cho Cổng Hư Không (Void Portal) luôn hiển thị thanh máu khi người chơi phát hiện ra nó trong sương mù
+                bool isVisible = true;
+                var visibility = combat.GetComponent<FogVisibilityTarget>();
+                if (visibility != null)
                 {
-                    DrawBuildingHealthBarUGUI(combat, isSelected);
+                    isVisible = visibility.IsVisible;
+                }
+
+                if (isVisible && (isSelected || isDamaged || isPortal))
+                {
+                    DrawBuildingHealthBarUGUI(combat, isSelected || isPortal);
                 }
             }
         }

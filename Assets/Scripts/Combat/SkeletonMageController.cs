@@ -40,6 +40,9 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
     private bool restoreRigidbodyKinematic;
     private bool restoreRigidbodyGravity;
     private RigidbodyConstraints restoreRigidbodyConstraints;
+    // Cooldown chống kite loop khi bị block bởi NavMesh obstacle
+    private float _nextKiteAllowedTime = 0f;
+    private const float KiteCooldown = 0.8f;
 
     public bool IsSummonMovementLocked => summonLockActive || isSummoning;
 
@@ -89,7 +92,11 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
         if (isStunned)
         {
-            isKiting = false;
+            if (isKiting)
+            {
+                isKiting = false;
+                ClearCurrentTargetAndIdle();
+            }
             base.Update();
             return;
         }
@@ -106,20 +113,28 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
             if (HasFinishedKiting())
             {
                 isKiting = false;
+                _nextKiteAllowedTime = Time.time + KiteCooldown;
                 if (currentTarget != null && currentTarget.currentState != CombatState.Dead && currentTarget.gameObject.activeInHierarchy)
                 {
                     AttackTarget(currentTarget);
                 }
+                else
+                {
+                    ClearCurrentTargetAndIdle();
+                }
+                // Sau khi kết thúc kite, gọi base.Update() để state machine chạy ngay frame này
+                base.Update();
             }
             else
             {
                 UpdateAvoidancePriority();
                 UpdateAnimationState();
-                return;
             }
+            return;
         }
 
-        if (!isKiting && kiteMeleeThreats && (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
+        if (!isKiting && kiteMeleeThreats && Time.time >= _nextKiteAllowedTime &&
+            (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
         {
             if (TryKiteMeleeThreat())
             {
@@ -127,7 +142,8 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
             }
         }
 
-        if (!isStunned && Time.time >= nextSummonTime && CanStartSummon())
+        if (!isStunned && Time.time >= nextSummonTime && CanStartSummon() &&
+            (currentState == CombatState.Chasing || currentState == CombatState.Attacking))
         {
             summonCoroutine = StartCoroutine(SummonRoutine());
             return;
@@ -274,10 +290,24 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
     private bool HasFinishedKiting()
     {
-        return navAgent == null
-            || !navAgent.enabled
-            || (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
-            || (navAgent.velocity.sqrMagnitude <= 0.01f && !navAgent.pathPending);
+        if (navAgent == null || !navAgent.enabled)
+        {
+            return true;
+        }
+
+        // Xong khi đã tới gần đích
+        if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance + 0.05f)
+        {
+            return true;
+        }
+
+        // Xong khi không có path hợp lệ (bị block hoàn toàn bởi NavMesh)
+        if (!navAgent.pathPending && !navAgent.hasPath)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private void SpawnSummonGroup()

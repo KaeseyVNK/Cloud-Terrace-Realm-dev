@@ -68,6 +68,41 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     private Vector3 _rallyPosition;
     private bool _isRetreating = false;
     private float _retreatTimer = 0f;
+
+    [Header("Behavior Settings")]
+    [Tooltip("Cho phép quái bỏ chạy về nơi xuất phát khi gần hết máu")]
+    [SerializeField] private bool _canRetreat = true;
+
+    public bool CanRetreat
+    {
+        get => _canRetreat;
+        set => _canRetreat = value;
+    }
+
+    [Header("Guard Settings")]
+    [Tooltip("Nếu true, quái sẽ canh gác tại chỗ (ở spawn) chứ không hành quân tấn công nhà người chơi")]
+    [SerializeField] private bool _isGuard = false;
+
+    [Tooltip("Bán kính tuần tra/đi dạo xung quanh điểm spawn khi rảnh")]
+    [SerializeField] private float _guardPatrolRadius = 4f;
+
+    public bool IsGuard
+    {
+        get => _isGuard;
+        set => _isGuard = value;
+    }
+
+    public float GuardPatrolRadius
+    {
+        get => _guardPatrolRadius;
+        set => _guardPatrolRadius = value;
+    }
+
+    public float GuardLeashRange
+    {
+        get => maxAutoChaseDistance;
+        set => maxAutoChaseDistance = value;
+    }
     private Vector3 _spawnPosition;
     private float _appliedSpeedMultiplier = 1f;
     public override int TargetPriorityPenalty => _isRetreating ? 100 : 0;
@@ -85,6 +120,9 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     protected override void Start()
     {
         returnToPoolOnDeath = true;
+        // Ghi nhớ vị trí spawn ngay khi đối tượng được tạo bằng Instantiate().
+        // OnSpawnedFromPool() cũng set giá trị này khi tái sử dụng từ pool.
+        _spawnPosition = transform.position;
         base.Start();
     }
 
@@ -264,7 +302,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         }
 
         // 1. Retreat Check
-        if (currentHealth < maxHealth * 0.25f && !_isRetreating)
+        if (_canRetreat && currentHealth < maxHealth * 0.25f && !_isRetreating)
         {
             int playerUnitsCount = 0;
             int alliedUnitsCount = 0;
@@ -347,6 +385,43 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                     navAgent.isStopped = false;
                     navAgent.SetDestination(_rallyPosition);
                     ChangeState(CombatState.Moving);
+                }
+            }
+            return;
+        }
+
+        // 2.5. Nếu là quái vật canh gác (Guard) -> Tuần tra hoặc giữ vị trí gần điểm spawn
+        if (_isGuard)
+        {
+            float distToSpawn = Vector3.Distance(transform.position, _spawnPosition);
+            if (distToSpawn > 2f)
+            {
+                if (navAgent != null && navAgent.enabled && navAgent.destination != _spawnPosition)
+                {
+                    navAgent.isStopped = false;
+                    navAgent.stoppingDistance = 0.2f;
+                    navAgent.SetDestination(_spawnPosition);
+                    ChangeState(CombatState.Moving);
+                }
+            }
+            else
+            {
+                _repathTimer += Time.deltaTime;
+                if (_repathTimer >= Random.Range(4f, 8f))
+                {
+                    _repathTimer = 0f;
+                    if (navAgent != null && navAgent.enabled && !navAgent.hasPath)
+                    {
+                        Vector2 randCircle = Random.insideUnitCircle * _guardPatrolRadius;
+                        Vector3 dest = _spawnPosition + new Vector3(randCircle.x, 0f, randCircle.y);
+                        if (UnityEngine.AI.NavMesh.SamplePosition(dest, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                        {
+                            navAgent.stoppingDistance = 0.2f;
+                            navAgent.isStopped = false;
+                            navAgent.SetDestination(hit.position);
+                            ChangeState(CombatState.Moving);
+                        }
+                    }
                 }
             }
             return;
@@ -521,7 +596,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             if (col == null) continue;
 
             BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit != null && unit.currentState != CombatState.Dead && unit.faction != this.faction)
+            if (unit != null && unit.currentState != CombatState.Dead && unit.faction == UnitFaction.Player)
             {
                 int priority = GetTargetPriority(unit);
                 float dist = GetDistanceToTarget(unit);

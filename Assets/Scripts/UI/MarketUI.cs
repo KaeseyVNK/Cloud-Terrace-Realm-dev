@@ -51,6 +51,13 @@ public class MarketUI : MonoBehaviour
             {
                 if (TryGetMarketFromHit(hit, out MarketController mc, out GameObject clickedBuilding))
                 {
+                    // Kiểm tra sương mù (Fog of War) - Nếu chợ đang bị ẩn trong sương mù thì không cho chọn
+                    FogVisibilityTarget visibilityTarget = clickedBuilding.GetComponentInParent<FogVisibilityTarget>();
+                    if (visibilityTarget != null && !visibilityTarget.IsVisible)
+                    {
+                        return; // Bị ẩn trong sương mù, bỏ qua không chọn
+                    }
+
                     ConstructibleBuilding cb = clickedBuilding.GetComponent<ConstructibleBuilding>();
                     if (cb != null && !cb.IsCompleted)
                     {

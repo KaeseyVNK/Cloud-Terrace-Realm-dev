@@ -71,6 +71,12 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     private float knockupRecoveryUntil;
     private float movingAnimationHoldUntil;
     private float _nextChaseRepathTime = 0f;
+    // Watchdog: đếm thời gian unit đang ở Moving state nhưng velocity ≈ 0 (bị kẹt)
+    private float _movingStuckTimer = 0f;
+    private const float MovingStuckTimeout = 2.0f; // Giây trước khi tự chuyển về Idle
+    // Watchdog: đếm thời gian unit bị kẹt trong Chasing state (velocity≈0, không tìm được enemy thay thế)
+    private float _chasingStuckTimer = 0f;
+    private const float ChasingStuckTimeout = 3.0f; // Giây trước khi bỏ mục tiêu và về Idle
 
     // Cache tĩnh dùng chung cho các hàm Physics.OverlapSphereNonAlloc
     protected static readonly Collider[] s_overlapCache = new Collider[256];
@@ -81,6 +87,9 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected int baseMaxHealth = -1;
     protected int baseAttackDamage = -1;
     protected float baseSpeed = -1f;
+
+    // Cache component FogVisibilityTarget phục vụ cho AI Culling tối ưu hiệu năng
+    private FogVisibilityTarget _fogVisibility;
 
     protected void InitializeBaseStatsIfNeeded()
     {
@@ -178,6 +187,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             }
         }
 
+        _fogVisibility = GetComponent<FogVisibilityTarget>();
+
         // Tự động gắn đèn cho unit của người chơi (Sử dụng Fake Light vòng sáng tối ưu hiệu năng)
         if (faction == UnitFaction.Player && 
             GetComponent<ConstructibleBuilding>() == null && 
@@ -272,6 +283,28 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected virtual void Update()
     {
         if (currentState == CombatState.Dead) return;
+
+        // Tối ưu hóa hiệu năng (AI Culling): Đóng băng hoạt động của quái canh gác khi nằm ngoài tầm nhìn (sương mù)
+        if (faction != UnitFaction.Player && _fogVisibility != null && !_fogVisibility.IsVisible)
+        {
+            if (this is EnemyUnitController enemy && enemy.IsGuard && currentState != CombatState.Chasing && currentState != CombatState.Attacking)
+            {
+                if (navAgent != null && navAgent.enabled && !navAgent.isStopped)
+                {
+                    navAgent.isStopped = true;
+                }
+                return; // Bỏ qua toàn bộ Update logic
+            }
+        }
+        else
+        {
+            // Khi hiển thị trở lại, khôi phục di chuyển nếu trước đó bị đóng băng
+            if (navAgent != null && navAgent.enabled && navAgent.isStopped && currentState == CombatState.Moving)
+            {
+                navAgent.isStopped = false;
+            }
+        }
+
         if (isStunned) return;
 
         if (IsKnockupActive())
@@ -338,13 +371,41 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             }
         }
 
+        // Điều kiện kết thúc di chuyển bình thường
         if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
         {
             if (!navAgent.hasPath || navAgent.velocity.sqrMagnitude == 0f)
             {
                 isManualMoveCommand = false;
+                _movingStuckTimer = 0f;
+                ChangeState(CombatState.Idle);
+                return;
+            }
+        }
+
+        // Watchdog: phát hiện unit bị kẹt (có path nhưng velocity ≈ 0 quá lâu)
+        // Xảy ra khi path bị cắt (PathPartial), NavMesh obstacle chắn hoàn toàn, v.v.
+        bool agentIsStuck = navAgent.hasPath
+            && !navAgent.pathPending
+            && navAgent.velocity.sqrMagnitude < 0.01f
+            && navAgent.remainingDistance > navAgent.stoppingDistance + 0.1f;
+
+        if (agentIsStuck)
+        {
+            _movingStuckTimer += Time.deltaTime;
+            if (_movingStuckTimer >= MovingStuckTimeout)
+            {
+                // Bị kẹt quá lâu → dừng di chuyển và về Idle để tránh animation running kẹt
+                isManualMoveCommand = false;
+                _movingStuckTimer = 0f;
+                navAgent.isStopped = true;
+                navAgent.ResetPath();
                 ChangeState(CombatState.Idle);
             }
+        }
+        else
+        {
+            _movingStuckTimer = 0f;
         }
     }
 
@@ -472,20 +533,30 @@ public abstract class BaseCombatUnitController : MonoBehaviour
                 if (navAgent.velocity.sqrMagnitude < 0.05f && navAgent.hasPath)
                 {
                     blockedTimer += Time.deltaTime;
+                    _chasingStuckTimer += Time.deltaTime;
+
                     if (blockedTimer > 1.5f) // Bị kẹt quá 1.5 giây
                     {
+                        blockedTimer = 0f;
                         // Tìm một kẻ địch khác gần nhất để đánh thay thế
                         BaseCombatUnitController alternativeEnemy = ScanForNearestEnemy();
                         if (alternativeEnemy != null && alternativeEnemy != currentTarget)
                         {
+                            _chasingStuckTimer = 0f;
                             AttackTarget(alternativeEnemy);
-                            blockedTimer = 0f;
+                        }
+                        else if (_chasingStuckTimer >= ChasingStuckTimeout)
+                        {
+                            // Không tìm được enemy thay thế sau nhiều lần thử → bỏ mục tiêu, về Idle
+                            _chasingStuckTimer = 0f;
+                            ClearCurrentTargetAndIdle();
                         }
                     }
                 }
                 else
                 {
                     blockedTimer = 0f;
+                    _chasingStuckTimer = 0f;
                 }
             }
         }
@@ -914,7 +985,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
                 }
                 else if (this.faction == UnitFaction.Enemy)
                 {
-                    isHostile = (unit.faction == UnitFaction.Player || unit.faction == UnitFaction.Neutral);
+                    isHostile = (unit.faction == UnitFaction.Player);
                 }
 
                 if (isHostile)
@@ -1037,7 +1108,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         }
         else if (this.faction == UnitFaction.Enemy)
         {
-            isHostile = (target.faction == UnitFaction.Player || target.faction == UnitFaction.Neutral);
+            isHostile = (target.faction == UnitFaction.Player);
         }
 
         if (!isHostile)
@@ -1062,6 +1133,14 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         if (currentState == CombatState.Moving || currentState == CombatState.Chasing)
         {
             movingAnimationHoldUntil = Time.time + Mathf.Max(0f, movingAnimationHoldTime);
+            _movingStuckTimer = 0f;
+            _chasingStuckTimer = 0f;
+        }
+        else if (currentState == CombatState.Idle || currentState == CombatState.Attacking || currentState == CombatState.Dead)
+        {
+            // Reset timer animation để animation ngừng ngay khi chuyển về trạng thái không di chuyển
+            movingAnimationHoldUntil = 0f;
+            _movingStuckTimer = 0f;
         }
 
         if (IsNavAgentReady())
@@ -1109,6 +1188,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     {
         if (currentState == CombatState.Chasing)
         {
+            // Nếu đang Chasing nhưng velocity ≈0 quá lâu (đang bị kẹt) → không phát animation running
+            if (IsNavAgentReady() && navAgent.velocity.sqrMagnitude < 0.01f && _chasingStuckTimer > 0.5f)
+            {
+                return false;
+            }
             movingAnimationHoldUntil = Time.time + Mathf.Max(0f, movingAnimationHoldTime);
             return true;
         }

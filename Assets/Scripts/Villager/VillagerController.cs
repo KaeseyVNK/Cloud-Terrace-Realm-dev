@@ -127,6 +127,7 @@ public class VillagerController : MonoBehaviour
     private WildAnimalController _huntTarget;
     private bool _wasFarmingWildAnimals = false;
     private RiceField _targetRiceField;
+    private AncientRuins _targetRuins;
 
     private int _pathRetryCount = 0;
     private float _stuckTimer = 0f;
@@ -397,6 +398,19 @@ public class VillagerController : MonoBehaviour
     public void ClearAssignedGarrison()
     {
         _assignedGarrison = null;
+    }
+
+    /// <summary>
+    /// Giải phóng dân làng khỏi phế tích cổ sau khi khai quật xong hoặc chuyển mục tiêu.
+    /// </summary>
+    public void ClearAssignedRuins()
+    {
+        if (_targetRuins != null)
+        {
+            _targetRuins.UnassignVillager(this);
+            _targetRuins = null;
+        }
+        ChangeState(VillagerState.Idle);
     }
 
     private void CancelAssignedGarrison()
@@ -990,6 +1004,14 @@ public class VillagerController : MonoBehaviour
             return;
         }
 
+        if (_targetRuins != null)
+        {
+            _pathRetryCount = 0;
+            _gatherTimer = 0f;
+            ChangeState(VillagerState.Gathering);
+            return;
+        }
+
         if (_huntTarget != null)
         {
             _pathRetryCount = 0;
@@ -1337,6 +1359,42 @@ public class VillagerController : MonoBehaviour
                     BaseCombatUnitController combatCtrl = GetComponent<VillagerCombatTarget>();
                     _huntTarget.TakeDamage(_huntDamage, combatCtrl);
                 }
+            }
+            return;
+        }
+
+        if (_targetRuins != null)
+        {
+            float distToRuins = Vector3.Distance(transform.position, _targetRuins.transform.position);
+            if (distToRuins > 4.5f)
+            {
+                if (SetPathToTarget(GetExplorePosition(_targetRuins)))
+                {
+                    ChangeState(VillagerState.Moving);
+                }
+                else
+                {
+                    ChangeState(VillagerState.Idle);
+                }
+                return;
+            }
+
+            UpdateAnimationState();
+            UpdateActiveTools();
+
+            Vector3 dirToRuins = (_targetRuins.transform.position - transform.position).normalized;
+            dirToRuins.y = 0;
+            if (dirToRuins.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(dirToRuins);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 5f);
+            }
+
+            if (_targetRuins.IsExplored)
+            {
+                _targetRuins.UnassignVillager(this);
+                _targetRuins = null;
+                ChangeState(VillagerState.Idle);
             }
             return;
         }
@@ -2193,6 +2251,50 @@ public class VillagerController : MonoBehaviour
     #region RTS Command Interface
 
     /// <summary>
+    /// Cử dân làng đi khai quật Phế Tích Cổ.
+    /// </summary>
+    public void CommandExplore(AncientRuins ruins)
+    {
+        if (ruins == null || !ruins.IsCleared || ruins.IsExplored) return;
+
+        _overrideShelter = true;
+        CancelAssignedGarrison();
+        if (_assignedShelter != null)
+        {
+            _assignedShelter.CancelReservation(this);
+            _assignedShelter = null;
+        }
+
+        _autoGatherBuildingAfterDeposit = null;
+        _pathRetryCount = 0;
+        ReleaseReservedSlot();
+
+        TargetBuilding = null;
+        _currentJob = null;
+        _repairTarget = null;
+        _huntTarget = null;
+        _targetRiceField = null;
+        _isManualMove = false;
+
+        if (_targetRuins != null && _targetRuins != ruins)
+        {
+            _targetRuins.UnassignVillager(this);
+        }
+
+        _targetRuins = ruins;
+        _targetRuins.AssignVillager(this);
+
+        if (SetPathToTarget(GetExplorePosition(_targetRuins)))
+        {
+            ChangeState(VillagerState.Moving);
+        }
+        else
+        {
+            ChangeState(VillagerState.Idle);
+        }
+    }
+
+    /// <summary>
     /// Cưỡng chế dân di chuyển đến một tọa độ tự do.
     /// </summary>
     public void CommandMoveTo(Vector3 destination)
@@ -2653,6 +2755,22 @@ public class VillagerController : MonoBehaviour
     }
 
     /// <summary>
+    /// Tính vị trí đứng nghiên cứu phế tích trên NavMesh.
+    /// </summary>
+    private Vector3 GetExplorePosition(AncientRuins ruins)
+    {
+        if (ruins == null) return transform.position;
+        Vector3 dir = (transform.position - ruins.transform.position).normalized;
+        if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
+        Vector3 targetPos = ruins.transform.position + dir * 3.2f;
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+        {
+            return hit.position;
+        }
+        return ruins.transform.position;
+    }
+
+    /// <summary>
     /// Giải phóng slot đứng khai thác hiện tại nếu đang giữ.
     /// </summary>
     public void ReleaseReservedSlot()
@@ -2661,6 +2779,12 @@ public class VillagerController : MonoBehaviour
         {
             _reservedNode.ReleaseSlot(GetHashCode());
             _reservedNode = null;
+        }
+
+        if (_targetRuins != null)
+        {
+            _targetRuins.UnassignVillager(this);
+            _targetRuins = null;
         }
     }
 
@@ -2704,6 +2828,12 @@ public class VillagerController : MonoBehaviour
             {
                 if (_miningTool != null) _miningTool.SetActive(true);
             }
+        }
+
+        if (_targetRuins != null && (_currentState == VillagerState.Gathering || (_currentState == VillagerState.Moving && GetTotalCarryAmount() == 0)))
+        {
+            if (_diggingTool != null) _diggingTool.SetActive(true);
+            else if (_miningTool != null) _miningTool.SetActive(true);
         }
 
         if (_huntTarget != null)
@@ -2790,6 +2920,10 @@ public class VillagerController : MonoBehaviour
             if (isBuildingState || _repairTarget != null)
             {
                 typeVal = 3; // Xây dựng / Sửa chữa
+            }
+            else if (_targetRuins != null)
+            {
+                typeVal = 4; // Khai quật (Đào đất)
             }
             else if (_currentState == VillagerState.Gathering || _currentState == VillagerState.Moving)
             {

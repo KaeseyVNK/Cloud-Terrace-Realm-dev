@@ -29,10 +29,33 @@ public class VoidPortal : BaseCombatUnitController
         if (currentState == CombatState.Dead) return;
     }
 
+    private System.Collections.Generic.List<GridCell> _occupiedCells = new System.Collections.Generic.List<GridCell>();
+
+    public void SetOccupiedCells(System.Collections.Generic.List<GridCell> cells)
+    {
+        _occupiedCells = cells;
+    }
+
     protected override void OnDeath()
     {
         Debug.Log("[VoidPortal] Cổng Hư Vô đã bị tiêu diệt! Kích hoạt chọn thẻ nâng cấp.");
         
+        // Giải phóng các ô lưới đã bị chiếm dụng trên bản đồ để có thể xây dựng lại
+        if (_occupiedCells != null && _occupiedCells.Count > 0)
+        {
+            for (int i = 0; i < _occupiedCells.Count; i++)
+            {
+                var cell = _occupiedCells[i];
+                if (cell != null)
+                {
+                    cell.isBuildable = true;
+                    cell.isWalkable = true;
+                    cell.hasResource = false;
+                    cell.resourceObject = null;
+                }
+            }
+        }
+
         if (CardManager.Instance != null)
         {
             CardManager.Instance.TriggerCardDraft();

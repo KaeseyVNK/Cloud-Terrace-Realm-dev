@@ -602,6 +602,11 @@ public class UnitSelectionManager : MonoBehaviour
             }
 
             RiceField clickedRiceField = hit.collider.GetComponentInParent<RiceField>();
+            AncientRuins clickedRuins = hit.collider.GetComponentInParent<AncientRuins>();
+            if (clickedRuins != null && IsHiddenByFog(clickedRuins.gameObject))
+            {
+                clickedRuins = null;
+            }
             
             // 3. Kiểm tra dự phòng xem click vào ô đất có tài nguyên không
             GridSystem grid = FindAnyObjectByType<GridSystem>();
@@ -647,6 +652,12 @@ public class UnitSelectionManager : MonoBehaviour
                 // Click vào công trình xây dựng -> Indicator màu xanh lá cây
                 MyGame.UI.MoveIndicator.Spawn(clickedBuilding.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
             }
+            else if (clickedRuins != null)
+            {
+                // Click vào phế tích -> Indicator màu xanh lá cây hoặc đỏ tùy vào trạng thái dọn dẹp
+                Color col = clickedRuins.IsCleared ? new Color(0.2f, 0.8f, 0.2f, 1.0f) : Color.red;
+                MyGame.UI.MoveIndicator.Spawn(clickedRuins.transform.position, Vector3.up, col, 1.4f, 0.4f);
+            }
             else if (clickedRiceField != null)
             {
                 // Click vào ruộng lúa -> Indicator màu xanh lá cây tại tâm ruộng lúa
@@ -686,6 +697,25 @@ public class UnitSelectionManager : MonoBehaviour
 
                     if (villager != null)
                     {
+                        // A.0. Ưu tiên 0: Click vào Phế Tích Cổ để khai quật
+                        if (clickedRuins != null)
+                        {
+                            if (!clickedRuins.IsCleared)
+                            {
+                                Debug.LogWarning("[RTS] Phế tích đang bị quái vật canh giữ! Hãy tiêu diệt chúng trước.");
+                            }
+                            else if (clickedRuins.IsExplored)
+                            {
+                                Debug.Log("[RTS] Phế tích này đã được khai quật xong.");
+                            }
+                            else
+                            {
+                                villager.CommandExplore(clickedRuins);
+                                Debug.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi khai quật phế tích.");
+                            }
+                            continue;
+                        }
+
                         // A. Ưu tiên 1: Click vào công trình đang xây dựng dở dang -> Đi xây
                         if (clickedBuilding != null && !clickedBuilding.IsCompleted)
                         {
@@ -794,7 +824,8 @@ public class UnitSelectionManager : MonoBehaviour
             bool isInteractable = col.GetComponentInParent<BaseCombatUnitController>() != null ||
                                   col.GetComponentInParent<ResourceNode>() != null ||
                                   col.GetComponentInParent<ConstructibleBuilding>() != null ||
-                                  col.GetComponentInParent<WatchTowerGarrison>() != null;
+                                  col.GetComponentInParent<WatchTowerGarrison>() != null ||
+                                  col.GetComponentInParent<AncientRuins>() != null;
 
             if (isInteractable)
             {
