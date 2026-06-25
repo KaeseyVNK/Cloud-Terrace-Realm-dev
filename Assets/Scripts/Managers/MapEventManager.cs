@@ -106,6 +106,22 @@ public class MapEventManager : MonoBehaviour
         StartCoroutine(EventUpdateCycleRoutine());
     }
 
+    private void Update()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (Input.GetKeyDown(KeyCode.Alpha8))
+        {
+            Debug.Log("[MapEventManager] Debug Trigger: Spawning Void Portal Event!");
+            SpawnVoidPortalEvent();
+        }
+        if (Input.GetKeyDown(KeyCode.Alpha9))
+        {
+            Debug.Log("[MapEventManager] Debug Trigger: Spawning Merchant Escort Event!");
+            SpawnMerchantEscortEvent();
+        }
+#endif
+    }
+
     private void OnDestroy()
     {
         if (TimeManager.Instance != null)
