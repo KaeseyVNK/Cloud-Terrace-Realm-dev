@@ -976,6 +976,42 @@ public class EnemyManager : MonoBehaviour
         return null;
     }
 
+    public List<GameObject> GetUnlockedEnemyPrefabs(int night)
+    {
+        List<GameObject> unlocked = new List<GameObject>();
+
+        if (_enemyRosterData != null && _enemyRosterData.roster != null)
+        {
+            foreach (var entry in _enemyRosterData.roster)
+            {
+                if (entry.prefab != null && night >= entry.unlockDay && !unlocked.Contains(entry.prefab))
+                {
+                    unlocked.Add(entry.prefab);
+                }
+            }
+        }
+
+        if (_enemyRoster != null)
+        {
+            foreach (var entry in _enemyRoster)
+            {
+                if (entry.prefab != null && night >= entry.unlockDay && !unlocked.Contains(entry.prefab))
+                {
+                    unlocked.Add(entry.prefab);
+                }
+            }
+        }
+
+        if (unlocked.Count == 0)
+        {
+            if (_enemyPrefab != null) unlocked.Add(_enemyPrefab);
+            if (_enemyArcherPrefab != null) unlocked.Add(_enemyArcherPrefab);
+        }
+
+        return unlocked;
+    }
+
+
     private void CleanupActiveEnemies()
     {
         _activeEnemies.RemoveAll(enemy => enemy == null || enemy.currentState == CombatState.Dead || !enemy.gameObject.activeInHierarchy);

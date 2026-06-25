@@ -195,33 +195,52 @@ public class MapEventManager : MonoBehaviour
         {
             if (portal == null || portal.currentState == CombatState.Dead) continue;
 
-            // Spawn 2 Skeleton Warriors tại cổng hư không để hành quân về Nhà Chính
-            GameObject skeletonPrefab = null;
+            int currentNight = EnemyManager.Instance != null ? EnemyManager.Instance.CurrentNightNumber : 1;
+            List<GameObject> unlocked = null;
             if (EnemyManager.Instance != null)
             {
-                skeletonPrefab = EnemyManager.Instance.GetEnemyPrefabByName("Skeleton_Warrior");
+                unlocked = EnemyManager.Instance.GetUnlockedEnemyPrefabs(currentNight);
             }
 
-            if (skeletonPrefab != null)
-            {
-                for (int i = 0; i < 2; i++)
-                {
-                    Vector2 randOffset = Random.insideUnitCircle * 2f;
-                    Vector3 spawnPos = portal.transform.position + new Vector3(randOffset.x, 0f, randOffset.y);
-                    if (Terrain.activeTerrain != null)
-                    {
-                        spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
-                    }
+            // Số lượng quái tăng dần theo số đêm trôi qua: cứ sau 4 đêm thì tăng 1 quái (base là 2)
+            int spawnCount = 2 + (currentNight - 1) / 4;
 
-                    GameObject enemyObj = Instantiate(skeletonPrefab, spawnPos, Quaternion.identity);
-                    
-                    // Gán lệnh đi công nhà chính
-                    NavMeshAgent agent = enemyObj.GetComponent<NavMeshAgent>();
-                    if (agent != null)
-                    {
-                        agent.enabled = true;
-                        agent.SetDestination(mainHouse.transform.position);
-                    }
+            for (int i = 0; i < spawnCount; i++)
+            {
+                GameObject enemyPrefab = (unlocked != null && unlocked.Count > 0)
+                    ? unlocked[Random.Range(0, unlocked.Count)]
+                    : null;
+
+                if (enemyPrefab == null && EnemyManager.Instance != null)
+                {
+                    enemyPrefab = EnemyManager.Instance.GetEnemyPrefabByName("Skeleton_Warrior");
+                }
+
+                if (enemyPrefab == null) continue;
+
+                Vector2 randOffset = Random.insideUnitCircle * 2f;
+                Vector3 spawnPos = portal.transform.position + new Vector3(randOffset.x, 0f, randOffset.y);
+                if (Terrain.activeTerrain != null)
+                {
+                    spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
+                }
+
+                GameObject enemyObj = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
+
+                // Áp dụng hệ số nhân sức mạnh theo số đêm của game
+                var combatCtrl = enemyObj.GetComponent<BaseCombatUnitController>();
+                if (combatCtrl != null && EnemyManager.Instance != null)
+                {
+                    EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
+                    combatCtrl.ApplyStatMultipliers(healthMult, damageMult, speedMult);
+                }
+
+                // Gán lệnh đi công nhà chính
+                NavMeshAgent agent = enemyObj.GetComponent<NavMeshAgent>();
+                if (agent != null)
+                {
+                    agent.enabled = true;
+                    agent.SetDestination(mainHouse.transform.position);
                 }
             }
         }
@@ -275,15 +294,16 @@ public class MapEventManager : MonoBehaviour
     {
         Vector3 caravanPos = caravanGroup.GetAveragePosition();
 
-        GameObject warriorPrefab = null;
-        GameObject archerPrefab = null;
+        int currentNight = EnemyManager.Instance != null ? EnemyManager.Instance.CurrentNightNumber : 1;
+        List<GameObject> unlocked = null;
         if (EnemyManager.Instance != null)
         {
-            warriorPrefab = EnemyManager.Instance.GetEnemyPrefabByName("Skeleton_Warrior");
-            archerPrefab = EnemyManager.Instance.GetEnemyPrefabByName("EnemyArcher");
+            unlocked = EnemyManager.Instance.GetUnlockedEnemyPrefabs(currentNight);
         }
 
-        if (warriorPrefab == null) return;
+        // Tăng số lượng quái phục kích theo thời gian (cứ sau 4 đêm tăng thêm 1 quái)
+        int scalingBonus = (currentNight - 1) / 4;
+        int finalCount = count + scalingBonus;
 
         MerchantCaravanUnit targetUnit = null;
         for (int j = 0; j < caravanGroup.units.Count; j++)
@@ -295,7 +315,7 @@ public class MapEventManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"[MapEventManager] Đoàn thương nhân bị phục kích! Đang sinh {count} quái gác tấn công.");
+        Debug.Log($"[MapEventManager] Đoàn thương nhân bị phục kích! Đang sinh {finalCount} quái tấn công.");
 
         if (HUDManager.Instance != null)
         {
@@ -306,7 +326,7 @@ public class MapEventManager : MonoBehaviour
             );
         }
 
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < finalCount; i++)
         {
             // Sinh quái cách đoàn xe khoảng 9-12m trong sương mù
             Vector2 randDir = Random.insideUnitCircle.normalized * Random.Range(9f, 12f);
@@ -316,11 +336,28 @@ public class MapEventManager : MonoBehaviour
                 spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
             }
 
-            GameObject prefab = (i % 3 == 0 && archerPrefab != null) ? archerPrefab : warriorPrefab;
+            GameObject prefab = (unlocked != null && unlocked.Count > 0)
+                ? unlocked[Random.Range(0, unlocked.Count)]
+                : null;
+
+            if (prefab == null && EnemyManager.Instance != null)
+            {
+                prefab = EnemyManager.Instance.GetEnemyPrefabByName("Skeleton_Warrior");
+            }
+
+            if (prefab == null) continue;
+
             GameObject enemyObj = Instantiate(prefab, spawnPos, Quaternion.identity);
 
-            // Gán lệnh đi tấn công đoàn xe
+            // Áp dụng hệ số nhân sức mạnh theo số đêm của game
             var enemyController = enemyObj.GetComponent<BaseCombatUnitController>();
+            if (enemyController != null && EnemyManager.Instance != null)
+            {
+                EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
+                enemyController.ApplyStatMultipliers(healthMult, damageMult, speedMult);
+            }
+
+            // Gán lệnh đi tấn công đoàn xe
             if (enemyController != null && targetUnit != null)
             {
                 enemyController.CommandAttack(targetUnit);
@@ -496,13 +533,12 @@ public class MapEventManager : MonoBehaviour
 
     private void SpawnAmbushGuards(Vector3 centerPos, int count)
     {
-        GameObject warriorPrefab = null;
+        int currentNight = EnemyManager.Instance != null ? EnemyManager.Instance.CurrentNightNumber : 1;
+        List<GameObject> unlocked = null;
         if (EnemyManager.Instance != null)
         {
-            warriorPrefab = EnemyManager.Instance.GetEnemyPrefabByName("Skeleton_Warrior");
+            unlocked = EnemyManager.Instance.GetUnlockedEnemyPrefabs(currentNight);
         }
-
-        if (warriorPrefab == null) return;
 
         for (int i = 0; i < count; i++)
         {
@@ -513,13 +549,32 @@ public class MapEventManager : MonoBehaviour
                 spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
             }
 
-            GameObject enemy = Instantiate(warriorPrefab, spawnPos, Quaternion.identity);
+            GameObject prefab = (unlocked != null && unlocked.Count > 0)
+                ? unlocked[Random.Range(0, unlocked.Count)]
+                : null;
+
+            if (prefab == null && EnemyManager.Instance != null)
+            {
+                prefab = EnemyManager.Instance.GetEnemyPrefabByName("Skeleton_Warrior");
+            }
+
+            if (prefab == null) continue;
+
+            GameObject enemy = Instantiate(prefab, spawnPos, Quaternion.identity);
             
             // Set lính canh tĩnh đứng tại cổng
             var guard = enemy.GetComponent<EnemyUnitController>();
             if (guard != null)
             {
                 guard.IsGuard = true;
+            }
+
+            // Áp dụng hệ số nhân sức mạnh theo số đêm của game
+            var combatCtrl = enemy.GetComponent<BaseCombatUnitController>();
+            if (combatCtrl != null && EnemyManager.Instance != null)
+            {
+                EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
+                combatCtrl.ApplyStatMultipliers(healthMult, damageMult, speedMult);
             }
         }
     }
