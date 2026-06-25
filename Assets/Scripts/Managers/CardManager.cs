@@ -114,9 +114,10 @@ public class CardManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Triggers the Roguelike upgrade card selection screen (pauses game).
+    /// Kích hoạt màn hình chọn thẻ nâng cấp (dừng game).
+    /// minimumRarity: đảm bảo ít nhất 1 trong 3 thẻ ≥ rarity yêu cầu.
     /// </summary>
-    public void TriggerCardDraft()
+    public void TriggerCardDraft(CardRarity minimumRarity = CardRarity.Common)
     {
         if (_draftUIController == null)
         {
@@ -129,44 +130,69 @@ public class CardManager : MonoBehaviour
             return;
         }
 
-        List<UpgradeCardData> choices = GetRandomCardChoices(3);
+        List<UpgradeCardData> choices = GetWeightedCardChoices(3, minimumRarity);
         if (choices.Count == 0)
         {
             Debug.LogWarning("[CardManager] No cards available to draft.");
             return;
         }
 
-        Time.timeScale = 0f; // Pause the game
+        Time.timeScale = 0f; // Dừng game
         _draftUIController.OpenMenu(choices);
     }
 
-    private List<UpgradeCardData> GetRandomCardChoices(int count)
+    /// <summary>
+    /// Chọn thẻ ngẫu nhiên có trọng số theo rarity.
+    /// - count: số thẻ cần chọn (thường là 3).
+    /// - minimumRarity: nếu khác Common, slot đầu tiên sẽ được bảo đảm ≥ rarity này.
+    /// </summary>
+    private List<UpgradeCardData> GetWeightedCardChoices(int count, CardRarity minimumRarity)
     {
+        // Xây pool loại bỏ Unlock đã có
         List<UpgradeCardData> pool = new List<UpgradeCardData>();
-        
         foreach (var card in _allCards)
         {
             if (card == null) continue;
-
-            // Only allow non-unlocked Unlock cards; allow repeated StatBuff and Instant cards
-            if (card.cardType == UpgradeCardType.Unlock && _unlockedCards.Contains(card))
-            {
-                continue;
-            }
-
+            if (card.cardType == UpgradeCardType.Unlock && _unlockedCards.Contains(card)) continue;
             pool.Add(card);
         }
 
-        List<UpgradeCardData> choices = new List<UpgradeCardData>();
-        int poolCount = pool.Count;
-        if (poolCount == 0) return choices;
+        if (pool.Count == 0) return new List<UpgradeCardData>();
 
-        // Shuffle / select random
-        for (int i = 0; i < count && pool.Count > 0; i++)
+        List<UpgradeCardData> choices = new List<UpgradeCardData>();
+        List<UpgradeCardData> remaining = new List<UpgradeCardData>(pool);
+
+        for (int i = 0; i < count && remaining.Count > 0; i++)
         {
-            int idx = UnityEngine.Random.Range(0, pool.Count);
-            choices.Add(pool[idx]);
-            pool.RemoveAt(idx);
+            // Slot đầu tiên: lọc theo minimumRarity nếu có yêu cầu
+            List<UpgradeCardData> currentPool = remaining;
+            if (i == 0 && minimumRarity > CardRarity.Common)
+            {
+                var filtered = remaining.FindAll(c => c.rarity >= minimumRarity);
+                if (filtered.Count > 0) currentPool = filtered;
+            }
+
+            // Tính tổng trọng số
+            int totalWeight = 0;
+            foreach (var c in currentPool) totalWeight += c.RarityWeight;
+
+            // Quay số ngẫu nhiên
+            int roll = UnityEngine.Random.Range(0, totalWeight);
+            int cumulative = 0;
+            UpgradeCardData picked = currentPool[currentPool.Count - 1]; // fallback
+
+            foreach (var c in currentPool)
+            {
+                cumulative += c.RarityWeight;
+                if (roll < cumulative)
+                {
+                    picked = c;
+                    break;
+                }
+            }
+
+            choices.Add(picked);
+            remaining.Remove(picked);
         }
 
         return choices;

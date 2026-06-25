@@ -18,6 +18,14 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     [SerializeField] private Image _cardIconImage;
     [SerializeField] private GameObject _glowHighlight;
 
+    [Header("Rarity Visuals")]
+    [Tooltip("Ảnh nền của thẻ — được tô màu theo rarity")]
+    [SerializeField] private Image _cardBackground;
+    [Tooltip("Text hiển thị tên rarity (PHỔ THÔNG / HIẾM / SỬ THI / HUYỀN THOẠI)")]
+    [SerializeField] private TMP_Text _rarityText;
+    [Tooltip("Ảnh glow xung quanh thẻ khi hover")]
+    [SerializeField] private Image _rarityGlowImage;
+
     [Header("Hover Settings")]
     [SerializeField] private float _hoverScaleFactor = 1.06f;
     [SerializeField] private float _scaleDuration = 0.15f;
@@ -25,6 +33,7 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private UpgradeCardData _cardData;
     private Action<UpgradeCardData> _onClickedCallback;
     private Coroutine _scaleCoroutine;
+    private Coroutine _shimmerCoroutine;
     private Vector3 _originalScale = Vector3.one;
 
     private RectTransform _rollingContainer;
@@ -103,9 +112,9 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             _cardTypeText.text = cardData.cardType switch
             {
                 UpgradeCardType.StatBuff => "STAT BUFF",
-                UpgradeCardType.Unlock => "UNLOCK",
-                UpgradeCardType.Instant => "INSTANT",
-                _ => "CARD"
+                UpgradeCardType.Unlock   => "UNLOCK",
+                UpgradeCardType.Instant  => "INSTANT",
+                _                        => "CARD"
             };
         }
 
@@ -125,6 +134,41 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             {
                 _cardIconImage.enabled = false;
             }
+        }
+
+        // --- Rarity Visuals ---
+        Color rarityColor = cardData.RarityColor;
+
+        if (_rarityText != null)
+        {
+            _rarityText.text = cardData.RarityDisplayName;
+            _rarityText.color = rarityColor;
+        }
+
+        if (_cardBackground != null)
+        {
+            // Nền thẻ: phối màu nhừng nước dịu hơn so với màu rarity
+            Color bgColor = Color.Lerp(new Color(0.08f, 0.08f, 0.12f), rarityColor, 0.12f);
+            bgColor.a = 1f;
+            _cardBackground.color = bgColor;
+        }
+
+        if (_rarityGlowImage != null)
+        {
+            Color glowColor = rarityColor;
+            glowColor.a = 0f; // ẩn khi không hover, chỉ hiện khi hover
+            _rarityGlowImage.color = glowColor;
+        }
+
+        // Kích hoạt shimmer cho Epic và Legendary
+        if (_shimmerCoroutine != null)
+        {
+            StopCoroutine(_shimmerCoroutine);
+            _shimmerCoroutine = null;
+        }
+        if (cardData.rarity >= CardRarity.Epic)
+        {
+            _shimmerCoroutine = StartCoroutine(ShimmerRoutine(rarityColor));
         }
     }
 
@@ -270,6 +314,14 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             _glowHighlight.SetActive(true);
         }
 
+        // Hiển glow với màu rarity khi hover
+        if (_rarityGlowImage != null && _cardData != null)
+        {
+            Color glowColor = _cardData.RarityColor;
+            glowColor.a = 0.65f;
+            _rarityGlowImage.color = glowColor;
+        }
+
         if (_scaleCoroutine != null) StopCoroutine(_scaleCoroutine);
         _scaleCoroutine = StartCoroutine(ScaleTo(_originalScale * _hoverScaleFactor, _scaleDuration));
     }
@@ -279,6 +331,14 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (_glowHighlight != null)
         {
             _glowHighlight.SetActive(false);
+        }
+
+        // Ẩn glow khi thoát hover
+        if (_rarityGlowImage != null && _cardData != null)
+        {
+            Color glowColor = _cardData.RarityColor;
+            glowColor.a = 0f;
+            _rarityGlowImage.color = glowColor;
         }
 
         if (_scaleCoroutine != null) StopCoroutine(_scaleCoroutine);
@@ -307,5 +367,41 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         transform.localScale = targetScale;
         _scaleCoroutine = null;
+    }
+
+    /// <summary>
+    /// Shimmer pulse — chỉ dùng cho Epic và Legendary.
+    /// Làm nền thẻ bắt sáng nhẹ theo chu kỳ.
+    /// </summary>
+    private IEnumerator ShimmerRoutine(Color rarityColor)
+    {
+        if (_cardBackground == null) yield break;
+
+        Color baseColor = Color.Lerp(new Color(0.08f, 0.08f, 0.12f), rarityColor, 0.12f);
+        Color brightColor = Color.Lerp(new Color(0.08f, 0.08f, 0.12f), rarityColor, 0.28f);
+        baseColor.a = 1f;
+        brightColor.a = 1f;
+
+        while (true)
+        {
+            // Làm sáng
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.unscaledDeltaTime * 1.2f;
+                _cardBackground.color = Color.Lerp(baseColor, brightColor, t);
+                yield return null;
+            }
+            // Tắt dần
+            t = 0f;
+            while (t < 1f)
+            {
+                t += Time.unscaledDeltaTime * 0.7f;
+                _cardBackground.color = Color.Lerp(brightColor, baseColor, t);
+                yield return null;
+            }
+            // Nghỉ ngắn giữa các lần shimmer
+            yield return new WaitForSecondsRealtime(1.4f);
+        }
     }
 }

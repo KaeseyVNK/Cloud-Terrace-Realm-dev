@@ -7,6 +7,17 @@ public enum UpgradeCardType
     Instant
 }
 
+/// <summary>
+/// Độ hiếm của thẻ nâng cấp, ảnh hưởng đến màu sắc, xác suất xuất hiện và sức mạnh.
+/// </summary>
+public enum CardRarity
+{
+    Common    = 0,  // Xám — xác suất cao nhất
+    Rare      = 1,  // Xanh lam
+    Epic      = 2,  // Tím
+    Legendary = 3   // Vàng cam — rất hiếm
+}
+
 [CreateAssetMenu(fileName = "New Upgrade Card", menuName = "Cloud Terrace/Upgrade Card")]
 public class UpgradeCardData : ScriptableObject
 {
@@ -16,6 +27,40 @@ public class UpgradeCardData : ScriptableObject
     [TextArea] public string description;
     public Sprite icon;
     public UpgradeCardType cardType;
+
+    [Header("Rarity")]
+    [Tooltip("Độ hiếm của thẻ: Common > Rare > Epic > Legendary")]
+    public CardRarity rarity = CardRarity.Common;
+
+    /// <summary>Trọng số rút thẻ: Common=100, Rare=40, Epic=15, Legendary=4.</summary>
+    public int RarityWeight => rarity switch
+    {
+        CardRarity.Common    => 100,
+        CardRarity.Rare      => 40,
+        CardRarity.Epic      => 15,
+        CardRarity.Legendary => 4,
+        _                    => 100
+    };
+
+    /// <summary>Màu hiển thị tương ứng với rarity.</summary>
+    public Color RarityColor => rarity switch
+    {
+        CardRarity.Common    => new Color(0.78f, 0.78f, 0.78f),  // Xám bạc
+        CardRarity.Rare      => new Color(0.25f, 0.60f, 1.00f),  // Xanh lam
+        CardRarity.Epic      => new Color(0.70f, 0.30f, 1.00f),  // Tím
+        CardRarity.Legendary => new Color(1.00f, 0.75f, 0.10f),  // Vàng cam
+        _                    => Color.white
+    };
+
+    /// <summary>Tên hiển thị rarity.</summary>
+    public string RarityDisplayName => rarity switch
+    {
+        CardRarity.Common    => "PHỔ THÔNG",
+        CardRarity.Rare      => "HIẾM",
+        CardRarity.Epic      => "SỬ THI",
+        CardRarity.Legendary => "HUYỀN THOẠI",
+        _                    => ""
+    };
 
     [Header("Stat Buff Settings")]
     [Tooltip("Hệ số tăng máu cho quân lính (ví dụ 1.25 là +25%)")]
