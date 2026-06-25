@@ -91,11 +91,30 @@ public class UpgradeCardData : ScriptableObject
     public UnitData unitToUnlock;
 
     [Header("Instant Rewards")]
-    [Tooltip("Tài nguyên tặng ngay")]
+    [Tooltip("Tài nguyên vàng tặng ngay")]
     public ResourceType instantResourceType;
+    [Tooltip("Số lượng tài nguyên tặng ngay (loại đa dụng)")]
     public int instantResourceAmount = 0;
+
+    [Tooltip("Gỗ tặng ngay (có thể dùng kết hợp với các tài nguyên khác)")]
+    public int instantWoodAmount = 0;
+    [Tooltip("Đá tặng ngay")]
+    public int instantStoneAmount = 0;
+    [Tooltip("Thức ăn tặng ngay")]
+    public int instantFoodAmount = 0;
+
     [Tooltip("Số lượng dân binh (Militia) sinh ra ngay tại nhà chính")]
     public int instantMilitiaCount = 0;
+
     [Tooltip("Hồi phục đầy máu cho nhà chính")]
     public bool healMainBuilding = false;
+    [Tooltip("Hồi phục một phần máu nhà chính (0.0 = 0%, 0.5 = 50%, 1.0 = 100%). Dùng thay cho healMainBuilding nếu muốn hồi phục cụ thể.")]
+    [Range(0f, 1f)]
+    public float healMainBuildingPercent = 0f;
+
+    [Header("Passive Buffs (StatBuff type)")]
+    [Tooltip("Hệ số tăng máu tối đa cho tất cả công trình của người chơi")]
+    public float buildingMaxHealthMultiplier = 1f;
+    [Tooltip("Tăng giới hạn dân số (+n người)")]
+    public int populationCapBonus = 0;
 }

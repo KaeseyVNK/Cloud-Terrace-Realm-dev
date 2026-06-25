@@ -31,6 +31,9 @@ public class CardManager : MonoBehaviour
     public float GoldGatherSpeedMultiplier { get; private set; } = 1.0f;
     public float FoodGatherSpeedMultiplier { get; private set; } = 1.0f;
 
+    public float BuildingMaxHealthMultiplier { get; private set; } = 1.0f;
+    public int PopulationCapBonus { get; private set; } = 0;
+
     private readonly HashSet<string> _unlockedUnitIds = new HashSet<string>();
     private readonly HashSet<string> _cardUnlockableUnits = new HashSet<string>();
 
@@ -274,10 +277,20 @@ public class CardManager : MonoBehaviour
         }
         else if (card.cardType == UpgradeCardType.Instant)
         {
-            // Instants are not saved in _unlockedCards to allow repeated pick and not spamming the list
-            if (ResourceManager.Instance != null && card.instantResourceAmount > 0)
+            // Instants are not saved in _unlockedCards to allow repeated pick
+            if (ResourceManager.Instance != null)
             {
-                ResourceManager.Instance.AddResource(card.instantResourceType, card.instantResourceAmount);
+                // Tài nguyên đa dụng (trường cũ)
+                if (card.instantResourceAmount > 0)
+                    ResourceManager.Instance.AddResource(card.instantResourceType, card.instantResourceAmount);
+
+                // Tài nguyên đa loại riêng lẻ
+                if (card.instantWoodAmount > 0)
+                    ResourceManager.Instance.AddResource(ResourceType.Wood, card.instantWoodAmount);
+                if (card.instantStoneAmount > 0)
+                    ResourceManager.Instance.AddResource(ResourceType.Stone, card.instantStoneAmount);
+                if (card.instantFoodAmount > 0)
+                    ResourceManager.Instance.AddResource(ResourceType.Food, card.instantFoodAmount);
             }
 
             if (card.instantMilitiaCount > 0)
@@ -288,6 +301,26 @@ public class CardManager : MonoBehaviour
             if (card.healMainBuilding)
             {
                 HealMainBuilding();
+            }
+            else if (card.healMainBuildingPercent > 0f)
+            {
+                HealMainBuildingByPercent(card.healMainBuildingPercent);
+            }
+        }
+
+        // StatBuff cũng có thể có building / population buff
+        if (card.cardType == UpgradeCardType.StatBuff)
+        {
+            if (card.buildingMaxHealthMultiplier != 1f)
+            {
+                BuildingMaxHealthMultiplier *= card.buildingMaxHealthMultiplier;
+                Debug.Log($"[CardManager] Building HP multiplier now: {BuildingMaxHealthMultiplier:F2}x");
+            }
+
+            if (card.populationCapBonus != 0)
+            {
+                PopulationCapBonus += card.populationCapBonus;
+                Debug.Log($"[CardManager] Population cap bonus: +{card.populationCapBonus} (total: {PopulationCapBonus})");
             }
         }
     }
@@ -338,8 +371,18 @@ public class CardManager : MonoBehaviour
         if (mainBuilding != null)
         {
             mainBuilding.currentHealth = mainBuilding.maxHealth;
-            // Trigger health refresh / UI update if relevant
             Debug.Log("[CardManager] Main Building fully healed!");
+        }
+    }
+
+    private void HealMainBuildingByPercent(float percent)
+    {
+        MainBuildingCombatTarget mainBuilding = FindAnyObjectByType<MainBuildingCombatTarget>();
+        if (mainBuilding != null)
+        {
+            float healAmount = mainBuilding.maxHealth * percent;
+            mainBuilding.currentHealth = (int)Mathf.Min(mainBuilding.currentHealth + healAmount, mainBuilding.maxHealth);
+            Debug.Log($"[CardManager] Main Building healed by {percent * 100f:F0}% ({healAmount:F0} HP).");
         }
     }
 }

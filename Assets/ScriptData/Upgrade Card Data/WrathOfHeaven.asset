@@ -10,14 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
-  m_Name: EmergencyGold
+  m_Name: WrathOfHeaven
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
-  cardId: card_emergency_gold
-  cardName: Emergency Gold
-  description: "Nh\u1EADn ngay 500 V\xE0ng kh\u1EA9n c\u1EA5p."
-  icon: {fileID: 1995341195, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
+  cardId: WrathOfHeaven
+  cardName: Thien Loi Giang Xuong
+  description: Nha Chinh hoi phuc hoan toan. Nhan 200 Vang va 3 dan binh. An sung
+    cua troi!
+  icon: {fileID: 0}
   cardType: 2
-  rarity: 1
+  rarity: 3
   unitHealthMultiplier: 1
   unitDamageMultiplier: 1
   unitSpeedMultiplier: 1
@@ -30,12 +31,12 @@ MonoBehaviour:
   buildingToUnlock: {fileID: 0}
   unitToUnlock: {fileID: 0}
   instantResourceType: 4
-  instantResourceAmount: 500
+  instantResourceAmount: 200
   instantWoodAmount: 0
   instantStoneAmount: 0
   instantFoodAmount: 0
-  instantMilitiaCount: 0
-  healMainBuilding: 0
+  instantMilitiaCount: 3
+  healMainBuilding: 1
   healMainBuildingPercent: 0
   buildingMaxHealthMultiplier: 1
   populationCapBonus: 0

@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
-  m_Name: EmergencyGold
+  m_Name: EmergencySupply
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
-  cardId: card_emergency_gold
-  cardName: Emergency Gold
-  description: "Nh\u1EADn ngay 500 V\xE0ng kh\u1EA9n c\u1EA5p."
-  icon: {fileID: 1995341195, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
+  cardId: EmergencySupply
+  cardName: Tiep Te Khan Cap
+  description: Ngay lap tuc nhan duoc 150 Go, 100 Da va 80 Thuc An.
+  icon: {fileID: 0}
   cardType: 2
   rarity: 1
   unitHealthMultiplier: 1
@@ -29,11 +29,11 @@ MonoBehaviour:
   foodGatherMultiplier: 1
   buildingToUnlock: {fileID: 0}
   unitToUnlock: {fileID: 0}
-  instantResourceType: 4
-  instantResourceAmount: 500
-  instantWoodAmount: 0
-  instantStoneAmount: 0
-  instantFoodAmount: 0
+  instantResourceType: 0
+  instantResourceAmount: 0
+  instantWoodAmount: 150
+  instantStoneAmount: 100
+  instantFoodAmount: 80
   instantMilitiaCount: 0
   healMainBuilding: 0
   healMainBuildingPercent: 0

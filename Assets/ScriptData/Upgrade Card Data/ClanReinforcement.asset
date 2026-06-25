@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
-  m_Name: EmergencyGold
+  m_Name: ClanReinforcement
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
-  cardId: card_emergency_gold
-  cardName: Emergency Gold
-  description: "Nh\u1EADn ngay 500 V\xE0ng kh\u1EA9n c\u1EA5p."
-  icon: {fileID: 1995341195, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
+  cardId: ClanReinforcement
+  cardName: Quan Tang Vien
+  description: Trieu hoi ngay 4 dan binh tai Nha Chinh.
+  icon: {fileID: 0}
   cardType: 2
   rarity: 1
   unitHealthMultiplier: 1
@@ -29,12 +29,12 @@ MonoBehaviour:
   foodGatherMultiplier: 1
   buildingToUnlock: {fileID: 0}
   unitToUnlock: {fileID: 0}
-  instantResourceType: 4
-  instantResourceAmount: 500
+  instantResourceType: 0
+  instantResourceAmount: 0
   instantWoodAmount: 0
   instantStoneAmount: 0
   instantFoodAmount: 0
-  instantMilitiaCount: 0
+  instantMilitiaCount: 4
   healMainBuilding: 0
   healMainBuildingPercent: 0
   buildingMaxHealthMultiplier: 1
