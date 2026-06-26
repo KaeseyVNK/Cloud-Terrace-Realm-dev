@@ -877,8 +877,14 @@ public class BuildingManager : MonoBehaviour
         cb.ConstructionFencePrefab = _constructionFencePrefab;
 
         bool isInstant = data.isInstantBuild || 
-                         (data.buildingPrefab != null && (data.buildingPrefab.name.ToLower().Contains("torch") || data.buildingPrefab.name.ToLower().Contains("đoốc") || data.buildingPrefab.name.ToLower().Contains("đuốc") || data.buildingPrefab.name.ToLower().Contains("duoc"))) ||
-                         (data.buildingName != null && (data.buildingName.ToLower().Contains("torch") || data.buildingName.ToLower().Contains("đoốc") || data.buildingName.ToLower().Contains("đuốc") || data.buildingName.ToLower().Contains("duoc")));
+                         (data.buildingPrefab != null && (
+                             data.buildingPrefab.name.ToLower().Contains("torch") || data.buildingPrefab.name.ToLower().Contains("đoốc") || data.buildingPrefab.name.ToLower().Contains("đuốc") || data.buildingPrefab.name.ToLower().Contains("duoc") ||
+                             data.buildingPrefab.name.ToLower().Contains("fence") || data.buildingPrefab.name.ToLower().Contains("gate") || data.buildingPrefab.name.ToLower().Contains("rào") || data.buildingPrefab.name.ToLower().Contains("cổng")
+                         )) ||
+                         (data.buildingName != null && (
+                             data.buildingName.ToLower().Contains("torch") || data.buildingName.ToLower().Contains("đoốc") || data.buildingName.ToLower().Contains("đuốc") || data.buildingName.ToLower().Contains("duoc") ||
+                             data.buildingName.ToLower().Contains("fence") || data.buildingName.ToLower().Contains("gate") || data.buildingName.ToLower().Contains("rào") || data.buildingName.ToLower().Contains("cổng")
+                         ));
 
         if (isInstant)
         {

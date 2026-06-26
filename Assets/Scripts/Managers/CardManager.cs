@@ -11,6 +11,7 @@ public class CardManager : MonoBehaviour
     [SerializeField] private List<UpgradeCardData> _unlockedCards = new List<UpgradeCardData>();
 
     public List<UpgradeCardData> AllCards => _allCards;
+    public IReadOnlyList<UpgradeCardData> UnlockedCards => _unlockedCards;
 
     [Header("Instant Spawning")]
     [SerializeField] private GameObject _militiaPrefab;
@@ -62,6 +63,7 @@ public class CardManager : MonoBehaviour
         {
             ApplyCardEffects(card, false);
         }
+        OnCardStateChanged?.Invoke();
     }
 
     private void Update()

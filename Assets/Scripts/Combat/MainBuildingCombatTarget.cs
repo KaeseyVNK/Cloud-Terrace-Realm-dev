@@ -81,6 +81,11 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
         currentState = CombatState.Dead;
         Debug.Log("[GAME OVER] Nhà chính đã bị tiêu diệt! Bạn đã thất bại!");
         
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.TriggerDefeat();
+        }
+
         // Phá hủy GameObject nhà chính
         Destroy(gameObject);
     }

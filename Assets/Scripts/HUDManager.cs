@@ -68,6 +68,10 @@ public class HUDManager : MonoBehaviour
     [Header("Instructions UI")]
     [SerializeField] private GameObject _instructionsPanel;
 
+    [Header("Game Over / Victory Panels")]
+    [SerializeField] private GameObject _victoryPanel;
+    [SerializeField] private GameObject _defeatPanel;
+
     void Start()
     {
         EnsurePopulationText();
@@ -785,5 +789,147 @@ public class HUDManager : MonoBehaviour
             }
         }
         return null;
+    }
+
+    public void ShowVictoryScreen()
+    {
+        if (_victoryPanel != null)
+        {
+            _victoryPanel.SetActive(true);
+        }
+        else
+        {
+            CreateDynamicEndScreen("CHIẾN THẮNG!", "Bạn đã bảo vệ thành công lãnh địa và phá hủy hoàn toàn Cổng Hư Vô trong 15 ngày! 🏆", new Color(1.0f, 0.75f, 0.1f));
+        }
+    }
+
+    public void ShowDefeatScreen()
+    {
+        if (_defeatPanel != null)
+        {
+            _defeatPanel.SetActive(true);
+        }
+        else
+        {
+            CreateDynamicEndScreen("BẠN ĐÃ THẤT BẠI!", "Nhà chính của bạn đã bị tiêu diệt bởi thế lực bóng tối! 💀", new Color(0.9f, 0.1f, 0.1f));
+        }
+    }
+
+    private void CreateDynamicEndScreen(string title, string description, Color titleColor)
+    {
+        // Check if an end screen already exists in the scene to avoid duplicates
+        GameObject existing = GameObject.Find("DynamicEndScreen");
+        if (existing != null) return;
+
+        // Create Canvas Root
+        GameObject canvasObj = new GameObject("DynamicEndScreen", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
+        Canvas canvas = canvasObj.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9999; // Render on top of everything
+
+        UnityEngine.UI.CanvasScaler scaler = canvasObj.GetComponent<UnityEngine.UI.CanvasScaler>();
+        scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        // Background Panel
+        GameObject panelObj = new GameObject("Panel", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        panelObj.transform.SetParent(canvasObj.transform, false);
+        RectTransform panelRT = panelObj.GetComponent<RectTransform>();
+        panelRT.anchorMin = Vector2.zero;
+        panelRT.anchorMax = Vector2.one;
+        panelRT.sizeDelta = Vector2.zero;
+
+        UnityEngine.UI.Image panelImg = panelObj.GetComponent<UnityEngine.UI.Image>();
+        panelImg.color = new Color(0.05f, 0.05f, 0.08f, 0.85f); // Beautiful dark dark-morphic overlay
+
+        // Center Box
+        GameObject boxObj = new GameObject("Box", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        boxObj.transform.SetParent(panelObj.transform, false);
+        RectTransform boxRT = boxObj.GetComponent<RectTransform>();
+        boxRT.anchorMin = new Vector2(0.5f, 0.5f);
+        boxRT.anchorMax = new Vector2(0.5f, 0.5f);
+        boxRT.pivot = new Vector2(0.5f, 0.5f);
+        boxRT.sizeDelta = new Vector2(600, 350);
+
+        UnityEngine.UI.Image boxImg = boxObj.GetComponent<UnityEngine.UI.Image>();
+        boxImg.color = new Color(0.12f, 0.12f, 0.16f, 0.95f);
+        
+        var outline = boxObj.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = new Color(titleColor.r, titleColor.g, titleColor.b, 0.5f);
+        outline.effectDistance = new Vector2(2, 2);
+
+        // Title Text
+        GameObject titleObj = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI));
+        titleObj.transform.SetParent(boxObj.transform, false);
+        RectTransform titleRT = titleObj.GetComponent<RectTransform>();
+        titleRT.anchorMin = new Vector2(0f, 1f);
+        titleRT.anchorMax = new Vector2(1f, 1f);
+        titleRT.pivot = new Vector2(0.5f, 1f);
+        titleRT.anchoredPosition = new Vector2(0, -35);
+        titleRT.sizeDelta = new Vector2(-40, 60);
+
+        TextMeshProUGUI titleText = titleObj.GetComponent<TextMeshProUGUI>();
+        titleText.text = title;
+        titleText.fontSize = 42;
+        titleText.color = titleColor;
+        titleText.alignment = TextAlignmentOptions.Center;
+        titleText.fontStyle = FontStyles.Bold;
+
+        // Description Text
+        GameObject descObj = new GameObject("Description", typeof(RectTransform), typeof(TextMeshProUGUI));
+        descObj.transform.SetParent(boxObj.transform, false);
+        RectTransform descRT = descObj.GetComponent<RectTransform>();
+        descRT.anchorMin = new Vector2(0f, 0.5f);
+        descRT.anchorMax = new Vector2(1f, 0.5f);
+        descRT.pivot = new Vector2(0.5f, 0.5f);
+        descRT.anchoredPosition = new Vector2(0, -10);
+        descRT.sizeDelta = new Vector2(-60, 100);
+
+        TextMeshProUGUI descText = descObj.GetComponent<TextMeshProUGUI>();
+        descText.text = description;
+        descText.fontSize = 24;
+        descText.color = new Color(0.85f, 0.85f, 0.9f);
+        descText.alignment = TextAlignmentOptions.Center;
+
+        // Restart Button
+        GameObject buttonObj = new GameObject("RestartButton", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.Button));
+        buttonObj.transform.SetParent(boxObj.transform, false);
+        RectTransform buttonRT = buttonObj.GetComponent<RectTransform>();
+        buttonRT.anchorMin = new Vector2(0.5f, 0f);
+        buttonRT.anchorMax = new Vector2(0.5f, 0f);
+        buttonRT.pivot = new Vector2(0.5f, 0f);
+        buttonRT.anchoredPosition = new Vector2(0, 40);
+        buttonRT.sizeDelta = new Vector2(220, 50);
+
+        UnityEngine.UI.Image buttonImg = buttonObj.GetComponent<UnityEngine.UI.Image>();
+        buttonImg.color = new Color(0.18f, 0.55f, 0.34f, 1f); // Nice forest green button
+
+        var buttonOutline = buttonObj.AddComponent<UnityEngine.UI.Outline>();
+        buttonOutline.effectColor = new Color(1f, 1f, 1f, 0.2f);
+        buttonOutline.effectDistance = new Vector2(1, 1);
+
+        // Button Text
+        GameObject btnTextObj = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        btnTextObj.transform.SetParent(buttonObj.transform, false);
+        RectTransform btnTextRT = btnTextObj.GetComponent<RectTransform>();
+        btnTextRT.anchorMin = Vector2.zero;
+        btnTextRT.anchorMax = Vector2.one;
+        btnTextRT.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI btnText = btnTextObj.GetComponent<TextMeshProUGUI>();
+        btnText.text = "CHƠI LẠI";
+        btnText.fontSize = 22;
+        btnText.color = Color.white;
+        btnText.alignment = TextAlignmentOptions.Center;
+        btnText.fontStyle = FontStyles.Bold;
+
+        UnityEngine.UI.Button button = buttonObj.GetComponent<UnityEngine.UI.Button>();
+        button.onClick.AddListener(() =>
+        {
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.RestartGame();
+            }
+        });
     }
 }

@@ -52,7 +52,7 @@ public class CardDraftUIController : MonoBehaviour
             if (i < cards.Count)
             {
                 _cardSlots[i].gameObject.SetActive(true);
-                _cardSlots[i].Setup(cards[i], OnCardSelected);
+                _cardSlots[i].Setup(cards[i], OnCardSelected, i);
                 _cardSlots[i].AnimatePopIn(i * 0.08f, i); // Hiệu ứng quay thẻ so le
             }
             else
@@ -89,7 +89,7 @@ public class CardDraftUIController : MonoBehaviour
 
         if (_canvasGroup != null)
         {
-            _canvasGroup.alpha = active ? 1f : 0f;
+            _canvasGroup.alpha = 0f; // Luôn khởi đầu bằng 0f để FadeRoutine thực hiện hiệu ứng mờ/tỏ
             _canvasGroup.interactable = active;
             _canvasGroup.blocksRaycasts = active;
         }

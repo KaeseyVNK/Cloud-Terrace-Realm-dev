@@ -97,7 +97,8 @@ public class ConstructibleBuilding : MonoBehaviour
         if (!_isInstantBuild)
         {
             string nameLower = gameObject.name.ToLower();
-            if (nameLower.Contains("torch") || nameLower.Contains("đoốc") || nameLower.Contains("đuốc") || nameLower.Contains("duoc") || nameLower.Contains("neutral"))
+            if (nameLower.Contains("torch") || nameLower.Contains("đoốc") || nameLower.Contains("đuốc") || nameLower.Contains("duoc") || nameLower.Contains("neutral") ||
+                nameLower.Contains("fence") || nameLower.Contains("gate") || nameLower.Contains("rào") || nameLower.Contains("cổng"))
             {
                 _isInstantBuild = true;
             }

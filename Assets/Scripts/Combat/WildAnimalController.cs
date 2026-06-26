@@ -36,7 +36,6 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
     private Transform _currentThreat;
     private float _animVert = 0f;
     private float _animState = 0f;
-    private FogVisibilityTarget _fogVisibility;
 
     public int FoodAmount
     {

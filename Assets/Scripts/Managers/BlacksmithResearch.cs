@@ -15,7 +15,7 @@ public class BlacksmithResearch : MonoBehaviour
 
     private void Start()
     {
-        // CreateAndRegisterAncientTech();
+        CreateAndRegisterAncientTech();
     }
 
     private void CreateAndRegisterAncientTech()
@@ -36,7 +36,8 @@ public class BlacksmithResearch : MonoBehaviour
         
         ancientTech.researchCosts = new List<ResourceCost>
         {
-            new ResourceCost { resourceType = ResourceType.AncientRelic, amount = 1 }
+            new ResourceCost { resourceType = ResourceType.Gold, amount = 150 },
+            new ResourceCost { resourceType = ResourceType.Stone, amount = 100 }
         };
         
         availableTechnologies.Add(ancientTech);

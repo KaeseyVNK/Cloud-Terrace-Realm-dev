@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
+  m_Name: FenceWoodGate
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingData
+  buildingName: "C\u1ED5ng R\xE0o G\u1ED7"
+  description: "C\u1ED5ng r\xE0o g\u1ED7, t\u1EF1 \u0111\u1ED9ng m\u1EDF cho qu\xE2n
+    ta \u0111i qua v\xE0 \u0111\xF3ng l\u1EA1i ng\u0103n ch\u1EB7n qu\xE1i v\u1EADt."
+  category: 5
+  icon: {fileID: 0}
+  buildingPrefab: {fileID: 2716568020924354350, guid: 439a0cd3803562543a3c1bce44b00d4f, type: 3}
+  buildingSize: {x: 4, y: 1}
+  buildCosts:
+  - resourceType: 0
+    amount: 20
+  maxHealth: 500
+  maxWorkers: 0
+  buildTime: 8
+  isInstantBuild: 1
+  isStorage: 0
+  acceptedResources: 
+  requiredBuildings: []
+  producibleUnits: []

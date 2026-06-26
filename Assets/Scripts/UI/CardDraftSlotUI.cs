@@ -26,6 +26,12 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     [Tooltip("Ảnh glow xung quanh thẻ khi hover")]
     [SerializeField] private Image _rarityGlowImage;
 
+    [Tooltip("Diamond shape Image mà bạn đã thêm vào prefab — sẽ đổi sprite + màu theo rarity")]
+    [SerializeField] private Image _rarityDiamondImage;
+
+    [Tooltip("4 sprite theo thứ tự: [0]=Common [1]=Rare [2]=Epic [3]=Legendary")]
+    [SerializeField] private Sprite[] _raritySprites = new Sprite[4];
+
     [Header("Hover Settings")]
     [SerializeField] private float _hoverScaleFactor = 1.06f;
     [SerializeField] private float _scaleDuration = 0.15f;
@@ -82,16 +88,27 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
     }
 
-    public void Setup(UpgradeCardData cardData, Action<UpgradeCardData> onClicked)
+    public void Setup(UpgradeCardData cardData, Action<UpgradeCardData> onClicked, int slotIndex = 0)
     {
         _cardData = cardData;
         _onClickedCallback = onClicked;
+
+        // Đảm bảo RollingContainer được khởi tạo trước khi truy cập
+        CreateRollingContainer();
 
         // Reset tỷ lệ về 0 để chạy hiệu ứng xuất hiện từ từ
         transform.localScale = Vector3.zero;
         if (_glowHighlight != null)
         {
             _glowHighlight.SetActive(false);
+        }
+
+        // Đặt vị trí bắt đầu của RollingContainer ra ngoài ngay lập tức để tránh nhấp nháy ở Y = 0
+        if (_rollingContainer != null)
+        {
+            bool isScrollDown = (slotIndex % 2 == 0);
+            float limitY = 1650f;
+            _rollingContainer.anchoredPosition = new Vector2(0f, isScrollDown ? limitY : -limitY);
         }
 
         // Hiển thị giao diện thẻ ngẫu nhiên ngay từ đầu để tránh người chơi nhìn thấy kết quả trước
@@ -147,7 +164,6 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         if (_cardBackground != null)
         {
-            // Nền thẻ: phối màu nhừng nước dịu hơn so với màu rarity
             Color bgColor = Color.Lerp(new Color(0.08f, 0.08f, 0.12f), rarityColor, 0.12f);
             bgColor.a = 1f;
             _cardBackground.color = bgColor;
@@ -156,11 +172,23 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (_rarityGlowImage != null)
         {
             Color glowColor = rarityColor;
-            glowColor.a = 0f; // ẩn khi không hover, chỉ hiện khi hover
+            glowColor.a = 0f;
             _rarityGlowImage.color = glowColor;
         }
 
-        // Kích hoạt shimmer cho Epic và Legendary
+        // Diamond sprite + màu theo rarity
+        if (_rarityDiamondImage != null)
+        {
+            int rarityIndex = (int)cardData.rarity; // 0=Common, 1=Rare, 2=Epic, 3=Legendary
+            if (_raritySprites != null && rarityIndex < _raritySprites.Length && _raritySprites[rarityIndex] != null)
+            {
+                _rarityDiamondImage.sprite = _raritySprites[rarityIndex];
+            }
+            _rarityDiamondImage.color = rarityColor;
+            _rarityDiamondImage.enabled = true;
+        }
+
+        // Shimmer cho Epic và Legendary
         if (_shimmerCoroutine != null)
         {
             StopCoroutine(_shimmerCoroutine);
@@ -189,9 +217,15 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private IEnumerator PopInRoutine(float delay, int slotIndex)
     {
         transform.localScale = Vector3.zero;
+
+        // Xác định hướng cuộn xen kẽ: slot chẵn cuộn xuống, slot lẻ cuộn lên
+        bool isScrollDown = (slotIndex % 2 == 0);
+        float limitY = 650f; // Khoảng cách ẩn hoàn toàn ngoài Mask
+        float currentY = isScrollDown ? limitY : -limitY;
+
         if (_rollingContainer != null)
         {
-            _rollingContainer.anchoredPosition = Vector2.zero;
+            _rollingContainer.anchoredPosition = new Vector2(0f, currentY);
         }
 
         // Thiết lập hiển thị ngẫu nhiên ngay từ đầu
@@ -206,7 +240,6 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         float elapsed = 0f;
         float rollDuration = 1.0f + slotIndex * 0.4f; // Các cột dừng so le nhau
         float startSpeed = 2600f; // Vận tốc ban đầu
-        float currentY = 0f;
         float popDuration = 0.15f;
 
         while (true)
@@ -229,22 +262,44 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             float t = Mathf.Clamp01(elapsed / rollDuration);
             float currentSpeed = startSpeed * (1f - t * t * 0.4f);
 
-            currentY -= currentSpeed * dt;
-
-            // Kiểm tra bọc viền (wrap) hoàn toàn ngoài vùng Mask (chiều cao slot là 563.6, dùng 650f để ẩn hoàn toàn)
-            if (currentY <= -650f)
+            if (isScrollDown)
             {
-                currentY = 650f;
+                currentY -= currentSpeed * dt;
+                // Cuộn xuống: khi vượt quá đáy (-limitY), bọc ngược lại lên đỉnh (limitY)
+                if (currentY <= -limitY)
+                {
+                    currentY = limitY;
 
-                // Nếu đã quay đủ thời gian -> Load card thật và thoát vòng lặp để chuyển sang giai đoạn Snap
-                if (elapsed >= rollDuration)
-                {
-                    SetupValues(_cardData);
-                    break;
+                    // Nếu đã quay đủ thời gian -> Load card thật và thoát vòng lặp để chuyển sang giai đoạn Snap
+                    if (elapsed >= rollDuration)
+                    {
+                        SetupValues(_cardData);
+                        break;
+                    }
+                    else
+                    {
+                        ShowRandomCardVisuals();
+                    }
                 }
-                else
+            }
+            else
+            {
+                currentY += currentSpeed * dt;
+                // Cuộn lên: khi vượt quá đỉnh (limitY), bọc ngược lại xuống đáy (-limitY)
+                if (currentY >= limitY)
                 {
-                    ShowRandomCardVisuals();
+                    currentY = -limitY;
+
+                    // Nếu đã quay đủ thời gian -> Load card thật và thoát vòng lặp để chuyển sang giai đoạn Snap
+                    if (elapsed >= rollDuration)
+                    {
+                        SetupValues(_cardData);
+                        break;
+                    }
+                    else
+                    {
+                        ShowRandomCardVisuals();
+                    }
                 }
             }
 
@@ -259,10 +314,10 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         // Đảm bảo scale chuẩn sau khi xong vòng lặp trượt
         transform.localScale = _originalScale;
 
-        // 3. Thực hiện trượt mượt mà từ vị trí bọc trên cùng (650f) về tâm (0f) với hiệu ứng nẩy cơ học (Back Ease Out)
+        // 3. Thực hiện trượt mượt mà từ vị trí biên (limitY hoặc -limitY) về tâm (0f) với hiệu ứng nẩy cơ học (Back Ease Out)
         float snapElapsed = 0f;
         float snapDuration = 0.5f;
-        Vector2 startPos = new Vector2(0f, 650f);
+        Vector2 startPos = new Vector2(0f, isScrollDown ? limitY : -limitY);
         Vector2 targetPos = Vector2.zero;
 
         while (snapElapsed < snapDuration)

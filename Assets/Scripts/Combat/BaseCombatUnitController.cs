@@ -89,7 +89,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected float baseSpeed = -1f;
 
     // Cache component FogVisibilityTarget phục vụ cho AI Culling tối ưu hiệu năng
-    private FogVisibilityTarget _fogVisibility;
+    protected FogVisibilityTarget _fogVisibility;
 
     protected void InitializeBaseStatsIfNeeded()
     {

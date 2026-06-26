@@ -82,6 +82,13 @@ public class GameManager : MonoBehaviour
     public GameObject VoidPortalPrefab => _voidPortalPrefab;
     public GameObject MerchantCaravanPrefab => _merchantCaravanPrefab;
 
+    public enum GameState { Playing, Victory, Defeat }
+
+    [Header("Game State Settings")]
+    [SerializeField] private int _targetSurvivalDays = 15;
+
+    public GameState CurrentState { get; private set; } = GameState.Playing;
+
     void Awake()
     {
         if (s_instance == null)
@@ -134,6 +141,78 @@ public class GameManager : MonoBehaviour
     {
         InitGame();
         SetupCursor();
+
+        if (TimeManager.Instance != null)
+        {
+            TimeManager.Instance.OnDayChanged += HandleDayChanged;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (TimeManager.Instance != null)
+        {
+            TimeManager.Instance.OnDayChanged -= HandleDayChanged;
+        }
+    }
+
+    private void HandleDayChanged(int newDay)
+    {
+        CheckWinCondition();
+    }
+
+    public void CheckWinCondition()
+    {
+        if (CurrentState != GameState.Playing) return;
+
+        int currentDay = TimeManager.Instance != null ? TimeManager.Instance.dayCount : 1;
+        if (currentDay < _targetSurvivalDays + 1)
+        {
+            return;
+        }
+
+        VoidPortal[] portals = FindObjectsByType<VoidPortal>(FindObjectsInactive.Include);
+        int activePortals = 0;
+        foreach (var portal in portals)
+        {
+            if (portal != null && portal.currentState != CombatState.Dead)
+            {
+                activePortals++;
+            }
+        }
+
+        if (activePortals == 0)
+        {
+            TriggerVictory();
+        }
+    }
+
+    public void TriggerVictory()
+    {
+        if (CurrentState != GameState.Playing) return;
+        CurrentState = GameState.Victory;
+        Debug.Log("[GAME OVER] CHIEN THANG! Ban da tieu diet sach cong hu vo va song sot qua 15 ngay!");
+
+        Time.timeScale = 0f;
+
+        if (HUDManager.Instance != null)
+        {
+            HUDManager.Instance.ShowVictoryScreen();
+        }
+    }
+
+    public void TriggerDefeat()
+    {
+        if (CurrentState != GameState.Playing) return;
+        CurrentState = GameState.Defeat;
+        Debug.Log("[GAME OVER] THAT BAI! Nha chinh cua ban da bi tieu diet!");
+
+        Time.timeScale = 0f;
+
+        if (HUDManager.Instance != null)
+        {
+            HUDManager.Instance.ShowDefeatScreen();
+        }
     }
 
     private void SetupCursor()
@@ -400,6 +479,9 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         Debug.Log("[GameManager] Dang khoi dong lai game, dang don dep cac doi tuong DontDestroyOnLoad...");
+
+        // Reset timescale to prevent frozen game on reload
+        Time.timeScale = 1f;
 
         // Tao mot do tuong tam thoi de lay reference den DontDestroyOnLoad scene
         GameObject tempObj = new GameObject();

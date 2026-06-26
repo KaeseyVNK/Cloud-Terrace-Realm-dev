@@ -70,6 +70,11 @@ public class VoidPortal : BaseCombatUnitController
             );
         }
 
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.CheckWinCondition();
+        }
+
         base.OnDeath();
     }
 }
