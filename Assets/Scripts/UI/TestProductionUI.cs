@@ -330,11 +330,20 @@ public class TestProductionUI : MonoBehaviour
             return;
         }
 
+        // Nếu ProductionUIController UGUI đang hoạt động (và không phải nhà chính) thì bỏ qua OnGUI cũ
+        if (ProductionUIController.Instance != null && selectedProduction != null && 
+            selectedProduction.GetComponent<MainBuildingCombatTarget>() == null && 
+            selectedProduction.GetComponentInChildren<MainBuildingCombatTarget>() == null)
+        {
+            return;
+        }
+
         if (selectedProduction == null)
         {
             GUI.Label(new Rect(10, 10, 420, 20), "Bấm CHUỘT PHẢI hoặc CHẠM vào công trình để sản xuất/nghiên cứu.");
             return;
         }
+
 
         if (selectedProduction.BuildingData == null || selectedProduction.BuildingData.producibleUnits == null)
         {

@@ -12,9 +12,11 @@ public class MarketUI : MonoBehaviour
     private MarketController _selectedMarket;
 
     // State for transaction
+#pragma warning disable 0414
     private ResourceType _sellResource = ResourceType.Wood;
     private ResourceType _buyResource = ResourceType.Gold;
     private int _tradeAmount = 10;
+#pragma warning restore 0414
 
     #endregion
 

@@ -10,6 +10,7 @@ public class UnitData : ScriptableObject
 
     [Header("Visuals")]
     public GameObject unitPrefab;
+    public Sprite portraitIcon;
 
     [Header("Production Requirements")]
     public float productionTime = 5f; // Thời gian sinh ra unit này (giây)

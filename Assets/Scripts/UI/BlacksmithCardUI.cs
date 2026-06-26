@@ -180,7 +180,12 @@ public class BlacksmithCardUI : MonoBehaviour, IPointerEnterHandler, IPointerExi
         }
         if (_tooltipDescriptionText != null)
         {
-            _tooltipDescriptionText.text = tech.GetVillagerEffectText();
+            string effectText = tech.GetVillagerEffectText();
+            if (string.IsNullOrEmpty(effectText))
+            {
+                effectText = tech.description;
+            }
+            _tooltipDescriptionText.text = effectText;
         }
 
         // Setup costs (both fallback text and individual icon rows)

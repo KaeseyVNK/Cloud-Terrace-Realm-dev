@@ -24,7 +24,9 @@ public class GridSystem : MonoBehaviour
 
     [Header("Terrain Details")]
     [SerializeField] private bool _generateTerrainDetails = true;
+#pragma warning disable 0414
     [SerializeField] private bool _useComputeShaderGrass = true;
+#pragma warning restore 0414
     [SerializeField] private Texture2D _detailTexture;
     [SerializeField, Range(0, 255)] private int _detailDensity = 128;
     [SerializeField] private bool _disableDetailBillboards = true;

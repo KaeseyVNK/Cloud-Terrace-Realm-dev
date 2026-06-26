@@ -68,6 +68,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     private Vector3 _rallyPosition;
     private bool _isRetreating = false;
     private float _retreatTimer = 0f;
+    private float _enemyMovingStuckTimer = 0f;
 
     [Header("Behavior Settings")]
     [Tooltip("Cho phép quái bỏ chạy về nơi xuất phát khi gần hết máu")]
@@ -162,6 +163,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _repathTimer = 0f;
         _isWaitingForRally = false;
         _isRetreating = false;
+        _enemyMovingStuckTimer = 0f;
         _appliedSpeedMultiplier = 1f;
         _spawnPosition = transform.position;
         ClearScanCache();
@@ -222,6 +224,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _repathTimer = 0f;
         _isWaitingForRally = false;
         _isRetreating = false;
+        _enemyMovingStuckTimer = 0f;
         _appliedSpeedMultiplier = 1f;
         ClearScanCache();
     }
@@ -545,8 +548,65 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         {
             if (!navAgent.hasPath || navAgent.velocity.sqrMagnitude == 0f)
             {
+                _enemyMovingStuckTimer = 0f;
                 ChangeState(CombatState.Idle);
+                return;
             }
+        }
+
+        // Watchdog: phát hiện quái bị kẹt hoặc đường đi bị chắn hoàn toàn bởi tường rào/cổng của người chơi
+        bool agentIsStuck = navAgent.hasPath
+            && !navAgent.pathPending
+            && navAgent.velocity.sqrMagnitude < 0.25f
+            && navAgent.remainingDistance > navAgent.stoppingDistance + 0.1f;
+
+        bool isPartialBlocked = navAgent.hasPath
+            && !navAgent.pathPending
+            && navAgent.pathStatus == NavMeshPathStatus.PathPartial
+            && navAgent.velocity.sqrMagnitude < 0.25f;
+
+        if (agentIsStuck || isPartialBlocked)
+        {
+            _enemyMovingStuckTimer += Time.deltaTime;
+            if (_enemyMovingStuckTimer >= 1.0f)
+            {
+                // Quét tìm công trình/tường rào/cổng của người chơi gần nhất trong phạm vi 20 mét
+                List<BaseCombatUnitController> buildingTargets = GetCachedPlayerBuildingTargets();
+                BaseCombatUnitController blockingBuilding = null;
+                float wallMinDist = float.MaxValue;
+                foreach (var t in buildingTargets)
+                {
+                    if (t != null && t.currentState != CombatState.Dead)
+                    {
+                        float d = Vector3.Distance(transform.position, t.transform.position);
+                        if (d <= 20f && d < wallMinDist)
+                        {
+                            wallMinDist = d;
+                            blockingBuilding = t;
+                        }
+                    }
+                }
+
+                if (blockingBuilding != null)
+                {
+                    _enemyMovingStuckTimer = 0f;
+                    AttackTarget(blockingBuilding);
+                    return;
+                }
+
+                // Dự phòng: Nếu kẹt quá 2.0 giây mà không có công trình nào cản trở, đưa quái về Idle để tính toán lại đường đi
+                if (_enemyMovingStuckTimer >= 2.0f)
+                {
+                    _enemyMovingStuckTimer = 0f;
+                    navAgent.isStopped = true;
+                    navAgent.ResetPath();
+                    ChangeState(CombatState.Idle);
+                }
+            }
+        }
+        else
+        {
+            _enemyMovingStuckTimer = 0f;
         }
     }
 
@@ -560,6 +620,54 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         if (TryRetargetToHigherPriorityEnemy())
         {
             return;
+        }
+
+        // Chống kẹt khi đang đuổi bắt mục tiêu qua hàng rào/cổng đóng kín
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            bool chaseIsStuck = navAgent.hasPath
+                && !navAgent.pathPending
+                && navAgent.velocity.sqrMagnitude < 0.25f;
+
+            bool chaseIsPartial = navAgent.hasPath
+                && !navAgent.pathPending
+                && navAgent.pathStatus == UnityEngine.AI.NavMeshPathStatus.PathPartial;
+
+            if (chaseIsStuck || chaseIsPartial)
+            {
+                _enemyMovingStuckTimer += Time.deltaTime;
+                if (_enemyMovingStuckTimer >= 1.0f)
+                {
+                    // Quét tìm công trình/tường rào/cửa cổng gần nhất của người chơi trong phạm vi 4.0 mét
+                    List<BaseCombatUnitController> buildingTargets = GetCachedPlayerBuildingTargets();
+                    BaseCombatUnitController blockingBuilding = null;
+                    float wallMinDist = float.MaxValue;
+                    foreach (var t in buildingTargets)
+                    {
+                        if (t != null && t.currentState != CombatState.Dead)
+                        {
+                            float d = Vector3.Distance(transform.position, t.transform.position);
+                            if (d <= 4.0f && d < wallMinDist)
+                            {
+                                wallMinDist = d;
+                                blockingBuilding = t;
+                            }
+                        }
+                    }
+
+                    if (blockingBuilding != null)
+                    {
+                        _enemyMovingStuckTimer = 0f;
+                        AttackTarget(blockingBuilding);
+                        Debug.Log($"[EnemyAI] {unitName} bi chan khi duoi bat, chuyen sang tan cong pha huy: {blockingBuilding.gameObject.name}");
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                _enemyMovingStuckTimer = 0f;
+            }
         }
 
         base.HandleChasingState();
@@ -816,7 +924,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         s_nextPlayerBuildingCacheRefreshTime = Time.time + PLAYER_BUILDING_CACHE_INTERVAL;
         s_cachedPlayerBuildingTargets.Clear();
 
-        BaseCombatUnitController[] allUnits = FindObjectsByType<BaseCombatUnitController>(FindObjectsSortMode.None);
+        BaseCombatUnitController[] allUnits = FindObjectsByType<BaseCombatUnitController>(FindObjectsInactive.Exclude);
         foreach (BaseCombatUnitController unit in allUnits)
         {
             if (unit == null || unit.currentState == CombatState.Dead || unit.faction != UnitFaction.Player)

@@ -421,17 +421,7 @@ public class UnitSelectionManager : MonoBehaviour
                         RiceField clickedRiceField = hit.collider.GetComponentInParent<RiceField>();
                         if (clickedRiceField != null)
                         {
-                            foreach (var unit in selectedUnits)
-                            {
-                                if (unit != null)
-                                {
-                                    VillagerController villager = unit.GetComponent<VillagerController>();
-                                    if (villager != null)
-                                    {
-                                        villager.CommandFarm(clickedRiceField);
-                                    }
-                                }
-                            }
+                            DistributeVillagersToRiceFields(clickedRiceField);
                         }
                     }
                 }
@@ -672,6 +662,11 @@ public class UnitSelectionManager : MonoBehaviour
              // Chỉ số dùng để tính toán điểm đội hình di chuyển thường
              int moveIndex = 0;
 
+            if (clickedRiceField != null)
+            {
+                DistributeVillagersToRiceFields(clickedRiceField);
+            }
+
             foreach (var unit in selectedUnits)
             {
                 if (unit != null)
@@ -697,6 +692,11 @@ public class UnitSelectionManager : MonoBehaviour
 
                     if (villager != null)
                     {
+                        if (clickedRiceField != null)
+                        {
+                            continue;
+                        }
+
                         // A.0. Ưu tiên 0: Click vào Phế Tích Cổ để khai quật
                         if (clickedRuins != null)
                         {
@@ -1023,6 +1023,61 @@ public class UnitSelectionManager : MonoBehaviour
         if (selectedUnits.Remove(unit))
         {
             unit.Deselect();
+        }
+    }
+
+    private void DistributeVillagersToRiceFields(RiceField clickedRiceField)
+    {
+        if (clickedRiceField == null) return;
+
+        // 1. Thu thập tất cả các dân làng được chọn
+        List<VillagerController> selectedVillagers = new List<VillagerController>();
+        foreach (var unit in selectedUnits)
+        {
+            if (unit != null)
+            {
+                VillagerController villager = unit.GetComponent<VillagerController>();
+                if (villager != null)
+                {
+                    selectedVillagers.Add(villager);
+                }
+            }
+        }
+
+        if (selectedVillagers.Count == 0) return;
+
+        // 2. Tìm tất cả các ruộng lúa trong cảnh
+        RiceField[] allFields = Object.FindObjectsByType<RiceField>(FindObjectsInactive.Exclude);
+        List<RiceField> nearbyFields = new List<RiceField>();
+
+        // Lọc các ruộng lúa trong bán kính 15m
+        foreach (var field in allFields)
+        {
+            if (field != null && Vector3.Distance(field.transform.position, clickedRiceField.transform.position) <= 15f)
+            {
+                nearbyFields.Add(field);
+            }
+        }
+
+        // 3. Sắp xếp các ruộng lúa theo khoảng cách đến ruộng được click (ruộng được click sẽ ở vị trí đầu tiên)
+        nearbyFields.Sort((a, b) => 
+            Vector3.Distance(a.transform.position, clickedRiceField.transform.position)
+            .CompareTo(Vector3.Distance(b.transform.position, clickedRiceField.transform.position))
+        );
+
+        // 4. Phân công từng dân làng cho ruộng lúa
+        for (int i = 0; i < selectedVillagers.Count; i++)
+        {
+            if (i < nearbyFields.Count)
+            {
+                selectedVillagers[i].CommandFarm(nearbyFields[i]);
+                Debug.Log($"[RTS] Tự động phân công {selectedVillagers[i].gameObject.name} chăm sóc ruộng lúa {nearbyFields[i].gameObject.name}");
+            }
+            else
+            {
+                selectedVillagers[i].GoIdle();
+                Debug.Log($"[RTS] Cư dân thừa {selectedVillagers[i].gameObject.name} được đặt về Idle");
+            }
         }
     }
 }

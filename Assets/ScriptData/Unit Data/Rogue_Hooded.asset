@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Rogue_Hooded
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: "Sát Thủ Bóng Đêm"
-  description: "Đơn vị cơ động bắn tên nhanh, sát thương cao và có khả năng tránh né tốt."
+  unitName: "S\xE1t Th\u1EE7 B\xF3ng \u0110\xEAm"
+  description: "\u0110\u01A1n v\u1ECB c\u01A1 \u0111\u1ED9ng b\u1EAFn t\xEAn nhanh,
+    s\xE1t th\u01B0\u01A1ng cao v\xE0 c\xF3 kh\u1EA3 n\u0103ng tr\xE1nh n\xE9 t\u1ED1t."
   unitPrefab: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
+  portraitIcon: {fileID: -489099260, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   productionTime: 10
   productionCosts:
   - resourceType: 0

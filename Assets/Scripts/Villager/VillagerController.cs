@@ -62,7 +62,9 @@ public class VillagerController : MonoBehaviour
     [SerializeField] private float _disableAvoidanceNearTargetDistance = 0.9f;
 
     [Tooltip("Minimum spacing between villagers standing around the same construction site.")]
+#pragma warning disable 0414
     [SerializeField] private float _builderSlotSpacing = 1.25f;
+#pragma warning restore 0414
 
     [Header("Bắn cung đi săn")]
     [Tooltip("Tầm bắn cung khi đi săn thú/quái")]
@@ -1757,7 +1759,7 @@ public class VillagerController : MonoBehaviour
         WildAnimalController closest = null;
         float closestDistSqr = radius * radius;
 
-        WildAnimalController[] animals = FindObjectsByType<WildAnimalController>(FindObjectsSortMode.None);
+        WildAnimalController[] animals = FindObjectsByType<WildAnimalController>(FindObjectsInactive.Exclude);
         foreach (var animal in animals)
         {
             if (animal == null || animal.currentState == CombatState.Dead) continue;
@@ -3179,6 +3181,59 @@ public class VillagerController : MonoBehaviour
             case ResourceType.Water: return "Nước";
             default: return type.ToString();
         }
+    }
+
+    /// <summary>
+    /// Xử lý logic khi dân làng bị tiêu diệt: tắt toàn bộ công cụ, ẩn tài nguyên và gán các cờ hoạt ảnh về false.
+    /// </summary>
+    public void HandleDeath()
+    {
+        if (_woodTool != null) _woodTool.SetActive(false);
+        if (_miningTool != null) _miningTool.SetActive(false);
+        if (_bowTool != null) _bowTool.SetActive(false);
+        if (_diggingTool != null) _diggingTool.SetActive(false);
+
+        if (_carryVisuals != null)
+        {
+            _carryVisuals.Hide();
+        }
+
+        if (_animator != null)
+        {
+            if (_hasIdleParam) _animator.SetBool("IsIdle", false);
+            if (_hasMovingParam) _animator.SetBool("IsMoving", false);
+            if (_hasBuildingParam) _animator.SetBool("IsBuilding", false);
+            if (_hasGatheringParam) _animator.SetBool("IsGathering", false);
+            if (_hasDepositingParam) _animator.SetBool("IsDepositing", false);
+            if (_hasIsAimingParam) _animator.SetBool("isAiming", false);
+        }
+
+        enabled = false;
+    }
+
+    /// <summary>
+    /// Đưa dân làng về trạng thái Idle, hủy bỏ các tiến trình công việc hiện tại.
+    /// </summary>
+    public void GoIdle()
+    {
+        _autoGatherBuildingAfterDeposit = null;
+        _pathRetryCount = 0;
+        ReleaseReservedSlot();
+        
+        TargetBuilding = null;
+        _currentJob = null;
+        _repairTarget = null;
+        _huntTarget = null;
+        _isManualMove = false;
+        _wasFarmingWildAnimals = false;
+        _targetRiceField = null;
+        
+        if (_navAgent != null && _navAgent.enabled && _navAgent.isOnNavMesh)
+        {
+            _navAgent.isStopped = true;
+            _navAgent.ResetPath();
+        }
+        ChangeState(VillagerState.Idle);
     }
 
     #endregion

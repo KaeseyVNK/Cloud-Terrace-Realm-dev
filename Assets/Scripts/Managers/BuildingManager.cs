@@ -667,7 +667,27 @@ public class BuildingManager : MonoBehaviour
         {
             if (source != null)
             {
-                Destroy(source);
+                DestroyImmediate(source);
+            }
+        }
+
+        // Vô hiệu hóa WoodGateController trên ghost để tránh việc tự động mở/đóng cửa khi đang xem trước
+        WoodGateController[] gateControllers = ghost.GetComponentsInChildren<WoodGateController>(true);
+        foreach (WoodGateController controller in gateControllers)
+        {
+            if (controller != null)
+            {
+                controller.enabled = false;
+            }
+        }
+
+        // Vô hiệu hóa BaseCombatUnitController (ví dụ BuildingCombatTarget) trên ghost để tránh tự đăng ký vào Registry chiến đấu
+        BaseCombatUnitController[] combatControllers = ghost.GetComponentsInChildren<BaseCombatUnitController>(true);
+        foreach (BaseCombatUnitController controller in combatControllers)
+        {
+            if (controller != null)
+            {
+                controller.enabled = false;
             }
         }
 

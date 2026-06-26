@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Knight2H
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: "Chiến Binh Khiên"
-  description: "Chiến binh cận chiến tinh nhuệ sử dụng khiên lớn, khả năng chống chịu cực cao."
+  unitName: "Chi\u1EBFn Binh Khi\xEAn"
+  description: "Chi\u1EBFn binh c\u1EADn chi\u1EBFn tinh nhu\u1EC7 s\u1EED d\u1EE5ng
+    khi\xEAn l\u1EDBn, kh\u1EA3 n\u0103ng ch\u1ED1ng ch\u1ECBu c\u1EF1c cao."
   unitPrefab: {fileID: 3795645226564922642, guid: 2d03f32498caa604b9a448737ac977e6, type: 3}
+  portraitIcon: {fileID: 2019317813, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   productionTime: 5
   productionCosts:
   - resourceType: 2

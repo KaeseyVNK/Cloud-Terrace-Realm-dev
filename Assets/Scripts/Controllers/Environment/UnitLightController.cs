@@ -22,6 +22,10 @@ public class UnitLightController : MonoBehaviour
     private bool _isLightOn = false;
     private Vector3 _baseFakeLightScale = Vector3.one;
 
+    private Camera _mainCamera;
+    private bool _isInCameraView = true;
+    private Coroutine _cullingCoroutine;
+
     private void Awake()
     {
         InitializeLight();
@@ -29,14 +33,21 @@ public class UnitLightController : MonoBehaviour
 
     private void Start()
     {
-        // Start is kept empty since event registration and state refresh are handled in OnEnable.
+        _mainCamera = Camera.main;
     }
 
     private void OnEnable()
     {
         RegisterEvents();
         _isLightOn = false;
+        _isInCameraView = true;
         EvaluateAndTransitionLight();
+        
+        if (_cullingCoroutine != null)
+        {
+            StopCoroutine(_cullingCoroutine);
+        }
+        _cullingCoroutine = StartCoroutine(CameraCullingRoutine());
     }
 
     private void OnDisable()
@@ -46,6 +57,11 @@ public class UnitLightController : MonoBehaviour
         {
             StopCoroutine(_fadeCoroutine);
             _fadeCoroutine = null;
+        }
+        if (_cullingCoroutine != null)
+        {
+            StopCoroutine(_cullingCoroutine);
+            _cullingCoroutine = null;
         }
         if (_pointLight != null)
         {
@@ -58,6 +74,56 @@ public class UnitLightController : MonoBehaviour
             _fakeLightVisual.SetActive(false);
         }
         _isLightOn = false;
+    }
+
+    private IEnumerator CameraCullingRoutine()
+    {
+        yield return new WaitForSeconds(Random.Range(0f, 0.25f));
+        while (true)
+        {
+            if (_mainCamera == null)
+            {
+                _mainCamera = Camera.main;
+            }
+
+            if (_mainCamera != null)
+            {
+                Vector3 viewportPos = _mainCamera.WorldToViewportPoint(transform.position);
+                bool inView = viewportPos.x >= -0.1f && viewportPos.x <= 1.1f && viewportPos.y >= -0.1f && viewportPos.y <= 1.1f && viewportPos.z > 0f;
+                if (_isInCameraView != inView)
+                {
+                    _isInCameraView = inView;
+                    EvaluateCullState();
+                }
+            }
+            yield return new WaitForSeconds(0.25f);
+        }
+    }
+
+    private void EvaluateCullState()
+    {
+        bool shouldEnable = ShouldEnableLight() && _isInCameraView;
+        if (_isLightOn == shouldEnable) return;
+        _isLightOn = shouldEnable;
+
+        if (_fadeCoroutine != null)
+        {
+            StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = null;
+        }
+
+        if (_useFakeLight && _fakeLightVisual != null)
+        {
+            _fakeLightVisual.SetActive(shouldEnable);
+            _fakeLightVisual.transform.localScale = shouldEnable ? _baseFakeLightScale : Vector3.zero;
+        }
+
+        if (_pointLight != null)
+        {
+            bool enableRealLight = shouldEnable && _useCharacterPointLight;
+            _pointLight.enabled = enableRealLight;
+            _pointLight.intensity = enableRealLight ? _targetIntensity : 0f;
+        }
     }
 
     private void OnDestroy()
@@ -166,7 +232,7 @@ public class UnitLightController : MonoBehaviour
 
     private void EvaluateAndTransitionLight()
     {
-        bool shouldEnable = ShouldEnableLight();
+        bool shouldEnable = ShouldEnableLight() && _isInCameraView;
         if (_isLightOn == shouldEnable) return;
 
         _isLightOn = shouldEnable;
@@ -189,7 +255,7 @@ public class UnitLightController : MonoBehaviour
 
     private void RefreshLightStateInstant()
     {
-        bool shouldEnable = ShouldEnableLight();
+        bool shouldEnable = ShouldEnableLight() && _isInCameraView;
         _isLightOn = shouldEnable;
         if (_fadeCoroutine != null)
         {

@@ -12,12 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Axe_unit
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: "Lính Rìu"
-  description: "Binh lính cận chiến dùng rìu chiến đấu với lượng máu và giáp trung bình."
+  unitName: "L\xEDnh R\xECu"
+  description: "Binh l\xEDnh c\u1EADn chi\u1EBFn d\xF9ng r\xECu chi\u1EBFn \u0111\u1EA5u
+    v\u1EDBi l\u01B0\u1EE3ng m\xE1u v\xE0 gi\xE1p trung b\xECnh."
   unitPrefab: {fileID: 12324393601355489, guid: ea5aeb9a31ec84445a08e415d3c39324, type: 3}
+  portraitIcon: {fileID: 148914426, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   productionTime: 5
   productionCosts:
   - resourceType: 0
     amount: 50
   - resourceType: 1
     amount: 50
+  requiredTechnologies: []

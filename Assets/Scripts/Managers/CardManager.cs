@@ -58,12 +58,55 @@ public class CardManager : MonoBehaviour
 
     private void Start()
     {
+        if (TechnologyManager.Instance != null)
+        {
+            TechnologyManager.Instance.OnTechnologyUnlocked += HandleTechnologyUnlocked;
+        }
+
         // Add existing unlocked cards to available lists on start if pre-populated
         foreach (var card in _unlockedCards)
         {
             ApplyCardEffects(card, false);
         }
         OnCardStateChanged?.Invoke();
+    }
+
+    private void OnDestroy()
+    {
+        if (TechnologyManager.HasInstance)
+        {
+            TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+        }
+    }
+
+    private void HandleTechnologyUnlocked(TechnologyData tech)
+    {
+        if (tech == null || string.IsNullOrEmpty(tech.technologyId)) return;
+
+        if (tech.technologyId.StartsWith("unlock_building_"))
+        {
+            string buildingName = tech.technologyId.Substring("unlock_building_".Length);
+            foreach (var card in _allCards)
+            {
+                if (card != null && card.cardType == UpgradeCardType.Unlock && card.buildingToUnlock != null && card.buildingToUnlock.name == buildingName)
+                {
+                    ApplyCardEffects(card, false);
+                    break;
+                }
+            }
+        }
+        else if (tech.technologyId.StartsWith("unlock_unit_"))
+        {
+            string unitName = tech.technologyId.Substring("unlock_unit_".Length);
+            foreach (var card in _allCards)
+            {
+                if (card != null && card.cardType == UpgradeCardType.Unlock && card.unitToUnlock != null && card.unitToUnlock.name == unitName)
+                {
+                    ApplyCardEffects(card, false);
+                    break;
+                }
+            }
+        }
     }
 
     private void Update()
@@ -221,6 +264,37 @@ public class CardManager : MonoBehaviour
     {
         if (card.cardType == UpgradeCardType.Unlock)
         {
+            if (triggerFloatingText)
+            {
+                // Thay vì mở khóa ngay lập tức, chuyển thành công nghệ cần nghiên cứu ở lò rèn
+                TechnologyData cardTech = ScriptableObject.CreateInstance<TechnologyData>();
+                string typeKey = card.buildingToUnlock != null ? "building_" + card.buildingToUnlock.name : "unit_" + card.unitToUnlock.name;
+                cardTech.technologyId = "unlock_" + typeKey;
+                cardTech.technologyName = "Nghien cuu " + card.cardName;
+                cardTech.description = "Mo khoa " + (card.buildingToUnlock != null ? card.buildingToUnlock.buildingName : card.unitToUnlock.unitName) + " de su dung.";
+                cardTech.icon = card.icon;
+                cardTech.researchTime = card.buildingToUnlock != null ? 15f : 12f;
+                
+                cardTech.researchCosts = new List<ResourceCost>
+                {
+                    new ResourceCost { resourceType = ResourceType.Gold, amount = 100 },
+                    new ResourceCost { resourceType = ResourceType.Wood, amount = 50 }
+                };
+
+                if (!BlacksmithResearch.GlobalCardTechnologies.Contains(cardTech))
+                {
+                    BlacksmithResearch.GlobalCardTechnologies.Add(cardTech);
+                }
+
+                foreach (var blacksmith in BlacksmithResearch.ActiveBlacksmiths)
+                {
+                    blacksmith.AddCardTechnology(cardTech);
+                }
+
+                Debug.Log($"[CardManager] Dang ky nghien cuu mo khoa cho: {card.cardName} tai Lo Ren.");
+                return;
+            }
+
             _unlockedCards.Add(card);
             
             // Unlock building

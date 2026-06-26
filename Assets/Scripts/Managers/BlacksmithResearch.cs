@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class BlacksmithResearch : MonoBehaviour
 {
+    public static readonly List<BlacksmithResearch> ActiveBlacksmiths = new List<BlacksmithResearch>();
+    public static readonly List<TechnologyData> GlobalCardTechnologies = new List<TechnologyData>();
+
     [SerializeField] private List<TechnologyData> availableTechnologies = new List<TechnologyData>();
 
     private TechnologyData currentResearch;
@@ -12,6 +15,31 @@ public class BlacksmithResearch : MonoBehaviour
     public TechnologyData CurrentResearch => currentResearch;
     public float CurrentResearchTimer => currentResearchTimer;
     public bool IsResearching => currentResearch != null;
+
+    private void OnEnable()
+    {
+        ActiveBlacksmiths.Add(this);
+        foreach (var tech in GlobalCardTechnologies)
+        {
+            if (tech != null && !availableTechnologies.Contains(tech))
+            {
+                availableTechnologies.Add(tech);
+            }
+        }
+    }
+
+    private void OnDisable()
+    {
+        ActiveBlacksmiths.Remove(this);
+    }
+
+    public void AddCardTechnology(TechnologyData tech)
+    {
+        if (tech != null && !availableTechnologies.Contains(tech))
+        {
+            availableTechnologies.Add(tech);
+        }
+    }
 
     private void Start()
     {

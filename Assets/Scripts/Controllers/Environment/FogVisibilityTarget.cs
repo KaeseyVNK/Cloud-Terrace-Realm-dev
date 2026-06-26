@@ -5,7 +5,9 @@ using System.Collections.Generic;
 public class FogVisibilityTarget : MonoBehaviour
 {
     [SerializeField] private int additionalRadius = 0;
+#pragma warning disable 0414
     [SerializeField] private float updateInterval = 0.2f;
+#pragma warning restore 0414
     [SerializeField] private bool visibleWhenFogDisabled = true;
 
     private csFogWar fogWar;

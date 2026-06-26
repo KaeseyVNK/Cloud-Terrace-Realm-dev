@@ -17,12 +17,12 @@ MonoBehaviour:
     ta \u0111i qua v\xE0 \u0111\xF3ng l\u1EA1i ng\u0103n ch\u1EB7n qu\xE1i v\u1EADt."
   category: 5
   icon: {fileID: 0}
-  buildingPrefab: {fileID: 2716568020924354350, guid: 439a0cd3803562543a3c1bce44b00d4f, type: 3}
+  buildingPrefab: {fileID: 7625244913226679163, guid: 439a0cd3803562543a3c1bce44b00d4f, type: 3}
   buildingSize: {x: 4, y: 1}
   buildCosts:
   - resourceType: 0
     amount: 20
-  maxHealth: 500
+  maxHealth: 1000
   maxWorkers: 0
   buildTime: 8
   isInstantBuild: 1

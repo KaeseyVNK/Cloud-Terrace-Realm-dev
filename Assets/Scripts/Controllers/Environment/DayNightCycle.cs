@@ -37,7 +37,9 @@ public class DayNightCycle : MonoBehaviour
     [SerializeField] private Color dawnDuskHorizon = new Color(0.95f, 0.65f, 0.45f);
 
     [Header("Sun Rotation")]
+#pragma warning disable 0414
     [SerializeField] private float minRotationX = -90f;
+#pragma warning restore 0414
     [SerializeField] private float baseRotationY = 50f;
 
     [Header("Weather Transitions")]

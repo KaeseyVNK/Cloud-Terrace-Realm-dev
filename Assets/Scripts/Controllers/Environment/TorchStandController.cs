@@ -31,9 +31,15 @@ public class TorchStandController : MonoBehaviour
     private bool _isLightOn = false;
     private Coroutine _fadeCoroutine;
 
+    private Camera _mainCamera;
+    private bool _isInCameraView = true;
+    private Coroutine _cullingCoroutine;
+
     private void Awake()
     {
         _building = GetComponent<ConstructibleBuilding>();
+        _mainCamera = Camera.main;
+
         if (_torchLight == null)
         {
             _torchLight = GetComponentInChildren<Light>(true);
@@ -89,7 +95,14 @@ public class TorchStandController : MonoBehaviour
 
         _isCompletedCached = _building != null && _building.IsCompleted;
         _isLightOn = false;
+        _isInCameraView = true;
         UpdateTorchState();
+
+        if (_cullingCoroutine != null)
+        {
+            StopCoroutine(_cullingCoroutine);
+        }
+        _cullingCoroutine = StartCoroutine(CameraCullingRoutine());
     }
 
     private void OnDisable()
@@ -107,8 +120,83 @@ public class TorchStandController : MonoBehaviour
             StopCoroutine(_fadeCoroutine);
             _fadeCoroutine = null;
         }
+        if (_cullingCoroutine != null)
+        {
+            StopCoroutine(_cullingCoroutine);
+            _cullingCoroutine = null;
+        }
         StopFlicker();
         _isLightOn = false;
+    }
+
+    private IEnumerator CameraCullingRoutine()
+    {
+        yield return new WaitForSeconds(Random.Range(0f, 0.25f));
+        while (true)
+        {
+            if (_mainCamera == null)
+            {
+                _mainCamera = Camera.main;
+            }
+
+            if (_mainCamera != null)
+            {
+                Vector3 viewportPos = _mainCamera.WorldToViewportPoint(transform.position);
+                bool inView = viewportPos.x >= -0.1f && viewportPos.x <= 1.1f && viewportPos.y >= -0.1f && viewportPos.y <= 1.1f && viewportPos.z > 0f;
+                if (_isInCameraView != inView)
+                {
+                    _isInCameraView = inView;
+                    EvaluateCullState();
+                }
+            }
+            yield return new WaitForSeconds(0.25f);
+        }
+    }
+
+    private void EvaluateCullState()
+    {
+        bool isCompleted = _building == null || _building.IsCompleted;
+        bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
+        bool isRaining = WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain;
+        
+        bool shouldLight = isCompleted && (isNight || isRaining) && _isInCameraView;
+        if (_isLightOn == shouldLight) return;
+        _isLightOn = shouldLight;
+
+        if (_fadeCoroutine != null)
+        {
+            StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = null;
+        }
+        StopFlicker();
+
+        if (_useFakeLight && _fakeLightVisual != null)
+        {
+            _fakeLightVisual.SetActive(shouldLight);
+            _fakeLightVisual.transform.localScale = shouldLight ? _baseFakeLightScale : Vector3.zero;
+        }
+        if (_torchLight != null)
+        {
+            if (_useBuildingPointLight)
+            {
+                _torchLight.enabled = shouldLight;
+                _torchLight.intensity = shouldLight ? _baseIntensity : 0f;
+            }
+            else
+            {
+                _torchLight.enabled = false;
+                _torchLight.intensity = 0f;
+            }
+        }
+        if (_fireVisual != null)
+        {
+            _fireVisual.SetActive(shouldLight);
+        }
+
+        if (shouldLight)
+        {
+            StartFlicker();
+        }
     }
 
     private void Update()
@@ -140,7 +228,7 @@ public class TorchStandController : MonoBehaviour
         bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
         bool isRaining = WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain;
 
-        bool shouldLight = isCompleted && (isNight || isRaining);
+        bool shouldLight = isCompleted && (isNight || isRaining) && _isInCameraView;
 
         if (_isLightOn == shouldLight) return;
         _isLightOn = shouldLight;

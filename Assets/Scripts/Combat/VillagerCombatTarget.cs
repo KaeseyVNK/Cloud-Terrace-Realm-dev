@@ -58,10 +58,10 @@ public class VillagerCombatTarget : BaseCombatUnitController
     {
         currentState = CombatState.Dead;
 
-        // Vô hiệu hóa bộ điều khiển dân làng để dừng mọi hoạt động di chuyển/làm việc
+        // Vô hiệu hóa bộ điều khiển dân làng để dừng mọi hoạt động di chuyển/làm việc và cập nhật hoạt ảnh chết
         if (_villagerController != null)
         {
-            _villagerController.enabled = false;
+            _villagerController.HandleDeath();
         }
 
         base.Die();

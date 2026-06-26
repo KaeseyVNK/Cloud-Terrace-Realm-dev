@@ -12,10 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: VillageData
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: "Dân Làng"
-  description: "Dân thường chăm chỉ. Chịu trách nhiệm khai thác tài nguyên, xây dựng và sửa chữa công trình."
+  unitName: "D\xE2n L\xE0ng"
+  description: "D\xE2n th\u01B0\u1EDDng ch\u0103m ch\u1EC9. Ch\u1ECBu tr\xE1ch nhi\u1EC7m
+    khai th\xE1c t\xE0i nguy\xEAn, x\xE2y d\u1EF1ng v\xE0 s\u1EEDa ch\u1EEFa c\xF4ng
+    tr\xECnh."
   unitPrefab: {fileID: 2983170981788088436, guid: 02b870f62052c3549a5ef5efdcf8574e, type: 3}
+  portraitIcon: {fileID: 1801842555, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   productionTime: 5
   productionCosts:
   - resourceType: 2
     amount: 50
+  requiredTechnologies: []

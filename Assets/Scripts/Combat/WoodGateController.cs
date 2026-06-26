@@ -56,8 +56,8 @@ public class WoodGateController : MonoBehaviour
 
     void Update()
     {
-        // Do not manage gate until construction is fully complete
-        if (_building != null && !_building.IsCompleted)
+        // Do not manage gate until construction is fully complete (or if component is missing/ghost)
+        if (_building == null || !_building.IsCompleted)
         {
             return;
         }
@@ -91,6 +91,12 @@ public class WoodGateController : MonoBehaviour
                 var unit = BaseCombatUnitController.Registry[i];
                 if (unit != null && unit.faction == UnitFaction.Player && unit.currentState != CombatState.Dead)
                 {
+                    // Ignore self and other static buildings (fences, towers, main building, etc.)
+                    if (unit.gameObject == gameObject || unit is BuildingCombatTarget || unit is MainBuildingCombatTarget)
+                    {
+                        continue;
+                    }
+
                     if (Vector3.SqrMagnitude(unit.transform.position - myPos) <= radiusSqr)
                     {
                         hasFriendlyNearby = true;

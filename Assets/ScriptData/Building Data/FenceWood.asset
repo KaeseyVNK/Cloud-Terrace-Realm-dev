@@ -17,12 +17,12 @@ MonoBehaviour:
     qu\xE1i v\u1EADt v\xE0o ban \u0111\xEAm."
   category: 5
   icon: {fileID: 0}
-  buildingPrefab: {fileID: 6529730106127294175, guid: 5565b24d3933cf3408ecf002b481e7fa, type: 3}
+  buildingPrefab: {fileID: 6771794388567804410, guid: 5565b24d3933cf3408ecf002b481e7fa, type: 3}
   buildingSize: {x: 4, y: 1}
   buildCosts:
   - resourceType: 0
     amount: 10
-  maxHealth: 300
+  maxHealth: 1000
   maxWorkers: 0
   buildTime: 4
   isInstantBuild: 1
