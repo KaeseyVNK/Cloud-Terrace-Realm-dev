@@ -36,6 +36,7 @@ public class CardManager : MonoBehaviour
     public int PopulationCapBonus { get; private set; } = 0;
 
     private readonly HashSet<string> _unlockedUnitIds = new HashSet<string>();
+    private readonly HashSet<string> _discoveredUnitIds = new HashSet<string>();
     private readonly HashSet<string> _cardUnlockableUnits = new HashSet<string>();
 
     public event Action OnCardStateChanged;
@@ -145,6 +146,16 @@ public class CardManager : MonoBehaviour
         if (IsCardUnlockableUnit(unit))
         {
             return _unlockedUnitIds.Contains(unit.name) || _unlockedUnitIds.Contains(unit.unitName);
+        }
+        return true;
+    }
+
+    public bool IsUnitDiscovered(UnitData unit)
+    {
+        if (unit == null) return true;
+        if (IsCardUnlockableUnit(unit))
+        {
+            return _discoveredUnitIds.Contains(unit.name) || _discoveredUnitIds.Contains(unit.unitName);
         }
         return true;
     }
@@ -264,6 +275,15 @@ public class CardManager : MonoBehaviour
     {
         if (card.cardType == UpgradeCardType.Unlock)
         {
+            // Đăng ký đơn vị đã được phát hiện (discover) khi rút thẻ
+            if (card.unitToUnlock != null)
+            {
+                if (!string.IsNullOrEmpty(card.unitToUnlock.name))
+                    _discoveredUnitIds.Add(card.unitToUnlock.name);
+                if (!string.IsNullOrEmpty(card.unitToUnlock.unitName))
+                    _discoveredUnitIds.Add(card.unitToUnlock.unitName);
+            }
+
             if (triggerFloatingText)
             {
                 // Thay vì mở khóa ngay lập tức, chuyển thành công nghệ cần nghiên cứu ở lò rèn

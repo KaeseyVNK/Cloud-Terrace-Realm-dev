@@ -482,5 +482,122 @@ namespace CloudTerraceRealm.Editor
                 EditorUtility.DisplayDialog("Thành công", "Đã thiết lập tự động xong panel trượt cho " + selected.name + "!\nHãy kiểm tra lại các thông số Collapsed/Expanded Position trong Inspector của script SlidingPanelUI.", "OK");
             }
         }
+
+        [MenuItem("Tools/Generate Action Command Panel")]
+        public static void GenerateActionCommandPanel()
+        {
+            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+            {
+                Debug.LogError("[CreateHUDObjects] Không tìm thấy Canvas trong scene!");
+                return;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int groupIndex = Undo.GetCurrentGroup();
+
+            // Tìm hoặc xóa panel cũ
+            Transform oldPanel = canvas.transform.Find("ActionCommandPanel");
+            if (oldPanel != null)
+            {
+                Undo.DestroyObjectImmediate(oldPanel.gameObject);
+            }
+
+            // Tạo Panel chính
+            GameObject panelObj = new GameObject("ActionCommandPanel", typeof(RectTransform));
+            panelObj.transform.SetParent(canvas.transform, false);
+            Undo.RegisterCreatedObjectUndo(panelObj, "Create ActionCommandPanel");
+
+            RectTransform panelRT = panelObj.GetComponent<RectTransform>();
+            panelRT.anchorMin = new Vector2(0f, 0f);
+            panelRT.anchorMax = new Vector2(0f, 0f);
+            panelRT.pivot = new Vector2(0f, 0f);
+            panelRT.anchoredPosition = new Vector2(15f, 15f);
+            panelRT.sizeDelta = new Vector2(180f, 130f);
+
+            // Nền tối
+            UnityEngine.UI.Image bgImage = panelObj.AddComponent<UnityEngine.UI.Image>();
+            bgImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
+            bgImage.type = UnityEngine.UI.Image.Type.Sliced;
+            bgImage.color = new Color(0.08f, 0.09f, 0.12f, 0.95f);
+
+            // Viền Outline màu vàng
+            UnityEngine.UI.Outline outline = panelObj.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = new Color(0.85f, 0.65f, 0.2f, 0.85f);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            // Gắn component ActionCommandPanelUI
+            ActionCommandPanelUI uiComponent = panelObj.AddComponent<ActionCommandPanelUI>();
+
+            // Tạo Grid Container con
+            GameObject gridObj = new GameObject("GridContainer", typeof(RectTransform));
+            gridObj.transform.SetParent(panelObj.transform, false);
+            RectTransform gridRT = gridObj.GetComponent<RectTransform>();
+            gridRT.anchorMin = Vector2.zero;
+            gridRT.anchorMax = Vector2.one;
+            gridRT.offsetMin = new Vector2(10f, 10f);
+            gridRT.offsetMax = new Vector2(-10f, -10f);
+
+            UnityEngine.UI.GridLayoutGroup gridLayout = gridObj.AddComponent<UnityEngine.UI.GridLayoutGroup>();
+            gridLayout.cellSize = new Vector2(50f, 50f);
+            gridLayout.spacing = new Vector2(5f, 5f);
+            gridLayout.constraint = UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;
+            gridLayout.constraintCount = 3;
+
+            // Danh sách các nút lệnh cần tạo
+            string[] buttonNames = new string[] { "BuildButton", "GarrisonButton", "RepairButton", "ReturnCargoButton", "StopButton", "EmptyButton" };
+            string[] buttonLabels = new string[] { "🔨 B", "🚪 G", "🔧 R", "📦 C", "🛑 S", "" };
+
+            GameObject[] spawnedButtons = new GameObject[6];
+
+            for (int i = 0; i < 6; i++)
+            {
+                GameObject btnObj = new GameObject(buttonNames[i], typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.Button));
+                btnObj.transform.SetParent(gridObj.transform, false);
+
+                UnityEngine.UI.Image btnImg = btnObj.GetComponent<UnityEngine.UI.Image>();
+                btnImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/InputFieldBackground.psd");
+                btnImg.type = UnityEngine.UI.Image.Type.Sliced;
+                btnImg.color = new Color(0.15f, 0.18f, 0.24f, 0.95f);
+
+                // Add text label
+                if (!string.IsNullOrEmpty(buttonLabels[i]))
+                {
+                    GameObject txtObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+                    txtObj.transform.SetParent(btnObj.transform, false);
+                    RectTransform txtRT = txtObj.GetComponent<RectTransform>();
+                    txtRT.anchorMin = Vector2.zero;
+                    txtRT.anchorMax = Vector2.one;
+                    txtRT.offsetMin = Vector2.zero;
+                    txtRT.offsetMax = Vector2.zero;
+
+                    TextMeshProUGUI tmpText = txtObj.GetComponent<TextMeshProUGUI>();
+                    tmpText.text = buttonLabels[i];
+                    tmpText.fontSize = 12f;
+                    tmpText.fontStyle = FontStyles.Bold;
+                    tmpText.alignment = TextAlignmentOptions.Center;
+                    tmpText.color = Color.white;
+                }
+
+                spawnedButtons[i] = btnObj;
+            }
+
+            // Gán các reference vào script bằng SerializedObject
+            SerializedObject so = new SerializedObject(uiComponent);
+            so.FindProperty("_panelRoot").objectReferenceValue = panelObj;
+            so.FindProperty("_buildButton").objectReferenceValue = spawnedButtons[0].GetComponent<UnityEngine.UI.Button>();
+            so.FindProperty("_garrisonButton").objectReferenceValue = spawnedButtons[1].GetComponent<UnityEngine.UI.Button>();
+            so.FindProperty("_repairButton").objectReferenceValue = spawnedButtons[2].GetComponent<UnityEngine.UI.Button>();
+            so.FindProperty("_returnCargoButton").objectReferenceValue = spawnedButtons[3].GetComponent<UnityEngine.UI.Button>();
+            so.FindProperty("_stopButton").objectReferenceValue = spawnedButtons[4].GetComponent<UnityEngine.UI.Button>();
+            so.ApplyModifiedProperties();
+
+            Undo.CollapseUndoOperations(groupIndex);
+
+            EditorUtility.SetDirty(panelObj);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(panelObj.scene);
+
+            Debug.Log("[CreateHUDObjects] Đã tạo thành công ActionCommandPanel ở góc trái dưới Canvas!");
+        }
     }
 }

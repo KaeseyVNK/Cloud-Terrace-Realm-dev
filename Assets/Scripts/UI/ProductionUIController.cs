@@ -36,6 +36,8 @@ public class ProductionUIController : MonoBehaviour
     private BuildingProduction _currentProduction;
     private readonly List<UnitCardUI> _spawnedCards = new List<UnitCardUI>();
     private CanvasGroup _canvasGroup;
+    private GameObject _slotTemplate;
+    private readonly List<GameObject> _activeSlots = new List<GameObject>();
 
     // -------- Lifecycle --------
 
@@ -60,6 +62,23 @@ public class ProductionUIController : MonoBehaviour
 
     private void Start()
     {
+        // Khởi tạo template hàng đợi và dọn các slot mẫu dư thừa
+        if (_queueSlotsParent != null && _queueSlotsParent.childCount > 0)
+        {
+            _slotTemplate = _queueSlotsParent.GetChild(0).gameObject;
+            _slotTemplate.SetActive(false);
+
+            for (int i = _queueSlotsParent.childCount - 1; i >= 1; i--)
+            {
+                var child = _queueSlotsParent.GetChild(i).gameObject;
+                if (child != null)
+                {
+                    child.SetActive(false);
+                    Destroy(child);
+                }
+            }
+        }
+
         // Đăng ký sự kiện nút
         if (_rallyPointButton != null)
             _rallyPointButton.onClick.AddListener(OnRallyPointButtonClicked);
@@ -164,6 +183,7 @@ public class ProductionUIController : MonoBehaviour
         SetPanelActive(false);
 
         ClearUnitCards();
+        ClearQueueSlots();
     }
 
     private void PopulateUnitCards()
@@ -176,6 +196,10 @@ public class ProductionUIController : MonoBehaviour
         foreach (var unitData in _currentProduction.BuildingData.producibleUnits)
         {
             if (unitData == null) continue;
+
+            // Ẩn đơn vị lính nếu chưa được khám phá/phát hiện qua thẻ nâng cấp
+            if (CardManager.Instance != null && !CardManager.Instance.IsUnitDiscovered(unitData))
+                continue;
 
             UnitCardUI card = Instantiate(_unitCardPrefab, _unitCardsContainer, false);
             UnitData capturedUnit = unitData; // Capture for lambda
@@ -207,6 +231,16 @@ public class ProductionUIController : MonoBehaviour
         }
     }
 
+    private void ClearQueueSlots()
+    {
+        foreach (var slot in _activeSlots)
+        {
+            if (slot != null)
+                Destroy(slot);
+        }
+        _activeSlots.Clear();
+    }
+
     private void UpdateProgressBar()
     {
         if (_progressBar == null || _currentProduction == null) return;
@@ -232,17 +266,72 @@ public class ProductionUIController : MonoBehaviour
 
     private void UpdateQueueSlots()
     {
-        if (_queueSlotsParent == null || _currentProduction == null) return;
+        if (_queueSlotsParent == null || _currentProduction == null || _slotTemplate == null) return;
 
-        // Xóa icon cũ
-        foreach (Transform slot in _queueSlotsParent)
+        var queueList = new List<UnitData>(_currentProduction.ProductionQueue);
+
+        // 1. Đồng bộ số lượng slot hoạt động với hàng đợi
+        while (_activeSlots.Count < queueList.Count)
         {
-            if (slot.childCount > 0)
+            GameObject newSlot = Instantiate(_slotTemplate, _queueSlotsParent);
+            newSlot.SetActive(true);
+            _activeSlots.Add(newSlot);
+        }
+
+        while (_activeSlots.Count > queueList.Count)
+        {
+            GameObject slotToDestroy = _activeSlots[_activeSlots.Count - 1];
+            _activeSlots.RemoveAt(_activeSlots.Count - 1);
+            if (slotToDestroy != null)
+                Destroy(slotToDestroy);
+        }
+
+        // 2. Cập nhật hình ảnh và sự kiện Click cho từng slot
+        for (int i = 0; i < queueList.Count; i++)
+        {
+            var unit = queueList[i];
+            var slotGO = _activeSlots[i];
+
+            if (slotGO == null) continue;
+
+            if (slotGO.transform.childCount > 0)
             {
-                var iconChild = slot.GetChild(0);
+                var iconChild = slotGO.transform.GetChild(0);
                 var img = iconChild.GetComponent<Image>();
                 if (img != null)
-                    img.color = new Color(1, 1, 1, 0); // ẩn
+                {
+                    if (unit != null && unit.portraitIcon != null)
+                    {
+                        img.sprite = unit.portraitIcon;
+                        img.color = Color.white;
+                    }
+                    else
+                    {
+                        img.sprite = null;
+                        img.color = new Color(1, 1, 1, 0);
+                    }
+                }
+            }
+
+            var btn = slotGO.GetComponent<Button>();
+            if (btn != null)
+            {
+                btn.onClick.RemoveAllListeners();
+                int capturedIndex = i;
+                btn.onClick.AddListener(() => CancelQueueItem(capturedIndex));
+            }
+        }
+    }
+
+    private void CancelQueueItem(int index)
+    {
+        if (_currentProduction != null)
+        {
+            bool success = _currentProduction.CancelQueueItem(index);
+            if (success)
+            {
+                UpdateQueueSlots();
+                RefreshAllCardStates();
             }
         }
     }

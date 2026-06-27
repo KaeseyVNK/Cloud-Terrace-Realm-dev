@@ -3236,5 +3236,34 @@ public class VillagerController : MonoBehaviour
         ChangeState(VillagerState.Idle);
     }
 
+    /// <summary>
+    /// Buộc dân làng giao nộp tài nguyên đang mang trên người về nhà chính hoặc kho bãi gần nhất.
+    /// </summary>
+    public void CommandReturnCargo()
+    {
+        if (_totalCarryAmount <= 0) return;
+
+        ResourceType carriedType = ResourceType.Wood; // Mặc định
+        foreach (var kvp in _inventory)
+        {
+            if (kvp.Value > 0)
+            {
+                carriedType = kvp.Key;
+                break;
+            }
+        }
+
+        _targetResource = carriedType;
+        if (BuildingManager.Instance != null)
+        {
+            _storageDropoffTarget = BuildingManager.Instance.FindNearestDropoff(transform.position, _targetResource);
+            if (_storageDropoffTarget != Vector3.zero && SetPathToTarget(_storageDropoffTarget))
+            {
+                ChangeState(VillagerState.Moving);
+                Debug.Log($"[RTS] Dân làng {gameObject.name} bắt đầu đi cất tài nguyên {carriedType} tại: {_storageDropoffTarget}");
+            }
+        }
+    }
+
     #endregion
 }

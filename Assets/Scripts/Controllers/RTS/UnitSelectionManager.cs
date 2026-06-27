@@ -28,6 +28,9 @@ public class UnitSelectionManager : MonoBehaviour
     private Vector2 _touchStartPos;
     private bool _hasTouchMoved = false;
 
+    public event System.Action OnSelectionChanged;
+    private readonly List<SelectableUnit> _prevSelectedUnits = new List<SelectableUnit>();
+
     void Awake()
     {
         if (Instance == null)
@@ -134,6 +137,94 @@ public class UnitSelectionManager : MonoBehaviour
         else
         {
             HandleMouseInput();
+        }
+
+        // Kiểm tra xem danh sách các đơn vị được chọn có thay đổi không
+        bool selectionChanged = false;
+        if (selectedUnits.Count != _prevSelectedUnits.Count)
+        {
+            selectionChanged = true;
+        }
+        else
+        {
+            for (int i = 0; i < selectedUnits.Count; i++)
+            {
+                if (selectedUnits[i] != _prevSelectedUnits[i])
+                {
+                    selectionChanged = true;
+                    break;
+                }
+            }
+        }
+
+        if (selectionChanged)
+        {
+            _prevSelectedUnits.Clear();
+            _prevSelectedUnits.AddRange(selectedUnits);
+            OnSelectionChanged?.Invoke();
+        }
+    }
+
+    public void StartBuildMode()
+    {
+        bool hasVillagers = false;
+        foreach (var unit in selectedUnits)
+        {
+            if (unit != null && unit.GetComponent<VillagerController>() != null)
+            {
+                hasVillagers = true;
+                break;
+            }
+        }
+
+        if (hasVillagers)
+        {
+            ClearTargetingModes();
+            _isBuildMode = true;
+            if (CursorManager.Instance != null) CursorManager.Instance.IsBuildTargetingMode = true;
+            Debug.Log("[RTS] ActionPanel: Vào chế độ chỉ định Xây dựng (Build)");
+        }
+    }
+
+    public void StartAttackMode()
+    {
+        bool hasCombatUnits = false;
+        foreach (var unit in selectedUnits)
+        {
+            if (unit != null && unit.GetComponent<BaseCombatUnitController>() != null)
+            {
+                hasCombatUnits = true;
+                break;
+            }
+        }
+
+        if (hasCombatUnits)
+        {
+            ClearTargetingModes();
+            _isAttackMode = true;
+            if (CursorManager.Instance != null) CursorManager.Instance.IsAttackTargetingMode = true;
+            Debug.Log("[RTS] ActionPanel: Vào chế độ chỉ định Tấn công (Attack)");
+        }
+    }
+
+    public void StartGatherMode()
+    {
+        bool hasVillagers = false;
+        foreach (var unit in selectedUnits)
+        {
+            if (unit != null && unit.GetComponent<VillagerController>() != null)
+            {
+                hasVillagers = true;
+                break;
+            }
+        }
+
+        if (hasVillagers)
+        {
+            ClearTargetingModes();
+            _isGatherMode = true;
+            if (CursorManager.Instance != null) CursorManager.Instance.IsGatherTargetingMode = true;
+            Debug.Log("[RTS] ActionPanel: Vào chế độ chỉ định Khai thác/Sửa chữa (Gather/Repair)");
         }
     }
 

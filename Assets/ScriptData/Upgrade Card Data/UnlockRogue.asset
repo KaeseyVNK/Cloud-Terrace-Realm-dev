@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
+  m_Name: UnlockRogue
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
+  cardId: unlock_rogue
+  cardName: "M\u1EDF kh\xF3a S\xE1t Th\u1EE7 B\xF3ng \u0110\xEAm"
+  description: "Cho ph\xE9p nghi\xEAn c\u1EE9u v\xE0 hu\u1EA5n luy\u1EC7n S\xE1t
+    Th\u1EE7 B\xF3ng \u0110\xEAm t\u1EA1i nh\xE0 l\xEDnh."
+  icon: {fileID: -489099260, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
+  cardType: 1
+  rarity: 1
+  unitHealthMultiplier: 1
+  unitDamageMultiplier: 1
+  unitSpeedMultiplier: 1
+  villagerSpeedMultiplier: 1
+  villagerCarryCapacityBonus: 0
+  woodGatherMultiplier: 1
+  stoneGatherMultiplier: 1
+  goldGatherMultiplier: 1
+  foodGatherMultiplier: 1
+  buildingToUnlock: {fileID: 0}
+  unitToUnlock: {fileID: 11400000, guid: c0ffee4637089d91c3847a9d25de3da9, type: 2}
+  instantResourceType: 0
+  instantResourceAmount: 0
+  instantWoodAmount: 0
+  instantStoneAmount: 0
+  instantFoodAmount: 0
+  instantMilitiaCount: 0
+  healMainBuilding: 0
+  healMainBuildingPercent: 0
+  buildingMaxHealthMultiplier: 1
+  populationCapBonus: 0

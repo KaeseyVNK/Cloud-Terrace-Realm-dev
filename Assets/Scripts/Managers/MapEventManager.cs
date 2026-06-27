@@ -218,11 +218,17 @@ public class MapEventManager : MonoBehaviour
 
                 if (enemyPrefab == null) continue;
 
-                Vector2 randOffset = Random.insideUnitCircle * 2f;
+                Vector2 randOffset = Random.insideUnitCircle.normalized * Random.Range(4.5f, 6.5f);
                 Vector3 spawnPos = portal.transform.position + new Vector3(randOffset.x, 0f, randOffset.y);
                 if (Terrain.activeTerrain != null)
                 {
                     spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
+                }
+
+                // Đảm bảo quái đứng trên NavMesh để tránh kẹt trong cổng
+                if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    spawnPos = hit.position;
                 }
 
                 GameObject enemyObj = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);

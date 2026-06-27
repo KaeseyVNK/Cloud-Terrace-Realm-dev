@@ -71,7 +71,7 @@ public class UnitCardUI : MonoBehaviour
         if (_trainButtonText != null)
         {
             if (!techUnlocked)
-                _trainButtonText.text = "Khóa";
+                _trainButtonText.text = "Chưa NC";
             else if (!canAfford)
                 _trainButtonText.text = "Thiếu TN";
             else

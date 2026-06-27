@@ -51,6 +51,7 @@ public class BuildingProduction : MonoBehaviour
     public Transform SpawnPoint => _spawnPoint;
     public bool HasRallyPoint => _rallyPoint.HasValue;
     public Vector3 RallyPoint => _rallyPoint ?? (_spawnPoint != null ? _spawnPoint.position : transform.position);
+    public IEnumerable<UnitData> ProductionQueue => _productionQueue;
     public void SetBuildingData(BuildingData data)
     {
         _buildingData = data;
@@ -239,6 +240,37 @@ public class BuildingProduction : MonoBehaviour
         {
             StartNextProduction();
         }
+    }
+
+    /// <summary>
+    /// Hủy một lượt sản xuất lính trong hàng đợi theo index và hoàn tiền.
+    /// </summary>
+    public bool CancelQueueItem(int index)
+    {
+        if (index < 0 || index >= _productionQueue.Count) return false;
+
+        var list = new List<UnitData>(_productionQueue);
+        var unitToCancel = list[index];
+
+        // Hoàn trả tài nguyên
+        if (ResourceManager.Instance != null && unitToCancel != null && unitToCancel.productionCosts != null)
+        {
+            foreach (var cost in unitToCancel.productionCosts)
+            {
+                ResourceManager.Instance.AddResource(cost.resourceType, cost.amount);
+            }
+        }
+
+        list.RemoveAt(index);
+
+        _productionQueue.Clear();
+        foreach (var unit in list)
+        {
+            _productionQueue.Enqueue(unit);
+        }
+
+        Debug.Log($"Đã hủy {unitToCancel.unitName} ở vị trí hàng đợi {index} và hoàn trả tài nguyên.");
+        return true;
     }
 
     private void StartNextProduction()

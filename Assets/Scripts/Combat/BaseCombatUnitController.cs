@@ -60,6 +60,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
     protected float blockedTimer = 0f;
     protected bool isManualMoveCommand = false;
+    public bool isHoldPosition = false;
     protected bool returnToPoolOnDeath = false;
     private Vector3 chaseAnchorPosition;
     private bool hasChaseAnchor;
@@ -503,6 +504,12 @@ public abstract class BaseCombatUnitController : MonoBehaviour
 
         float distance = GetDistanceToTarget(currentTarget);
 
+        if (isHoldPosition && distance > effectiveAttackRange)
+        {
+            ClearCurrentTargetAndIdle();
+            return;
+        }
+
         if (distance <= effectiveAttackRange)
         {
             // Trong tầm đánh -> Dừng lại và bắt đầu tấn công
@@ -859,6 +866,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         currentTarget = null;
         isManualMoveCommand = true;
         isManualAttackTarget = false;
+        isHoldPosition = false;
         hasChaseAnchor = false;
         blockedTimer = 0f;
 
@@ -877,6 +885,57 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         ChangeState(CombatState.Moving);
     }
 
+    public virtual void CommandStop()
+    {
+        if (currentState == CombatState.Dead) return;
+
+        currentTarget = null;
+        isManualMoveCommand = false;
+        isManualAttackTarget = false;
+        isHoldPosition = false;
+        hasChaseAnchor = false;
+        blockedTimer = 0f;
+
+        if (animator != null)
+        {
+            ResetAnimatorTriggerIfExists("Attack");
+            SetAnimatorBoolIfExists("IsAttacking", false);
+        }
+
+        if (IsNavAgentReady())
+        {
+            navAgent.isStopped = true;
+            navAgent.ResetPath();
+        }
+        ChangeState(CombatState.Idle);
+    }
+
+    public virtual void CommandHoldPosition()
+    {
+        if (currentState == CombatState.Dead) return;
+
+        currentTarget = null;
+        isManualMoveCommand = false;
+        isManualAttackTarget = false;
+        isHoldPosition = true;
+        hasChaseAnchor = false;
+        blockedTimer = 0f;
+
+        if (animator != null)
+        {
+            ResetAnimatorTriggerIfExists("Attack");
+            SetAnimatorBoolIfExists("IsAttacking", false);
+        }
+
+        if (IsNavAgentReady())
+        {
+            navAgent.isStopped = true;
+            navAgent.ResetPath();
+        }
+        ChangeState(CombatState.Idle);
+        Debug.Log($"[RTS] {gameObject.name} đã được ra lệnh Giữ vị trí (Hold Position).");
+    }
+
     public virtual void CommandAttackMove(Vector3 position)
     {
         if (currentState == CombatState.Dead) return;
@@ -884,6 +943,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         currentTarget = null;
         isManualMoveCommand = false; // Set to false to allow auto-aggro during movement (Attack Move)
         isManualAttackTarget = false;
+        isHoldPosition = false;
         hasChaseAnchor = false;
         blockedTimer = 0f;
 
@@ -908,6 +968,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         if (target == null || target.currentState == CombatState.Dead) return;
 
         isManualMoveCommand = false;
+        isHoldPosition = false;
         AttackTarget(target, true);
     }
 
