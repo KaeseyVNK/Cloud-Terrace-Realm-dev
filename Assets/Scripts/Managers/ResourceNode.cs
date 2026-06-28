@@ -377,7 +377,7 @@ public class ResourceNode : MonoBehaviour
 
     private Vector3 GetNearestNavMeshPosition(Vector3 position, float maxDistance, out bool found)
     {
-        if (UnityEngine.AI.NavMesh.SamplePosition(position, out UnityEngine.AI.NavMeshHit hit, maxDistance, UnityEngine.AI.NavMesh.AllAreas))
+        if (UnityEngine.AI.NavMesh.SamplePosition(position, out UnityEngine.AI.NavMeshHit hit, maxDistance, ~2))
         {
             found = true;
             return hit.position;

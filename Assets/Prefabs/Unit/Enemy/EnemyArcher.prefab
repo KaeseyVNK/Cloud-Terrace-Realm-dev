@@ -1315,6 +1315,7 @@ MonoBehaviour:
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
   movingAnimationHoldTime: 0.18
+  isHoldPosition: 0
   _idleSearchRange: 60
   _chaseRetargetRange: 12
   _enemyIdleScanInterval: 0.3
@@ -1325,6 +1326,9 @@ MonoBehaviour:
   _assaultWeight: 0.6
   _raiderWeight: 0.25
   _siegeBreakerWeight: 0.15
+  _canRetreat: 1
+  _isGuard: 0
+  _guardPatrolRadius: 4
   _projectilePrefab: {fileID: 3481825871724354573, guid: d18ed97130047074e9f3d09a9e97b11d, type: 3}
   _firePoint: {fileID: 8098820939999326680}
   _projectileSpawnHeight: 1.4

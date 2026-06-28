@@ -206,7 +206,7 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         Vector3 desiredPosition = unit.transform.position + direction * distance;
         Vector3 landingPosition = unit.transform.position;
 
-        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit hit, knockbackNavMeshSampleRadius, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit hit, knockbackNavMeshSampleRadius, ~2))
         {
             Vector3 sampledOffset = hit.position - unit.transform.position;
             sampledOffset.y = 0f;
@@ -214,12 +214,12 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
             {
                 landingPosition = hit.position;
             }
-            else if (NavMesh.SamplePosition(unit.transform.position, out NavMeshHit currentHit, 1.5f, NavMesh.AllAreas))
+            else if (NavMesh.SamplePosition(unit.transform.position, out NavMeshHit currentHit, 1.5f, ~2))
             {
                 landingPosition = currentHit.position;
             }
         }
-        else if (NavMesh.SamplePosition(unit.transform.position, out NavMeshHit currentHit, 1.5f, NavMesh.AllAreas))
+        else if (NavMesh.SamplePosition(unit.transform.position, out NavMeshHit currentHit, 1.5f, ~2))
         {
             landingPosition = currentHit.position;
         }

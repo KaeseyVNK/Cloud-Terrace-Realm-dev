@@ -94,6 +94,10 @@ public class VillagerController : MonoBehaviour
     private Animator _animator;
     private float _baseAgentSpeed = 3.5f;
     private bool _isHungry = false;
+
+    // Hệ thống tối ưu tính toán leo dốc cho dân làng
+    private float _nextSlopeCheckTime = 0f;
+    private bool _isUphill = false;
     private VillagerCarryVisuals _carryVisuals;
 
     private Job _currentJob;
@@ -327,11 +331,16 @@ public class VillagerController : MonoBehaviour
         // Khởi tạo NavMesh Agent
         if (TryGetComponent(out _navAgent))
         {
-            _navAgent.radius = Mathf.Max(0.05f, _runtimeAgentRadius);
+            _navAgent.radius = 0.35f; // Khớp chuẩn xác với agentRadius đã bake (0.35) để không cọ xát vách đá
             _navAgent.stoppingDistance = 0.25f;
             _navAgent.avoidancePriority = 50 + _avoidancePriorityOffset;
             _navAgent.autoBraking = true;
             _baseAgentSpeed = _navAgent.speed;
+
+            // Tối ưu hóa chống khựng giật và trượt mép khi leo dốc
+            _navAgent.angularSpeed = 720f; // Quay đầu tức thì
+            _navAgent.acceleration = 32f; // Tăng tốc phản hồi nhanh
+            _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.MedQualityObstacleAvoidance;
         }
 
         // BẬT isTrigger cho Collider của dân làng để tránh kẹt cứng vật lý
@@ -372,6 +381,20 @@ public class VillagerController : MonoBehaviour
 
     private void Start()
     {
+        // Tự động kéo khớp (warp) dân làng về vị trí NavMesh gần nhất nếu bị thả lệch hoặc lơ lửng ngoài vùng đi lại
+        if (_navAgent != null && !_navAgent.isOnNavMesh)
+        {
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 10f, ~2))
+            {
+                _navAgent.Warp(hit.position);
+            }
+            else
+            {
+                _navAgent.enabled = false;
+                Debug.LogWarning($"[NavMesh] Dân làng {_navAgent.gameObject.name} ở quá xa vùng NavMesh đã bake. Tạm thời vô hiệu hóa NavMeshAgent để tránh lỗi Console.");
+            }
+        }
+
         UpdateAnimationState();
         UpdateActiveTools();
         UpdateCarryVisuals();
@@ -551,8 +574,42 @@ public class VillagerController : MonoBehaviour
         _preShelterRiceField = _targetRiceField;
     }
 
+    private void UpdateSlopeMovementSpeed()
+    {
+        if (_navAgent == null || !_navAgent.enabled || !_navAgent.isOnNavMesh) return;
+
+        if (Time.time >= _nextSlopeCheckTime)
+        {
+            _nextSlopeCheckTime = Time.time + 0.15f; // Check ~7 times per second
+            _isUphill = false;
+
+            if (_navAgent.velocity.sqrMagnitude > 0.05f && Terrain.activeTerrain != null)
+            {
+                Vector3 direction = _navAgent.velocity.normalized;
+                Vector3 testPos = transform.position + direction * 1.0f;
+                float currentHeight = Terrain.activeTerrain.SampleHeight(transform.position);
+                float aheadHeight = Terrain.activeTerrain.SampleHeight(testPos);
+                if (aheadHeight - currentHeight >= 0.25f)
+                {
+                    _isUphill = true;
+                }
+            }
+        }
+
+        float speedMultiplier = TechnologyManager.HasInstance ? TechnologyManager.Instance.VillagerMoveSpeedMultiplier : 1f;
+        if (CardManager.Instance != null)
+        {
+            speedMultiplier *= CardManager.Instance.VillagerMoveSpeedMultiplier;
+        }
+        float hungerMultiplier = _isHungry ? 0.7f : 1f;
+        float hillMultiplier = _isUphill ? 0.7f : 1f;
+
+        _navAgent.speed = _baseAgentSpeed * speedMultiplier * hungerMultiplier * hillMultiplier;
+    }
+
     private void Update()
     {
+        UpdateSlopeMovementSpeed();
         // Cập nhật trạng thái nguy hiểm
         if (_dangerTimer > 0f)
         {
@@ -956,7 +1013,7 @@ public class VillagerController : MonoBehaviour
         // Nếu Agent bị văng ra khỏi NavMesh, Warp quay lại
         if (!_navAgent.isOnNavMesh)
         {
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit warpHit, 3.0f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit warpHit, 3.0f, ~2))
             {
                 _navAgent.Warp(warpHit.position);
             }
@@ -985,7 +1042,7 @@ public class VillagerController : MonoBehaviour
             return true;
         }
 
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 20.0f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 20.0f, ~2))
         {
             _navAgent.SetDestination(hit.position);
             _navAgent.isStopped = false;
@@ -1278,7 +1335,7 @@ public class VillagerController : MonoBehaviour
             }
 
             // Đảm bảo agent dừng đứng yên khi ngắm bắn
-            if (_navAgent != null && _navAgent.enabled && !_navAgent.isStopped)
+            if (_navAgent != null && _navAgent.enabled && _navAgent.isOnNavMesh && !_navAgent.isStopped)
             {
                 _navAgent.isStopped = true;
                 _navAgent.velocity = Vector3.zero;
@@ -2659,7 +2716,7 @@ public class VillagerController : MonoBehaviour
         float targetZ = buildingPos.z + Mathf.Sin(angle) * radius;
 
         Vector3 targetPosition = new Vector3(targetX, buildingPos.y, targetZ);
-        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit hit, 3f, ~2))
         {
             targetPosition = hit.position;
         }
@@ -2748,7 +2805,7 @@ public class VillagerController : MonoBehaviour
         float targetZ = targetPos.z + Mathf.Sin(angle) * radius;
 
         Vector3 targetPosition = new Vector3(targetX, targetPos.y, targetZ);
-        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPosition, out NavMeshHit hit, 3f, ~2))
         {
             targetPosition = hit.position;
         }
@@ -2765,7 +2822,7 @@ public class VillagerController : MonoBehaviour
         Vector3 dir = (transform.position - ruins.transform.position).normalized;
         if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
         Vector3 targetPos = ruins.transform.position + dir * 3.2f;
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 5.0f, ~2))
         {
             return hit.position;
         }

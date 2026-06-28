@@ -92,7 +92,7 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
             {
                 navAgent.enabled = true;
             }
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
             {
                 navAgent.Warp(hit.position);
             }
@@ -282,7 +282,7 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
         Vector3 targetPos = transform.position + fleeDirection * _fleeDistance;
 
         // Thử tìm vị trí hợp lệ trên NavMesh theo hướng chạy trốn
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 8f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 8f, ~2))
         {
             navAgent.isStopped = false;
             navAgent.SetDestination(hit.position);
@@ -316,7 +316,7 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
         Vector3 randomDirection = Random.insideUnitSphere * _wanderRadius;
         randomDirection += transform.position;
 
-        if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, _wanderRadius, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, _wanderRadius, ~2))
         {
             _wanderTarget = hit.position;
             navAgent.isStopped = false;
@@ -440,7 +440,7 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
             {
                 navAgent.Warp(hit.position);
             }

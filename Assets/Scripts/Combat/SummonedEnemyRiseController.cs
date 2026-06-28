@@ -115,7 +115,7 @@ public class SummonedEnemyRiseController : MonoBehaviour
         if (navAgent != null)
         {
             navAgent.enabled = restoreAgent;
-            if (restoreAgent && NavMesh.SamplePosition(finalPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            if (restoreAgent && NavMesh.SamplePosition(finalPosition, out NavMeshHit hit, 2f, ~2))
             {
                 transform.position = hit.position;
                 if (navAgent.isOnNavMesh)

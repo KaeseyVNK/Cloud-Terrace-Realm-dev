@@ -926,6 +926,7 @@ MonoBehaviour:
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
   movingAnimationHoldTime: 0.18
+  isHoldPosition: 0
   _idleSearchRange: 60
   _chaseRetargetRange: 12
   _enemyIdleScanInterval: 0.3
@@ -936,6 +937,9 @@ MonoBehaviour:
   _assaultWeight: 0.6
   _raiderWeight: 0.25
   _siegeBreakerWeight: 0.15
+  _canRetreat: 1
+  _isGuard: 0
+  _guardPatrolRadius: 4
   magicProjectilePrefab: {fileID: 3586818473801475032, guid: 590a54aeee291484aa8bf9c65f3bac48, type: 3}
   castPoint: {fileID: 0}
   projectileSpawnHeight: 1.45

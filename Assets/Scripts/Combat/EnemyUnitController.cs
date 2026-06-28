@@ -177,7 +177,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
             {
                 navAgent.Warp(hit.position);
             }
@@ -242,7 +242,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         float distOffset = Random.Range(1.0f, 3.5f);
         Vector3 offsetPos = position + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distOffset;
 
-        if (NavMesh.SamplePosition(offsetPos, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(offsetPos, out NavMeshHit hit, 5f, ~2))
         {
             offsetPos = hit.position;
         }
@@ -417,7 +417,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                     {
                         Vector2 randCircle = Random.insideUnitCircle * _guardPatrolRadius;
                         Vector3 dest = _spawnPosition + new Vector3(randCircle.x, 0f, randCircle.y);
-                        if (UnityEngine.AI.NavMesh.SamplePosition(dest, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                        if (UnityEngine.AI.NavMesh.SamplePosition(dest, out UnityEngine.AI.NavMeshHit hit, 3f, ~2))
                         {
                             navAgent.stoppingDistance = 0.2f;
                             navAgent.isStopped = false;
@@ -482,7 +482,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 float distOffset = Random.Range(1.0f, 3.5f);
                 destinationPos += new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distOffset;
 
-                if (UnityEngine.AI.NavMesh.SamplePosition(destinationPos, out UnityEngine.AI.NavMeshHit hit, 30f, UnityEngine.AI.NavMesh.AllAreas))
+                if (UnityEngine.AI.NavMesh.SamplePosition(destinationPos, out UnityEngine.AI.NavMeshHit hit, 30f, ~2))
                 {
                     destinationPos = hit.position;
                 }

@@ -142,15 +142,8 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
         groundPos.y = GetGroundY(position);
         transform.position = groundPos;
 
-        // Xoay mũi tên chúc xuống đất theo hướng nó đang bay
-        Vector3 flatForward = new Vector3(transform.forward.x, 0f, transform.forward.z);
-        if (flatForward.sqrMagnitude < 0.001f)
-        {
-            flatForward = Vector3.forward;
-        }
-        Quaternion stickRotation = Quaternion.LookRotation(flatForward, Vector3.up)
-            * Quaternion.Euler(stickAngleDegrees, 0f, 0f);
-        transform.rotation = stickRotation;
+        // Giữ nguyên góc quay thực tế lúc bay rơi xuống đất (không xoay cưỡng ép theo góc tĩnh nữa)
+        // Điều này giúp mũi tên cắm xiên một góc hoàn hảo khớp với quỹ đạo bay vòng cung.
     }
 
     /// <summary>

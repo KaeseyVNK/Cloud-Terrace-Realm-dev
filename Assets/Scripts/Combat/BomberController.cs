@@ -184,7 +184,7 @@ public class BomberController : RangedCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
             {
                 navAgent.Warp(hit.position);
             }
@@ -324,7 +324,7 @@ public class BomberController : RangedCombatUnitController, IPoolable
         }
 
         Vector3 retreatPosition = transform.position + escapeDirection.normalized * Mathf.Max(0.5f, _postThrowRetreatDistance);
-        if (!NavMesh.SamplePosition(retreatPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(retreatPosition, out NavMeshHit hit, 3f, ~2))
         {
             return false;
         }

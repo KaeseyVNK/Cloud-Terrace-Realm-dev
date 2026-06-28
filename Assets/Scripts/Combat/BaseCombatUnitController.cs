@@ -46,6 +46,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected bool isStunned = false;
     protected Coroutine staggerCoroutine;
     protected Coroutine flashCoroutine;
+
+    // Hệ thống tối ưu tính toán leo dốc
+    private float _nextSlopeCheckTime = 0f;
+    private bool _isUphill = false;
+    private float _currentBaseSpeed = -1f;
     private static MaterialPropertyBlock _hitFlashPropertyBlock;
     private readonly List<Renderer> _hitFlashRenderers = new List<Renderer>();
 
@@ -78,6 +83,10 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     // Watchdog: đếm thời gian unit bị kẹt trong Chasing state (velocity≈0, không tìm được enemy thay thế)
     private float _chasingStuckTimer = 0f;
     private const float ChasingStuckTimeout = 3.0f; // Giây trước khi bỏ mục tiêu và về Idle
+    // Lưu điểm đích di chuyển thủ công để có thể đặt lại path khi NavMesh bị rebuild bất đồng bộ
+    private Vector3 _manualMoveDestination;
+    private float _noPathTimer = 0f;
+    private const float NoPathTimeout = 1.0f; // Cho phép 1 giây mất path tạm thời trước khi về Idle
 
     // Cache tĩnh dùng chung cho các hàm Physics.OverlapSphereNonAlloc
     protected static readonly Collider[] s_overlapCache = new Collider[256];
@@ -105,6 +114,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             if (navAgent != null)
             {
                 baseSpeed = navAgent.speed;
+                _currentBaseSpeed = baseSpeed;
             }
         }
     }
@@ -123,7 +133,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         }
         if (navAgent != null && baseSpeed > 0)
         {
-            navAgent.speed = baseSpeed * speedMult;
+            _currentBaseSpeed = baseSpeed * speedMult;
+            navAgent.speed = _currentBaseSpeed;
         }
     }
 
@@ -136,6 +147,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             attackDamage = baseAttackDamage;
             if (navAgent != null && baseSpeed > 0)
             {
+                _currentBaseSpeed = baseSpeed;
                 navAgent.speed = baseSpeed;
             }
         }
@@ -165,13 +177,42 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         InitializeBaseStatsIfNeeded();
         currentHealth = maxHealth;
         navAgent = GetComponent<NavMeshAgent>();
+
+        // Khóa Rigidbody thành Kinematic để tránh xung đột vật lý trọng lực làm kẹt hoặc tụt dốc khi di chuyển bằng NavMeshAgent
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+        
+        // Tự động kéo khớp (warp) unit về vị trí NavMesh gần nhất nếu bị thả lệch hoặc lơ lửng ngoài vùng đi lại
+        if (navAgent != null && !navAgent.isOnNavMesh)
+        {
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 10f, ~2))
+            {
+                navAgent.Warp(hit.position);
+            }
+            else
+            {
+                navAgent.enabled = false;
+                Debug.LogWarning($"[NavMesh] Agent {gameObject.name} ở quá xa vùng NavMesh đã bake. Tạm thời vô hiệu hóa NavMeshAgent để tránh lỗi Console.");
+            }
+        }
+
         animator = GetComponentInChildren<Animator>();
         
         // Cấu hình ban đầu cho NavMeshAgent
-        if (navAgent != null)
+        if (navAgent != null && navAgent.enabled)
         {
             _defaultAvoidanceType = navAgent.obstacleAvoidanceType;
             navAgent.avoidancePriority = Random.Range(30, 71);
+
+            // Tối ưu hóa tìm đường và di chuyển chống khựng/kẹt góc đồi núi
+            navAgent.radius = 0.35f; // Khớp chuẩn xác với agentRadius đã bake (0.35) để không cọ xát vách đá
+            navAgent.angularSpeed = 720f; // Quay đầu tức thì để bám cua mượt mà, không bị trượt bánh
+            navAgent.acceleration = 32f; // Tăng/giảm tốc cực nhanh giúp chuyển trạng thái mượt, chống khựng giật
+            navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.MedQualityObstacleAvoidance; // Tránh giật lag khi chen chúc
         }
 
         // Tự động gắn FogVisibilityTarget cho kẻ địch/đơn vị ngoài phe người chơi
@@ -281,16 +322,49 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         ApplyPlayerTechnologyStats();
     }
 
+    private void UpdateSlopeMovementSpeed()
+    {
+        if (navAgent == null || !navAgent.enabled || !navAgent.isOnNavMesh) return;
+
+        if (_currentBaseSpeed < 0f)
+        {
+            _currentBaseSpeed = baseSpeed;
+        }
+
+        if (Time.time >= _nextSlopeCheckTime)
+        {
+            _nextSlopeCheckTime = Time.time + 0.15f; // Check ~7 times per second
+            _isUphill = false;
+
+            if (navAgent.velocity.sqrMagnitude > 0.05f && Terrain.activeTerrain != null)
+            {
+                Vector3 direction = navAgent.velocity.normalized;
+                Vector3 testPos = transform.position + direction * 1.0f;
+                float currentHeight = Terrain.activeTerrain.SampleHeight(transform.position);
+                float aheadHeight = Terrain.activeTerrain.SampleHeight(testPos);
+                if (aheadHeight - currentHeight >= 0.25f)
+                {
+                    _isUphill = true;
+                }
+            }
+        }
+
+        float speedMult = _isUphill ? 0.7f : 1.0f;
+        navAgent.speed = _currentBaseSpeed * speedMult;
+    }
+
     protected virtual void Update()
     {
         if (currentState == CombatState.Dead) return;
+
+        UpdateSlopeMovementSpeed();
 
         // Tối ưu hóa hiệu năng (AI Culling): Đóng băng hoạt động của quái canh gác khi nằm ngoài tầm nhìn (sương mù)
         if (faction != UnitFaction.Player && _fogVisibility != null && !_fogVisibility.IsVisible)
         {
             if (this is EnemyUnitController enemy && enemy.IsGuard && currentState != CombatState.Chasing && currentState != CombatState.Attacking)
             {
-                if (navAgent != null && navAgent.enabled && !navAgent.isStopped)
+                if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh && !navAgent.isStopped)
                 {
                     navAgent.isStopped = true;
                 }
@@ -300,7 +374,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         else
         {
             // Khi hiển thị trở lại, khôi phục di chuyển nếu trước đó bị đóng băng
-            if (navAgent != null && navAgent.enabled && navAgent.isStopped && currentState == CombatState.Moving)
+            if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh && navAgent.isStopped && currentState == CombatState.Moving)
             {
                 navAgent.isStopped = false;
             }
@@ -372,10 +446,39 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             }
         }
 
+        // Xử lý mất đường đi tạm thời (xảy ra khi NavMesh được rebuild bất đồng bộ)
+        // Cho phép 1 giây ân hạn để thử đặt lại đích trước khi bỏ cuộc về Idle
+        if (!navAgent.pathPending && !navAgent.hasPath)
+        {
+            _noPathTimer += Time.deltaTime;
+            // Thử đặt lại đích nếu vẫn còn đích di chuyển hợp lệ
+            if (isManualMoveCommand && _noPathTimer < NoPathTimeout)
+            {
+                navAgent.isStopped = false;
+                navAgent.SetDestination(_manualMoveDestination);
+                return; // Chờ frame tiếp theo kiểm tra lại
+            }
+            // Hết thời gian ân hạn → thật sự mất đường đi, về Idle
+            if (_noPathTimer >= NoPathTimeout)
+            {
+                isManualMoveCommand = false;
+                _movingStuckTimer = 0f;
+                _noPathTimer = 0f;
+                navAgent.isStopped = true;
+                navAgent.ResetPath();
+                ChangeState(CombatState.Idle);
+                return;
+            }
+        }
+        else
+        {
+            _noPathTimer = 0f; // Có path rồi, reset bộ đếm
+        }
+
         // Điều kiện kết thúc di chuyển bình thường
         if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
         {
-            if (!navAgent.hasPath || navAgent.velocity.sqrMagnitude == 0f)
+            if (navAgent.velocity.sqrMagnitude == 0f)
             {
                 isManualMoveCommand = false;
                 _movingStuckTimer = 0f;
@@ -447,9 +550,24 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         return Mathf.Max(0f, dist - selfRadius - targetRadius);
     }
 
+    public bool IsRangedUnit()
+    {
+        return (this is RangedCombatUnitController) || (this.GetType().Name.Contains("Archer")) || (this.GetType().Name.Contains("Mage"));
+    }
+
     protected virtual float GetAttackRangeForTarget(BaseCombatUnitController target)
     {
-        return attackRange;
+        float baseRange = attackRange;
+        if (target != null && IsRangedUnit())
+        {
+            float selfY = transform.position.y;
+            float targetY = target.transform.position.y;
+            if (selfY - targetY >= 1.5f)
+            {
+                baseRange += 3.0f; // +1.5 ô (với kích thước ô 2m)
+            }
+        }
+        return baseRange;
     }
 
     protected virtual Collider GetActiveTargetCollider(BaseCombatUnitController target)
@@ -668,6 +786,16 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     {
         if (currentState == CombatState.Dead) return;
 
+        if (attacker != null)
+        {
+            float attackerY = attacker.transform.position.y;
+            float targetY = transform.position.y;
+            if (attackerY - targetY >= 1.5f)
+            {
+                damage = Mathf.RoundToInt(damage * 1.25f); // +25% sát thương từ trên cao
+            }
+        }
+
         currentHealth -= damage;
         currentHealth = Mathf.Max(0, currentHealth);
 
@@ -882,6 +1010,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             navAgent.isStopped = false;
             navAgent.SetDestination(position);
         }
+        _manualMoveDestination = position;
+        _noPathTimer = 0f;
         ChangeState(CombatState.Moving);
     }
 

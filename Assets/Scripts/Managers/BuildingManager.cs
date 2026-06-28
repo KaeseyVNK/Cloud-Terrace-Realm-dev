@@ -587,16 +587,46 @@ public class BuildingManager : MonoBehaviour
         float minY = float.MaxValue;
         float maxY = float.MinValue;
 
+        bool isBridge = (_currentSelectedBuilding != null && _currentSelectedBuilding.buildingName == "Bridge");
+
         for (int x = 0; x < size.x; x++)
         {
             for (int z = 0; z < size.y; z++)
             {
                 GridCell cell = _gridSystem.GetCell(startX + x, startZ + z);
                 
-                // 1. Ô lưới phải hợp lệ và chưa có vật cản
-                if (cell == null || !cell.isBuildable)
+                // 1. Ô lưới phải hợp lệ
+                if (cell == null)
                 {
                     return false;
+                }
+
+                if (!cell.isBuildable)
+                {
+                    // Ngoại lệ đối với cầu: Cho phép xây trên mặt nước sông
+                    bool isWater = false;
+                    if (Terrain.activeTerrain != null)
+                    {
+                        float worldX = (startX + x) * _gridSystem.GetCellSize();
+                        float worldZ = (startZ + z) * _gridSystem.GetCellSize();
+                        float h = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                        if (h < _gridSystem.WaterHeight)
+                        {
+                            isWater = true;
+                        }
+                    }
+
+                    if (!isBridge || !isWater || cell.hasResource || _builtStructures.ContainsKey(cell))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (cell.hasResource || _builtStructures.ContainsKey(cell))
+                    {
+                        return false;
+                    }
                 }
 
                 if (!IsBuildCellVisible(startX + x, startZ + z))
@@ -616,8 +646,8 @@ public class BuildingManager : MonoBehaviour
             }
         }
         
-        // KHÔNG CHO XÂY NẾU ĐẤT QUÁ DỐC (Chênh lệch độ cao > 2.5m)
-        if (Terrain.activeTerrain != null && (maxY - minY > 2.5f))
+        // KHÔNG CHO XÂY NẾU ĐẤT QUÁ DỐC (Chênh lệch độ cao > 2.5m) - Ngoại lệ đối với cầu gỗ
+        if (!isBridge && Terrain.activeTerrain != null && (maxY - minY > 2.5f))
         {
             return false; // Báo đỏ, không cho xây trên vách núi dựng đứng
         }
@@ -869,8 +899,11 @@ public class BuildingManager : MonoBehaviour
 
         ResourceManager.Instance.ConsumeCosts(data.buildCosts);
         
-        // BƯỚC QUAN TRỌNG: ỦI PHẲNG MẶT ĐẤT!
-        _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
+        // BƯỚC QUAN TRỌNG: ỦI PHẲNG MẶT ĐẤT! (Ngoại trừ cầu gỗ)
+        if (data.buildingName != "Bridge")
+        {
+            _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
+        }
 
         // Đợi 1 chút xíu hoặc tính toán trực tiếp CenterPos lại vì mặt đất vừa bị lún xuống/nâng lên
         Vector3 finalCenterPos = CalculateBuildingCenter(startX, startZ, 0, size);
@@ -899,11 +932,13 @@ public class BuildingManager : MonoBehaviour
         bool isInstant = data.isInstantBuild || 
                          (data.buildingPrefab != null && (
                              data.buildingPrefab.name.ToLower().Contains("torch") || data.buildingPrefab.name.ToLower().Contains("đoốc") || data.buildingPrefab.name.ToLower().Contains("đuốc") || data.buildingPrefab.name.ToLower().Contains("duoc") ||
-                             data.buildingPrefab.name.ToLower().Contains("fence") || data.buildingPrefab.name.ToLower().Contains("gate") || data.buildingPrefab.name.ToLower().Contains("rào") || data.buildingPrefab.name.ToLower().Contains("cổng")
+                             data.buildingPrefab.name.ToLower().Contains("fence") || data.buildingPrefab.name.ToLower().Contains("gate") || data.buildingPrefab.name.ToLower().Contains("rào") || data.buildingPrefab.name.ToLower().Contains("cổng") ||
+                             data.buildingPrefab.name.ToLower().Contains("bridge") || data.buildingPrefab.name.ToLower().Contains("cầu")
                          )) ||
                          (data.buildingName != null && (
                              data.buildingName.ToLower().Contains("torch") || data.buildingName.ToLower().Contains("đoốc") || data.buildingName.ToLower().Contains("đuốc") || data.buildingName.ToLower().Contains("duoc") ||
-                             data.buildingName.ToLower().Contains("fence") || data.buildingName.ToLower().Contains("gate") || data.buildingName.ToLower().Contains("rào") || data.buildingName.ToLower().Contains("cổng")
+                             data.buildingName.ToLower().Contains("fence") || data.buildingName.ToLower().Contains("gate") || data.buildingName.ToLower().Contains("rào") || data.buildingName.ToLower().Contains("cổng") ||
+                             data.buildingName.ToLower().Contains("bridge") || data.buildingName.ToLower().Contains("cầu")
                          ));
 
         if (isInstant)
@@ -943,11 +978,22 @@ public class BuildingManager : MonoBehaviour
 
         AddShelterComponentIfHouse(newBuilding, data);
 
+        bool isBridge = (data.buildingName == "Bridge");
         foreach (var cell in cellsToOccupy)
         {
             _builtStructures[cell] = newBuilding;     // Lưu chung 1 ngôi nhà duy nhất cho tất cả các ô nó chiếm
             cell.isBuildable = false;
-            cell.isWalkable = false;                 // Nhà che đường 
+            cell.isWalkable = isBridge ? true : false; // Cầu gỗ thì cho phép đi bộ qua
+            cell.hasBridge = isBridge;
+        }
+
+        if (isBridge)
+        {
+            int centerX = startX + size.x / 2;
+            int centerZ = startZ + size.y / 2;
+            bool isVertical = (_currentRotationIndex % 2 == 0);
+            _gridSystem.SetWaterObstaclesActive(centerX, centerZ, isVertical, false);
+            _gridSystem.BakeNavigationMesh(force: true); // Nướng lại NavMesh để cho phép đi trên cầu gỗ
         }
 
         if (isInstant)
@@ -990,16 +1036,57 @@ public class BuildingManager : MonoBehaviour
             }
         }
 
+        BuildingData dataToDestroy = null;
+        if (_buildingDataMap.ContainsKey(buildingObj))
+        {
+            dataToDestroy = _buildingDataMap[buildingObj];
+        }
+
+        bool isBridge = (dataToDestroy != null && dataToDestroy.buildingName == "Bridge");
+
         foreach (var cell in cellsToClear)
         {
             _builtStructures.Remove(cell);
-            cell.isBuildable = true;
-            cell.isWalkable = true;
+            cell.hasBridge = false;
+
+            if (isBridge)
+            {
+                // Khôi phục trạng thái ngập nước nguyên bản của dòng sông
+                float worldX = cell.x * _gridSystem.GetCellSize();
+                float worldZ = cell.z * _gridSystem.GetCellSize();
+                float height = Terrain.activeTerrain != null ? Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ)) : 0f;
+                if (height < _gridSystem.WaterHeight)
+                {
+                    cell.isWalkable = (height >= _gridSystem.WaterHeight - 0.3f);
+                    cell.isBuildable = false;
+                }
+                else
+                {
+                    cell.isWalkable = true;
+                    cell.isBuildable = true;
+                }
+            }
+            else
+            {
+                cell.isBuildable = true;
+                cell.isWalkable = true;
+            }
+        }
+
+        if (isBridge)
+        {
+            int centerX = Mathf.RoundToInt(buildingObj.transform.position.x / _gridSystem.GetCellSize());
+            int centerZ = Mathf.RoundToInt(buildingObj.transform.position.z / _gridSystem.GetCellSize());
+            float rotY = buildingObj.transform.rotation.eulerAngles.y;
+            bool isVertical = (Mathf.Abs(rotY) < 45f || Mathf.Abs(rotY - 180f) < 45f || Mathf.Abs(rotY - 360f) < 45f);
+            
+            _gridSystem.SetWaterObstaclesActive(centerX, centerZ, isVertical, true);
+            _gridSystem.BakeNavigationMesh(force: true); // Nướng lại NavMesh để chặn sông lại
         }
 
         if (_buildingDataMap.ContainsKey(buildingObj))
         {
-            BuildingData dataToDestroy = _buildingDataMap[buildingObj];
+            dataToDestroy = _buildingDataMap[buildingObj];
 
             // Giảm số lượng công trình đã xây
             if (_builtBuildingCounts.ContainsKey(dataToDestroy))
@@ -1207,7 +1294,7 @@ public class BuildingManager : MonoBehaviour
     private float GetPathLength(Vector3 start, Vector3 target)
     {
         UnityEngine.AI.NavMeshPath path = new UnityEngine.AI.NavMeshPath();
-        if (UnityEngine.AI.NavMesh.CalculatePath(start, target, UnityEngine.AI.NavMesh.AllAreas, path))
+        if (UnityEngine.AI.NavMesh.CalculatePath(start, target, ~2, path))
         {
             if (path.status == UnityEngine.AI.NavMeshPathStatus.PathComplete || path.status == UnityEngine.AI.NavMeshPathStatus.PathPartial)
             {

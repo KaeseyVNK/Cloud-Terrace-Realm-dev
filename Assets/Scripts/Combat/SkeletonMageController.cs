@@ -234,7 +234,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
         }
 
         Vector3 targetKitePosition = transform.position + escapeDirection.normalized * Mathf.Max(0.5f, kiteRetreatDistance);
-        if (!NavMesh.SamplePosition(targetKitePosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(targetKitePosition, out NavMeshHit hit, 3f, ~2))
         {
             return false;
         }
@@ -395,7 +395,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
         Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * summonRadius;
         Vector3 desiredPosition = transform.position + offset;
 
-        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit hit, 3f, ~2))
         {
             return hit.position;
         }
@@ -511,7 +511,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
         if (IsNavAgentReady())
         {
             Vector3 currentPosition = transform.position;
-            if (NavMesh.SamplePosition(currentPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(currentPosition, out NavMeshHit hit, 2f, ~2))
             {
                 transform.position = hit.position;
                 navAgent.Warp(hit.position);

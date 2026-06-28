@@ -8,6 +8,7 @@ public class GridCell
 
     public bool isWalkable; 
     public bool isBuildable;
+    public bool hasBridge; // Đánh dấu ô này là một phần của cây cầu
 
     // --- TÀI NGUYÊN TRÊN Ô ĐẤT ---
     public bool hasResource;

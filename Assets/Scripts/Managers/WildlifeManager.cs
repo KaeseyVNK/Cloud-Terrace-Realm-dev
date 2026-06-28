@@ -209,7 +209,7 @@ public class WildlifeManager : MonoBehaviour
             Vector3 candidatePos = center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * dist;
             candidatePos.y = terrain.SampleHeight(candidatePos) + terrain.transform.position.y;
 
-            if (NavMesh.SamplePosition(candidatePos, out NavMeshHit navHit, 5f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(candidatePos, out NavMeshHit navHit, 5f, ~2))
             {
                 // Tránh spawn đè vật cản hoặc công trình
                 Collider[] blockCheck = Physics.OverlapSphere(navHit.position, 1.0f);
@@ -270,7 +270,7 @@ public class WildlifeManager : MonoBehaviour
                 candidatePos.y = Terrain.activeTerrain.SampleHeight(candidatePos) + Terrain.activeTerrain.transform.position.y;
             }
 
-            if (NavMesh.SamplePosition(candidatePos, out NavMeshHit navHit, 4f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(candidatePos, out NavMeshHit navHit, 4f, ~2))
             {
                 // Tránh trùng lắp lên các vật cản khác
                 Collider[] blockCheck = Physics.OverlapSphere(navHit.position, 0.8f);
@@ -337,7 +337,7 @@ public class WildlifeManager : MonoBehaviour
             candidatePos.y = terrain.SampleHeight(candidatePos) + terrain.transform.position.y;
 
             // Kiểm tra NavMesh gần ứng viên
-            if (NavMesh.SamplePosition(candidatePos, out NavMeshHit navHit, 6f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(candidatePos, out NavMeshHit navHit, 6f, ~2))
             {
                 // Kiểm tra xem vị trí có gần mỏ gỗ (cây) không
                 Collider[] colliders = Physics.OverlapSphere(navHit.position, 20f);

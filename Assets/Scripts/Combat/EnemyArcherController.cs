@@ -145,7 +145,7 @@ public class EnemyArcherController : EnemyUnitController
                 }
 
                 Vector3 targetKitePos = transform.position + escapeDir.normalized * Mathf.Max(0.5f, _kiteRetreatDistance);
-                if (UnityEngine.AI.NavMesh.SamplePosition(targetKitePos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                if (UnityEngine.AI.NavMesh.SamplePosition(targetKitePos, out UnityEngine.AI.NavMeshHit hit, 3f, ~2))
                 {
                     if (navAgent != null && navAgent.enabled)
                     {

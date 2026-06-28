@@ -1243,6 +1243,7 @@ MonoBehaviour:
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
   movingAnimationHoldTime: 0.18
+  isHoldPosition: 0
   _blockChance: 0.35
   _frontBlockAngle: 120
   _blockCooldown: 1

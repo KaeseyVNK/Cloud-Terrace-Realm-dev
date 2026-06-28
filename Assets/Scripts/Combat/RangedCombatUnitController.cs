@@ -178,7 +178,7 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
         }
 
         Vector3 targetKitePosition = transform.position + escapeDirection.normalized * Mathf.Max(0.5f, _kiteRetreatDistance);
-        if (!NavMesh.SamplePosition(targetKitePosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(targetKitePosition, out NavMeshHit hit, 3f, ~2))
         {
             return false;
         }

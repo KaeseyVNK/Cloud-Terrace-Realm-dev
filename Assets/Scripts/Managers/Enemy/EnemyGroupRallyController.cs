@@ -27,7 +27,7 @@ public class EnemyGroupRallyController
 
         Vector3 toCenterDir = (mapCenter - centerSpawnPos).normalized;
         Vector3 rallyPos = centerSpawnPos + toCenterDir * 15f;
-        if (NavMesh.SamplePosition(rallyPos, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(rallyPos, out NavMeshHit hit, 15f, ~2))
         {
             rallyPos = hit.position;
         }

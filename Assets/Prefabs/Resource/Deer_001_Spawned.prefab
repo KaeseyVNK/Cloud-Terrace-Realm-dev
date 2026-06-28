@@ -1178,6 +1178,7 @@ MonoBehaviour:
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
   movingAnimationHoldTime: 0.18
+  isHoldPosition: 0
   _foodAmount: 250
   _fleeRange: 6
   _fleeDistance: 12

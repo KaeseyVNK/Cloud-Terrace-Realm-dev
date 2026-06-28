@@ -62,11 +62,12 @@ public class GridSystem : MonoBehaviour
     [UnityEngine.Serialization.FormerlySerializedAs("generateRivers")]
     [SerializeField] private bool _generateRivers = true;
     [UnityEngine.Serialization.FormerlySerializedAs("riverFrequency")]
-    [SerializeField] private float _riverFrequency = 0.05f;
+    [SerializeField] private float _riverFrequency = 0.015f;
     [UnityEngine.Serialization.FormerlySerializedAs("riverWidth")]
-    [Range(0, 1)] [SerializeField] private float _riverWidth = 0.02f;
+    [Range(0, 1)] [SerializeField] private float _riverWidth = 0.04f;
     [UnityEngine.Serialization.FormerlySerializedAs("riverDepth")]
-    [SerializeField] private float _riverDepth = 0.2f;
+    [SerializeField] private float _riverDepth = 0.15f;
+    [SerializeField] private float _waterHeight = 2.0f; // Độ cao mực nước để xác định sông hồ
 
     [Header("Resource Spawning")]
     [UnityEngine.Serialization.FormerlySerializedAs("treePrefab")]
@@ -77,6 +78,7 @@ public class GridSystem : MonoBehaviour
     [SerializeField] private GameObject _bushPrefab; 
     [UnityEngine.Serialization.FormerlySerializedAs("goldPrefab")]
     [SerializeField] private GameObject _goldPrefab;
+    [SerializeField] private GameObject _bridgePrefab;
 
     [Header("Resource Node Amounts")]
     [SerializeField] private Vector2Int _woodNodeAmountRange = new Vector2Int(200, 300);
@@ -148,6 +150,7 @@ public class GridSystem : MonoBehaviour
     [SerializeField] private Vector2 _foodRespawnDelayRange = new Vector2(90f, 150f);
 
     private GridCell[,] _gridArray;
+    private GameObject[,] _waterObstaclesMap;
     private readonly List<PendingResourceRespawn> _pendingResourceRespawns = new List<PendingResourceRespawn>();
     private bool _isGeneratingFullMap = false;
 
@@ -161,12 +164,18 @@ public class GridSystem : MonoBehaviour
 
     void Awake()
     {
+        CleanUpTempObstacles();
         if (_woodNodeAmountRange.x < 200) _woodNodeAmountRange = new Vector2Int(200, 300);
         if (_stoneNodeAmountRange.x < 200) _stoneNodeAmountRange = new Vector2Int(200, 300);
         if (_goldNodeAmountRange.x < 200) _goldNodeAmountRange = new Vector2Int(200, 300);
         if (_foodNodeAmountRange.x < 200) _foodNodeAmountRange = new Vector2Int(200, 300);
 
         InitGridFromTerrain();
+    }
+
+    private void Start()
+    {
+        InitializeRuntimeWaterObstacles();
     }
 
     private void Update()
@@ -198,12 +207,39 @@ public class GridSystem : MonoBehaviour
             for (int z = 0; z < _length; z++)
             {
                 _gridArray[x, z] = new GridCell(x, z, 0); 
+                
+                // Nếu ô đất này thấp hơn mực nước, đánh dấu là không thể xây dựng.
+                // Chỉ cấm di chuyển nếu nước sâu hơn 0.3m (độ cao đất < _waterHeight - 0.3f)
+                if (Terrain.activeTerrain != null)
+                {
+                    float worldX = x * _cellSize;
+                    float worldZ = z * _cellSize;
+                    float height = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                    if (height < _waterHeight)
+                    {
+                        if (height < _waterHeight - 0.3f)
+                        {
+                            _gridArray[x, z].isWalkable = false;
+                        }
+                        _gridArray[x, z].isBuildable = false;
+                    }
+                }
             }
         }
 
         // Khôi phục lại trạng thái Tài nguyên
         foreach (Transform child in transform)
         {
+            if (child == null) continue;
+
+            if (child.name.StartsWith("ProceduralBridge_") || child.name.Contains("Bridge"))
+            {
+                continue;
+            }
+
+            bool isResource = child.name.StartsWith("Tree") || child.name.StartsWith("Rock") || child.name.StartsWith("Bush") || child.name.StartsWith("Gold");
+            if (!isResource) continue;
+
             int x = Mathf.RoundToInt(child.position.x / _cellSize);
             int z = Mathf.RoundToInt(child.position.z / _cellSize);
 
@@ -234,9 +270,23 @@ public class GridSystem : MonoBehaviour
                 RegisterResourceNode(node);
             }
         }
+
+        // Khôi phục lại trạng thái Cầu gỗ trong Scene (cả cầu tự động và cầu do người chơi xây)
+        foreach (var bridge in GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Exclude))
+        {
+            if (bridge != null && (bridge.name.StartsWith("ProceduralBridge_") || bridge.name.Contains("Bridge") || bridge.name.Contains("BridgeBuilding")))
+            {
+                int centerX = Mathf.RoundToInt(bridge.transform.position.x / _cellSize);
+                int centerZ = Mathf.RoundToInt(bridge.transform.position.z / _cellSize);
+                float rotY = bridge.transform.rotation.eulerAngles.y;
+                bool isVertical = (Mathf.Abs(rotY) < 45f || Mathf.Abs(rotY - 180f) < 45f || Mathf.Abs(rotY - 360f) < 45f);
+                MarkBridgeCells(centerX, centerZ, isVertical, true);
+            }
+        }
     }
 
     public float GetCellSize() => _cellSize;
+    public float WaterHeight => _waterHeight;
     public int GetWidth() => _width;
     public int GetLength() => _length;
 
@@ -285,7 +335,29 @@ public class GridSystem : MonoBehaviour
             //     GenerateTerrainDetails();
             // }
 
-            BakeNavigationMesh();
+            // Dọn dẹp cầu gỗ cũ trước khi sinh map mới
+            foreach (var b in GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Exclude))
+            {
+                if (b != null && b.name.StartsWith("ProceduralBridge_"))
+                {
+                    DestroyImmediate(b);
+                }
+            }
+
+            // Khởi tạo sơ bộ _gridArray để lưu trữ thông tin cầu trước khi bake NavMesh
+            UpdateGridDimensions();
+            _gridArray = new GridCell[_width, _length];
+            for (int x = 0; x < _width; x++)
+            {
+                for (int z = 0; z < _length; z++)
+                {
+                    _gridArray[x, z] = new GridCell(x, z, 0);
+                }
+            }
+
+            GenerateProceduralBridges(); // Sinh cầu tự động kết nối các bờ sông cô lập
+
+            BakeNavigationMesh(force: true);
             GenerateGrid();
             InitGridFromTerrain();
         }
@@ -295,9 +367,9 @@ public class GridSystem : MonoBehaviour
         }
     }
 
-    private void BakeNavigationMesh()
+    public void BakeNavigationMesh(bool force = false)
     {
-        if (!_bakeNavMeshBeforeResources)
+        if (!force && !_bakeNavMeshBeforeResources)
         {
             return;
         }
@@ -309,12 +381,105 @@ public class GridSystem : MonoBehaviour
 
         if (_navMeshSurface == null)
         {
-            Debug.LogWarning("[GridSystem] Không tìm thấy NavMeshSurface để bake sau khi tạo terrain.");
+            Debug.LogWarning("[GridSystem] Không tìm thấy NavMeshSurface để bake.");
             return;
         }
 
+        if (Application.isPlaying)
+        {
+            // Ở chế độ chơi (Play Mode), sử dụng UpdateNavMesh để nướng bất đồng bộ (Asynchronously) trên luồng nền (Background Thread),
+            // tránh gây khựng/lag khung hình chính của game!
+            if (_navMeshSurface.navMeshData != null)
+            {
+                _navMeshSurface.UpdateNavMesh(_navMeshSurface.navMeshData);
+            }
+            else
+            {
+                _navMeshSurface.BuildNavMesh(); // Fallback nếu chưa có dữ liệu NavMesh
+            }
+            return;
+        }
+
+        // Đảm bảo kích thước grid đã được cập nhật
+        UpdateGridDimensions();
+
+        // Dọn dẹp các obstacles cũ trước bằng cách duyệt qua tất cả đối tượng (kể cả đối tượng ẩn)
+        CleanUpTempObstacles();
+
+        // Tạo các đối tượng cản tạm thời tại các ô sông hồ ngập nước
+        GameObject tempObstacles = new GameObject("TempNavMeshWaterObstacles");
+        // Thiết lập ẩn đi và không lưu lại để không làm bẩn Scene hoặc Git diff
+        tempObstacles.hideFlags = HideFlags.HideAndDontSave;
+        
+        // Lấy seedOffset để xác định vị trí của các ford (lối đi cạn)
+        Vector2 seedOffset = GetSeedOffset(11);
+        Vector2 riverSeedOffset = GetSeedOffset(37);
+        float waterHeight = _waterHeight;
+        float cellSize = _cellSize;
+
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _length; z++)
+            {
+                Vector3 cellWorldPos = GetWorldPosition(x, z);
+
+                // Kiểm tra xem đây có phải là khu vực sông không
+                float rX = cellWorldPos.x * _riverFrequency + riverSeedOffset.x;
+                float rY = cellWorldPos.z * _riverFrequency + riverSeedOffset.y;
+                float riverNoise = Mathf.Abs(Mathf.PerlinNoise(rX, rY) - 0.5f) * 2f;
+                bool isRiver = _generateRivers && (riverNoise < _riverWidth);
+
+                if (isRiver)
+                {
+                    // Nếu ô này đã được gán cầu gỗ thì bỏ qua không chặn NavMesh cản nước!
+                    if (_gridArray != null && x >= 0 && x < _width && z >= 0 && z < _length)
+                    {
+                        GridCell cell = _gridArray[x, z];
+                        if (cell != null && cell.hasBridge)
+                        {
+                            continue;
+                        }
+                    }
+
+                    // Nếu nằm trong Starting Safe Zone (Khu vực an toàn của Nhà Chính ở trung tâm)
+                    // thì bỏ qua không chặn NavMesh để lính có thể đi lại tự do xung quanh nhà chính.
+                    if (IsInsideStartingSafeZone(x, z))
+                    {
+                        continue;
+                    }
+
+                    // Tính toán fordNoise giống hệt lúc tạo địa hình để xác định lối đi cạn
+                    float fordX = cellWorldPos.x * 0.02f + seedOffset.x * 0.5f;
+                    float fordY = cellWorldPos.z * 0.02f + seedOffset.y * 0.5f;
+                    float fordNoise = Mathf.PerlinNoise(fordX, fordY);
+                    bool isFord = _generateRivers && (fordNoise > 0.41f && fordNoise < 0.53f);
+
+                    // Quy định ngưỡng cao độ chặn NavMesh:
+                    // - Nếu là lối đi cạn (Ford): chỉ chặn nếu sâu hơn 0.3m (dưới 5.7m) để giữ lối đi
+                    // - Nếu là lòng sông bình thường: nâng ngưỡng chặn lên Y = 6.3m (waterHeight + 0.3m)
+                    //   để tạo một dải đệm an toàn (buffer zone) dọc bờ sông, đẩy NavMesh lùi sâu vào đất liền,
+                    //   tránh lính ôm cua sát mép vực bị kẹt hoặc trượt ngã.
+                    float blockThreshold = isFord ? (waterHeight - 0.3f) : (waterHeight + 0.3f);
+
+                    if (cellWorldPos.y < blockThreshold)
+                    {
+                        // Tạo đối tượng cản NavMesh bằng NavMeshModifierVolume để chặn chính xác vùng nước sâu
+                        GameObject obstacle = new GameObject($"WaterVolume_{x}_{z}");
+                        obstacle.transform.SetParent(tempObstacles.transform);
+                        obstacle.transform.position = new Vector3(cellWorldPos.x, cellWorldPos.y, cellWorldPos.z);
+                        obstacle.hideFlags = HideFlags.HideAndDontSave;
+
+                        var vol = obstacle.AddComponent<Unity.AI.Navigation.NavMeshModifierVolume>();
+                        vol.center = Vector3.zero;
+                        vol.size = new Vector3(cellSize, 20f, cellSize);
+                        vol.area = 1; // 1 là Area "Not Walkable" mặc định của Unity
+                    }
+                }
+            }
+        }
+
         _navMeshSurface.BuildNavMesh();
-        Debug.Log("[GridSystem] Đã bake NavMesh sau khi tạo terrain và trước khi spawn tài nguyên.");
+        Debug.Log("[GridSystem] Đã bake NavMesh loại trừ các khu vực sông hồ ngập nước thành công!");
     }
 
     private void PrepareTerrainSize()
@@ -397,9 +562,24 @@ public class GridSystem : MonoBehaviour
                     
                     if (riverNoise < _riverWidth) // Nếu lọt vào lòng sông
                     {
-                        // Đào rãnh sông xuống
                         float carve = 1f - (riverNoise / _riverWidth); // 1 ở giữa tâm sông, 0 ở bờ
-                        noiseHeight -= carve * _riverDepth;
+                        // Sử dụng SmoothStep để uốn cong chữ U mềm mại cho lòng sông và bờ sông
+                        float smoothCarve = Mathf.SmoothStep(0f, 1f, carve);
+                        
+                        // Sử dụng trục nhiễu phụ để tạo các lối đi cạn (ford) ngẫu nhiên dọc sông để kết nối các vùng đất
+                        float fordX = (x / (float)res) * tData.size.x * 0.02f + seedOffset.x * 0.5f;
+                        float fordY = (y / (float)res) * tData.size.z * 0.02f + seedOffset.y * 0.5f;
+                        float fordNoise = Mathf.PerlinNoise(fordX, fordY);
+
+                        float targetDepth = 0.008f; // Mặc định lòng sông sâu 0.8m (không đi qua được)
+                        
+                        // Khoảng 18% chiều dài sông sẽ trở thành các lối đi cạn qua nước
+                        if (fordNoise > 0.41f && fordNoise < 0.53f)
+                        {
+                            targetDepth = 0.027f; // Độ cao ~1.75m (Nước chỉ sâu 0.25m, cho phép đi bộ qua)
+                        }
+
+                        noiseHeight = Mathf.Lerp(noiseHeight, targetDepth, smoothCarve);
                     }
                 }
 
@@ -668,7 +848,12 @@ public class GridSystem : MonoBehaviour
     {
         for (int i = transform.childCount - 1; i >= 0; i--)
         {
-            DestroyImmediate(transform.GetChild(i).gameObject);
+            GameObject child = transform.GetChild(i).gameObject;
+            if (child != null && (child.name.StartsWith("ProceduralBridge_") || child.name.Contains("Bridge")))
+            {
+                continue;
+            }
+            DestroyImmediate(child);
         }
         _gridArray = null;
     }
@@ -688,6 +873,22 @@ public class GridSystem : MonoBehaviour
             for (int z = 0; z < _length; z++)
             {
                 _gridArray[x, z] = new GridCell(x, z, 0);
+
+                // Đồng bộ hóa trạng thái ngập nước của ô lưới trước khi sinh tài nguyên
+                if (Terrain.activeTerrain != null)
+                {
+                    float worldX = x * _cellSize;
+                    float worldZ = z * _cellSize;
+                    float height = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                    if (height < _waterHeight)
+                    {
+                        if (height < _waterHeight - 0.3f)
+                        {
+                            _gridArray[x, z].isWalkable = false;
+                        }
+                        _gridArray[x, z].isBuildable = false;
+                    }
+                }
 
                 if (IsInsideStartingSafeZone(x, z))
                 {
@@ -1578,6 +1779,511 @@ public class GridSystem : MonoBehaviour
                         cell.hasResource = false;
                         cell.isBuildable = true;
                         cell.isWalkable = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tìm và dọn dẹp các đối tượng cản NavMesh tạm thời (kể cả đối tượng ẩn HideAndDontSave)
+    /// </summary>
+    private void CleanUpTempObstacles()
+    {
+        var allGOs = Resources.FindObjectsOfTypeAll<GameObject>();
+        for (int i = 0; i < allGOs.Length; i++)
+        {
+            GameObject go = allGOs[i];
+            if (go != null && go.name == "TempNavMeshWaterObstacles")
+            {
+                if (Application.isPlaying) Destroy(go);
+                else DestroyImmediate(go);
+            }
+        }
+    }
+
+    public void MarkBridgeCells(int centerX, int centerZ, bool isVertical, bool hasBridge)
+    {
+        int length = 10;
+        int width = 6;
+        int halfLength = length / 2;
+        int halfWidth = width / 2;
+
+        int minX, maxX, minZ, maxZ;
+        if (isVertical)
+        {
+            minX = centerX - halfWidth;
+            maxX = centerX + halfWidth - 1;
+            minZ = centerZ - halfLength;
+            maxZ = centerZ + halfLength - 1;
+        }
+        else
+        {
+            minX = centerX - halfLength;
+            maxX = centerX + halfLength - 1;
+            minZ = centerZ - halfWidth;
+            maxZ = centerZ + halfWidth - 1;
+        }
+
+        for (int x = minX; x <= maxX; x++)
+        {
+            for (int z = minZ; z <= maxZ; z++)
+            {
+                if (x >= 0 && x < _width && z >= 0 && z < _length)
+                {
+                    GridCell cell = _gridArray[x, z];
+                    if (cell != null)
+                    {
+                        cell.hasBridge = hasBridge;
+                        if (hasBridge)
+                        {
+                            cell.isWalkable = true;
+                            cell.isBuildable = false;
+                        }
+                        else
+                        {
+                            // Restore defaults based on water height
+                            float worldX = x * _cellSize;
+                            float worldZ = z * _cellSize;
+                            float height = Terrain.activeTerrain != null ? Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ)) : 0f;
+                            if (height < _waterHeight)
+                            {
+                                cell.isWalkable = (height >= _waterHeight - 0.3f);
+                                cell.isBuildable = false;
+                            }
+                            else
+                            {
+                                cell.isWalkable = true;
+                                cell.isBuildable = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void GenerateProceduralBridges()
+    {
+        if (_bridgePrefab == null)
+        {
+#if UNITY_EDITOR
+            _bridgePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Building/BridgeBuilding.prefab");
+#endif
+        }
+
+        if (_bridgePrefab == null)
+        {
+            Debug.LogWarning("[GridSystem] Không tìm thấy _bridgePrefab để sinh cầu tự động!");
+            return;
+        }
+
+        // 1. Phân tích vùng liên thông đất liền bằng Flood-fill (BFS)
+        int[,] componentMap = new int[_width, _length];
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _length; z++)
+            {
+                componentMap[x, z] = -1; // -1: chưa duyệt
+            }
+        }
+
+        Vector2 riverSeedOffset = GetSeedOffset(37);
+        float waterHeight = _waterHeight;
+
+        // Helper kiểm tra một ô có phải là sông hay không
+        System.Func<int, int, bool> checkIsRiver = (cx, cz) =>
+        {
+            if (cx < 0 || cx >= _width || cz < 0 || cz >= _length) return false;
+            Vector3 wPos = GetWorldPosition(cx, cz);
+            float rx = wPos.x * _riverFrequency + riverSeedOffset.x;
+            float ry = wPos.z * _riverFrequency + riverSeedOffset.y;
+            float rNoise = Mathf.Abs(Mathf.PerlinNoise(rx, ry) - 0.5f) * 2f;
+            return _generateRivers && (rNoise < _riverWidth);
+        };
+
+        // Gán -2 cho các ô sông
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _length; z++)
+            {
+                if (checkIsRiver(x, z))
+                {
+                    componentMap[x, z] = -2;
+                }
+            }
+        }
+
+        // Chạy BFS tìm các vùng đất liền riêng biệt
+        int componentId = 0;
+        Dictionary<int, List<Vector2Int>> components = new Dictionary<int, List<Vector2Int>>();
+
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _length; z++)
+            {
+                if (componentMap[x, z] == -1) // Đất liền chưa duyệt
+                {
+                    componentId++;
+                    List<Vector2Int> cells = new List<Vector2Int>();
+                    Queue<Vector2Int> queue = new Queue<Vector2Int>();
+                    
+                    Vector2Int start = new Vector2Int(x, z);
+                    queue.Enqueue(start);
+                    componentMap[x, z] = componentId;
+                    cells.Add(start);
+
+                    while (queue.Count > 0)
+                    {
+                        Vector2Int curr = queue.Dequeue();
+                        
+                        // Check 4 hướng hàng xóm
+                        Vector2Int[] neighbors = {
+                            new Vector2Int(curr.x + 1, curr.y),
+                            new Vector2Int(curr.x - 1, curr.y),
+                            new Vector2Int(curr.x, curr.y + 1),
+                            new Vector2Int(curr.x, curr.y - 1)
+                        };
+
+                        foreach (var nb in neighbors)
+                        {
+                            if (nb.x >= 0 && nb.x < _width && nb.y >= 0 && nb.y < _length)
+                            {
+                                if (componentMap[nb.x, nb.y] == -1)
+                                {
+                                    componentMap[nb.x, nb.y] = componentId;
+                                    queue.Enqueue(nb);
+                                    cells.Add(nb);
+                                }
+                            }
+                        }
+                    }
+                    components[componentId] = cells;
+                }
+            }
+        }
+
+        Debug.Log($"[GridSystem] Phát hiện thấy {componentId} vùng đất liền riêng biệt trên bản đồ.");
+
+        if (componentId <= 1)
+        {
+            Debug.Log("[GridSystem] Bản đồ đã liên thông hoàn toàn, không cần sinh cầu tự động.");
+            return;
+        }
+
+        // 2. Tìm tất cả các điểm bắc cầu hợp lệ giữa các vùng đất liền khác nhau
+        List<BridgeCandidate> candidates = new List<BridgeCandidate>();
+
+        // Quét tìm cầu nằm Ngang (sông chạy dọc X)
+        for (int z = 5; z < _length - 5; z++)
+        {
+            for (int x = 5; x < _width - 5; x++)
+            {
+                int compA = componentMap[x, z];
+                if (compA >= 1) // Từ đất liền vùng A
+                {
+                    // Quét về phía bên phải (trục X tăng dần) tìm xem có gặp sông rồi đến bờ vùng B khác không
+                    int riverWidth = 0;
+                    int targetX = -1;
+                    for (int nextX = x + 1; nextX < _width - 5; nextX++)
+                    {
+                        int compNext = componentMap[nextX, z];
+                        if (compNext == -2) // Sông
+                        {
+                            riverWidth++;
+                        }
+                        else if (compNext >= 1) // Gặp đất liền vùng B
+                        {
+                            if (compNext != compA)
+                            {
+                                targetX = nextX;
+                            }
+                            break;
+                        }
+                    }
+
+                    // Nếu tìm thấy bờ vùng B bên kia sông và chiều rộng sông hợp lệ (2 đến 8 ô)
+                    if (targetX != -1 && riverWidth >= 2 && riverWidth <= 8)
+                    {
+                        int bridgeCenterX = x + (targetX - x) / 2;
+                        int bridgeCenterZ = z;
+
+                        // Đo độ dốc 2 bên bờ cầu
+                        float leftH = Terrain.activeTerrain.SampleHeight(GetWorldPosition(x, z));
+                        float rightH = Terrain.activeTerrain.SampleHeight(GetWorldPosition(targetX, z));
+
+                        if (Mathf.Abs(leftH - rightH) < 1.5f && !IsInsideStartingSafeZone(bridgeCenterX, bridgeCenterZ))
+                        {
+                            candidates.Add(new BridgeCandidate
+                            {
+                                fromComponent = compA,
+                                toComponent = componentMap[targetX, z],
+                                centerX = bridgeCenterX,
+                                centerZ = bridgeCenterZ,
+                                isVertical = false,
+                                riverWidth = riverWidth,
+                                spawnY = Mathf.Max(leftH, rightH) + Terrain.activeTerrain.transform.position.y
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Quét tìm cầu nằm Dọc (sông chạy ngang Z)
+        for (int x = 5; x < _width - 5; x++)
+        {
+            for (int z = 5; z < _length - 5; z++)
+            {
+                int compA = componentMap[x, z];
+                if (compA >= 1) // Từ đất liền vùng A
+                {
+                    // Quét về phía trên (trục Z tăng dần) tìm xem có gặp sông rồi đến bờ vùng B khác không
+                    int riverWidth = 0;
+                    int targetZ = -1;
+                    for (int nextZ = z + 1; nextZ < _length - 5; nextZ++)
+                    {
+                        int compNext = componentMap[x, nextZ];
+                        if (compNext == -2) // Sông
+                        {
+                            riverWidth++;
+                        }
+                        else if (compNext >= 1) // Gặp đất liền vùng B
+                        {
+                            if (compNext != compA)
+                            {
+                                targetZ = nextZ;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (targetZ != -1 && riverWidth >= 2 && riverWidth <= 8)
+                    {
+                        int bridgeCenterX = x;
+                        int bridgeCenterZ = z + (targetZ - z) / 2;
+
+                        float bottomH = Terrain.activeTerrain.SampleHeight(GetWorldPosition(x, z));
+                        float topH = Terrain.activeTerrain.SampleHeight(GetWorldPosition(x, targetZ));
+
+                        if (Mathf.Abs(bottomH - topH) < 1.5f && !IsInsideStartingSafeZone(bridgeCenterX, bridgeCenterZ))
+                        {
+                            candidates.Add(new BridgeCandidate
+                            {
+                                fromComponent = compA,
+                                toComponent = componentMap[x, targetZ],
+                                centerX = bridgeCenterX,
+                                centerZ = bridgeCenterZ,
+                                isVertical = true,
+                                riverWidth = riverWidth,
+                                spawnY = Mathf.Max(bottomH, topH) + Terrain.activeTerrain.transform.position.y
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Sắp xếp các cầu ứng cử theo chiều rộng sông tăng dần (ưu tiên sông hẹp trước)
+        candidates.Sort((a, b) => a.riverWidth.CompareTo(b.riverWidth));
+
+        // DSU (Disjoint Set Union) để theo dõi liên thông các vùng đất
+        int[] parent = new int[componentId + 1];
+        for (int i = 1; i <= componentId; i++) parent[i] = i;
+
+        System.Func<int, int> find = null;
+        find = (i) =>
+        {
+            if (parent[i] == i) return i;
+            return parent[i] = find(parent[i]);
+        };
+
+        System.Action<int, int> union = (i, j) =>
+        {
+            int rootI = find(i);
+            int rootJ = find(j);
+            if (rootI != rootJ)
+            {
+                parent[rootI] = rootJ;
+            }
+        };
+
+        List<Vector2Int> spawnedBridgeCenters = new List<Vector2Int>();
+        int bridgesSpawned = 0;
+
+        foreach (var cand in candidates)
+        {
+            int rootFrom = find(cand.fromComponent);
+            int rootTo = find(cand.toComponent);
+
+            if (rootFrom != rootTo)
+            {
+                // Kiểm tra xem cầu mới có quá gần cầu đã có nào không (tránh chồng chéo, tối thiểu cách nhau 10 ô)
+                bool overlaps = false;
+                Vector2Int newCenter = new Vector2Int(cand.centerX, cand.centerZ);
+                foreach (var spawned in spawnedBridgeCenters)
+                {
+                    if (Vector2Int.Distance(newCenter, spawned) < 10)
+                    {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (overlaps) continue;
+
+                // Đồng ý bắc cầu!
+                union(cand.fromComponent, cand.toComponent);
+                spawnedBridgeCenters.Add(newCenter);
+
+                Vector3 spawnPos = GetWorldPosition(cand.centerX, cand.centerZ);
+                spawnPos.y = cand.spawnY;
+
+                // Sinh prefab cầu
+                Quaternion rotation = cand.isVertical ? Quaternion.identity : Quaternion.Euler(0, 90f, 0);
+                GameObject bridgeObj = Instantiate(_bridgePrefab, spawnPos, rotation, transform);
+                bridgeObj.name = $"ProceduralBridge_{(cand.isVertical ? "V" : "H")}_{cand.centerX}_{cand.centerZ}";
+
+                // Đánh dấu lưới
+                MarkBridgeCells(cand.centerX, cand.centerZ, cand.isVertical, true);
+
+                bridgesSpawned++;
+                
+                // Kiểm tra xem tất cả các vùng đã liên thông chưa (cùng chung 1 root)
+                bool allConnected = true;
+                int commonRoot = find(1);
+                for (int i = 2; i <= componentId; i++)
+                {
+                    if (find(i) != commonRoot)
+                    {
+                        allConnected = false;
+                        break;
+                    }
+                }
+
+                if (allConnected)
+                {
+                    Debug.Log("[GridSystem] Tất cả các vùng đất liền đã liên thông 100%!");
+                    break;
+                }
+            }
+        }
+
+        Debug.Log($"[GridSystem] Đã tự động sinh {bridgesSpawned} cầu vượt sông dựa trên phân tích liên thông đất liền.");
+    }
+
+    private struct BridgeCandidate
+    {
+        public int fromComponent;
+        public int toComponent;
+        public int centerX;
+        public int centerZ;
+        public bool isVertical;
+        public int riverWidth;
+        public float spawnY;
+    }
+
+    private void InitializeRuntimeWaterObstacles()
+    {
+        if (!Application.isPlaying) return;
+
+        UpdateGridDimensions();
+        _waterObstaclesMap = new GameObject[_width, _length];
+
+        GameObject runtimeParent = new GameObject("RuntimeNavMeshWaterObstacles");
+        runtimeParent.transform.SetParent(transform);
+
+        Vector2 seedOffset = GetSeedOffset(11);
+        Vector2 riverSeedOffset = GetSeedOffset(37);
+        float waterHeight = _waterHeight;
+        float cellSize = _cellSize;
+
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _length; z++)
+            {
+                // Check if this cell is river
+                Vector3 cellWorldPos = GetWorldPosition(x, z);
+                float rX = cellWorldPos.x * _riverFrequency + riverSeedOffset.x;
+                float rY = cellWorldPos.z * _riverFrequency + riverSeedOffset.y;
+                float riverNoise = Mathf.Abs(Mathf.PerlinNoise(rX, rY) - 0.5f) * 2f;
+                bool isRiver = _generateRivers && (riverNoise < _riverWidth);
+
+                if (isRiver)
+                {
+                    // Skip starting safe zone
+                    if (IsInsideStartingSafeZone(x, z))
+                    {
+                        continue;
+                    }
+
+                    // Check for ford
+                    float fordX = cellWorldPos.x * 0.02f + seedOffset.x * 0.5f;
+                    float fordY = cellWorldPos.z * 0.02f + seedOffset.y * 0.5f;
+                    float fordNoise = Mathf.PerlinNoise(fordX, fordY);
+                    bool isFord = _generateRivers && (fordNoise > 0.41f && fordNoise < 0.53f);
+
+                    float blockThreshold = isFord ? (waterHeight - 0.3f) : (waterHeight + 0.3f);
+
+                    if (cellWorldPos.y < blockThreshold)
+                    {
+                        // Create water obstacle
+                        GameObject obstacle = new GameObject($"RuntimeWaterVolume_{x}_{z}");
+                        obstacle.transform.SetParent(runtimeParent.transform);
+                        obstacle.transform.position = new Vector3(cellWorldPos.x, cellWorldPos.y, cellWorldPos.z);
+
+                        var vol = obstacle.AddComponent<Unity.AI.Navigation.NavMeshModifierVolume>();
+                        vol.center = Vector3.zero;
+                        vol.size = new Vector3(cellSize, 20f, cellSize);
+                        vol.area = 1; // Not Walkable
+
+                        _waterObstaclesMap[x, z] = obstacle;
+
+                        // If this cell already has a bridge, disable it immediately!
+                        GridCell cell = GetCell(x, z);
+                        if (cell != null && cell.hasBridge)
+                        {
+                            obstacle.SetActive(false);
+                        }
+                    }
+                }
+            }
+        }
+        Debug.Log("[GridSystem] Đã khởi tạo bộ đệm cản nước NavMesh chạy runtime thành công!");
+    }
+
+    public void SetWaterObstaclesActive(int centerX, int centerZ, bool isVertical, bool active)
+    {
+        int length = 10;
+        int width = 6;
+        int halfLength = length / 2;
+        int halfWidth = width / 2;
+
+        int minX, maxX, minZ, maxZ;
+        if (isVertical)
+        {
+            minX = centerX - halfWidth;
+            maxX = centerX + halfWidth - 1;
+            minZ = centerZ - halfLength;
+            maxZ = centerZ + halfLength - 1;
+        }
+        else
+        {
+            minX = centerX - halfLength;
+            maxX = centerX + halfLength - 1;
+            minZ = centerZ - halfWidth;
+            maxZ = centerZ + halfWidth - 1;
+        }
+
+        for (int x = minX; x <= maxX; x++)
+        {
+            for (int z = minZ; z <= maxZ; z++)
+            {
+                if (x >= 0 && x < _width && z >= 0 && z < _length)
+                {
+                    if (_waterObstaclesMap != null && _waterObstaclesMap[x, z] != null)
+                    {
+                        _waterObstaclesMap[x, z].SetActive(active);
                     }
                 }
             }

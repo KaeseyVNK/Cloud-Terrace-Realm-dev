@@ -226,10 +226,13 @@ public class MapEventManager : MonoBehaviour
                 }
 
                 // Đảm bảo quái đứng trên NavMesh để tránh kẹt trong cổng
-                if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+                if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 5f, ~2))
                 {
                     spawnPos = hit.position;
                 }
+
+                // Bảo đảm quái có đường đi thông suốt tới nhà chính (không bị cô lập bởi sông hồ)
+                spawnPos = GetValidConnectedSpawnPosition(spawnPos, mainHouse.transform.position);
 
                 GameObject enemyObj = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
 
@@ -352,6 +355,12 @@ public class MapEventManager : MonoBehaviour
             }
 
             if (prefab == null) continue;
+
+            // Bảo đảm quái có đường đi thông suốt tới đoàn xe thương nhân
+            if (targetUnit != null)
+            {
+                spawnPos = GetValidConnectedSpawnPosition(spawnPos, targetUnit.transform.position);
+            }
 
             GameObject enemyObj = Instantiate(prefab, spawnPos, Quaternion.identity);
 
@@ -808,5 +817,57 @@ public class MapEventManager : MonoBehaviour
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Kiểm tra và tự động điều chỉnh tọa độ spawn của quái vật để bảo đảm chúng
+    /// có đường đi (NavMeshPath) thông suốt tới mục tiêu, tránh bị cô lập hoặc kẹt ở các đảo hoang do sông ngòi.
+    /// </summary>
+    private Vector3 GetValidConnectedSpawnPosition(Vector3 initialSpawnPos, Vector3 targetPos)
+    {
+        Vector3 spawnPos = initialSpawnPos;
+        // Khóa khớp lên NavMesh trước
+        if (UnityEngine.AI.NavMesh.SamplePosition(initialSpawnPos, out UnityEngine.AI.NavMeshHit hit, 6f, ~2))
+        {
+            spawnPos = hit.position;
+        }
+
+        // Kiểm tra xem vị trí có đường đi đến mục tiêu không
+        UnityEngine.AI.NavMeshPath path = new UnityEngine.AI.NavMeshPath();
+        if (UnityEngine.AI.NavMesh.CalculatePath(spawnPos, targetPos, ~2, path))
+        {
+            if (path.status != UnityEngine.AI.NavMeshPathStatus.PathComplete)
+            {
+                // Nếu bị cô lập bởi sông ngòi, dịch chuyển dần về phía mục tiêu
+                Vector3 dir = (targetPos - spawnPos).normalized;
+                bool found = false;
+                for (int attempt = 1; attempt <= 6; attempt++)
+                {
+                    Vector3 testPos = spawnPos + dir * (attempt * 8f);
+                    if (UnityEngine.AI.NavMesh.SamplePosition(testPos, out UnityEngine.AI.NavMeshHit testHit, 12f, ~2))
+                    {
+                        UnityEngine.AI.NavMesh.CalculatePath(testHit.position, targetPos, ~2, path);
+                        if (path.status == UnityEngine.AI.NavMeshPathStatus.PathComplete)
+                        {
+                            spawnPos = testHit.position;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    // Fallback: spawn ngay cạnh mục tiêu (12m) để chắc chắn không kẹt
+                    spawnPos = targetPos + UnityEngine.Random.onUnitSphere * 12f;
+                    spawnPos.y = targetPos.y;
+                    if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit fallbackHit, 15f, ~2))
+                    {
+                        spawnPos = fallbackHit.position;
+                    }
+                }
+            }
+        }
+        return spawnPos;
     }
 }

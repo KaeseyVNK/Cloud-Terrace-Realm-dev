@@ -265,7 +265,7 @@ public class HouseShelter : MonoBehaviour
         Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * ejectSpacing;
         Vector3 ejectPos = transform.position + offset;
 
-        if (NavMesh.SamplePosition(ejectPos, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(ejectPos, out NavMeshHit hit, 5f, ~2))
         {
             ejectPos = hit.position;
         }

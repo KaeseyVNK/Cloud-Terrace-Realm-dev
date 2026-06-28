@@ -431,7 +431,7 @@ public class CardManager : MonoBehaviour
         }
 
         Vector3 spawnPos = mainBuilding.transform.position + new Vector3(0, 0, -3f);
-        if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+        if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 5f, ~2))
         {
             spawnPos = hit.position;
         }

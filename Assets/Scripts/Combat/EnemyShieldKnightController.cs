@@ -170,7 +170,7 @@ public class EnemyShieldKnightController : EnemyUnitController
         Vector3 startPosition = targetTransform.position;
         Vector3 endPosition = startPosition + direction * Mathf.Max(0f, _knockbackDistance);
 
-        if (NavMesh.SamplePosition(endPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(endPosition, out NavMeshHit hit, 2f, ~2))
         {
             endPosition = hit.position;
         }

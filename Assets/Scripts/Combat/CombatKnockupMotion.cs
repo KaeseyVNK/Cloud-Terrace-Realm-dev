@@ -77,7 +77,7 @@ public class CombatKnockupMotion : MonoBehaviour
         }
 
         Vector3 finalPosition = landingPosition;
-        bool hasValidLanding = NavMesh.SamplePosition(landingPosition, out NavMeshHit hit, 1.5f, NavMesh.AllAreas);
+        bool hasValidLanding = NavMesh.SamplePosition(landingPosition, out NavMeshHit hit, 1.5f, ~2);
         if (hasValidLanding)
         {
             finalPosition = hit.position;
@@ -104,7 +104,7 @@ public class CombatKnockupMotion : MonoBehaviour
             return;
         }
 
-        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+        if (!NavMesh.SamplePosition(position, out NavMeshHit hit, 2f, ~2))
         {
             shouldRestoreAgent = false;
             activeAgent = null;

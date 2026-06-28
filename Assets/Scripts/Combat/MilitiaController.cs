@@ -36,7 +36,7 @@ public class MilitiaController : BaseCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
             {
                 navAgent.Warp(hit.position);
             }

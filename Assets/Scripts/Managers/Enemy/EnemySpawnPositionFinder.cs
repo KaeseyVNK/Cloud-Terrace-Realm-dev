@@ -27,7 +27,7 @@ public class EnemySpawnPositionFinder
             spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos);
         }
 
-        if (NavMesh.SamplePosition(spawnPos, out NavMeshHit hit, safeRadius * 2f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(spawnPos, out NavMeshHit hit, safeRadius * 2f, ~2))
         {
             spawnPos = hit.position;
         }

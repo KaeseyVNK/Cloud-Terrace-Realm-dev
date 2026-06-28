@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class PoolManager : MonoBehaviour
 {
@@ -73,7 +74,15 @@ public class PoolManager : MonoBehaviour
 
         if (instance == null)
         {
+            // Tạm thời tắt NavMeshAgent trên prefab để tránh cảnh báo khi Instantiate ngoài NavMesh
+            NavMeshAgent prefabAgent = prefab.GetComponent<NavMeshAgent>();
+            bool wasAgentEnabled = prefabAgent != null && prefabAgent.enabled;
+            if (wasAgentEnabled) prefabAgent.enabled = false;
+
             instance = Instantiate(prefab, position, rotation);
+
+            if (wasAgentEnabled) prefabAgent.enabled = true;
+
             PooledObject pooledObject = instance.GetComponent<PooledObject>();
             if (pooledObject == null)
             {
@@ -85,6 +94,20 @@ public class PoolManager : MonoBehaviour
         Transform instanceTransform = instance.transform;
         instanceTransform.SetPositionAndRotation(position, rotation);
         instance.SetActive(true);
+
+        // Bật và warp NavMeshAgent sau khi đối tượng đã active và đặt đúng vị trí
+        NavMeshAgent instanceAgent = instance.GetComponent<NavMeshAgent>();
+        if (instanceAgent != null)
+        {
+            instanceAgent.enabled = true;
+            if (!instanceAgent.isOnNavMesh)
+            {
+                if (NavMesh.SamplePosition(position, out NavMeshHit hit, 10f, ~2))
+                {
+                    instanceAgent.Warp(hit.position);
+                }
+            }
+        }
 
         NotifySpawned(instance);
         return instance;
@@ -105,7 +128,22 @@ public class PoolManager : MonoBehaviour
 
         for (int i = pool.Count; i < count; i++)
         {
+            // Tạm thời tắt NavMeshAgent trên prefab để tránh cảnh báo khi Instantiate tại vị trí mặc định (Vector3.zero)
+            NavMeshAgent prefabAgent = prefab.GetComponent<NavMeshAgent>();
+            bool wasAgentEnabled = prefabAgent != null && prefabAgent.enabled;
+            if (wasAgentEnabled) prefabAgent.enabled = false;
+
             GameObject instance = Instantiate(prefab);
+
+            if (wasAgentEnabled) prefabAgent.enabled = true;
+
+            // Đảm bảo agent của đối tượng được tắt khi nằm trong pool chờ
+            NavMeshAgent instanceAgent = instance.GetComponent<NavMeshAgent>();
+            if (instanceAgent != null)
+            {
+                instanceAgent.enabled = false;
+            }
+
             PooledObject pooledObject = instance.GetComponent<PooledObject>();
             if (pooledObject == null)
             {

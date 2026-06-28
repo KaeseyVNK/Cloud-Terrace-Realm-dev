@@ -153,7 +153,7 @@ public class WatchTowerGarrison : MonoBehaviour
     private Vector3 GetReachableEntryPosition()
     {
         Vector3 entryPosition = GetEntryPosition();
-        if (NavMesh.SamplePosition(entryPosition, out NavMeshHit hit, entryNavMeshSampleRadius, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(entryPosition, out NavMeshHit hit, entryNavMeshSampleRadius, ~2))
         {
             return hit.position;
         }
@@ -270,7 +270,7 @@ public class WatchTowerGarrison : MonoBehaviour
         Vector3 offset = Quaternion.Euler(0f, index * 360f / Mathf.Max(1, capacity), 0f) * Vector3.forward * ejectSpacing;
         Vector3 targetPos = GetEntryPosition() + offset;
 
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 5f, ~2))
         {
             targetPos = hit.position;
         }
@@ -356,7 +356,7 @@ public class WatchTowerGarrison : MonoBehaviour
 
     private BaseCombatUnitController FindNearestEnemy()
     {
-        int count = Physics.OverlapSphereNonAlloc(transform.position, attackRange, s_overlapCache, targetLayers);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, attackRange + 3.0f, s_overlapCache, targetLayers);
         BaseCombatUnitController nearest = null;
         float nearestDistanceSqr = float.MaxValue;
 
@@ -374,11 +374,21 @@ public class WatchTowerGarrison : MonoBehaviour
                 continue;
             }
 
-            float distanceSqr = (unit.transform.position - transform.position).sqrMagnitude;
-            if (distanceSqr < nearestDistanceSqr)
+            float distance = Vector3.Distance(transform.position, unit.transform.position);
+            float maxAllowedRange = attackRange;
+            if (transform.position.y - unit.transform.position.y >= 1.5f)
             {
-                nearestDistanceSqr = distanceSqr;
-                nearest = unit;
+                maxAllowedRange += 3.0f; // +1.5 ô (với kích thước ô 2m)
+            }
+
+            if (distance <= maxAllowedRange)
+            {
+                float distanceSqr = distance * distance;
+                if (distanceSqr < nearestDistanceSqr)
+                {
+                    nearestDistanceSqr = distanceSqr;
+                    nearest = unit;
+                }
             }
         }
 

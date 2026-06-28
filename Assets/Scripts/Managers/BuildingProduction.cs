@@ -542,7 +542,7 @@ public class BuildingProduction : MonoBehaviour
 
     private Vector3 GetNearestNavMeshPoint(Vector3 point)
     {
-        if (NavMesh.SamplePosition(point, out NavMeshHit hit, 8f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(point, out NavMeshHit hit, 8f, ~2))
         {
             return hit.position;
         }

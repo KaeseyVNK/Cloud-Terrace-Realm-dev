@@ -1628,6 +1628,7 @@ MonoBehaviour:
   knockupRecoveryDuration: 0.25
   movingAnimationVelocityThreshold: 0.08
   movingAnimationHoldTime: 0.18
+  isHoldPosition: 0
   _projectilePrefab: {fileID: 0}
   _firePoint: {fileID: 0}
   _projectileSpawnHeight: 1.4

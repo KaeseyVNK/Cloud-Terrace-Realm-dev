@@ -315,6 +315,9 @@ public class GameManager : MonoBehaviour
         if (centerCell != null)
         {
             _gridSystem.FlattenArea(centerX, centerZ, _flatAreaRadius, 0);
+
+            // Bake lại NavMesh bằng GridSystem để loại trừ các ô sông hồ ngập nước
+            _gridSystem.BakeNavigationMesh(force: true);
         }
 
         // Xây nhà chính
