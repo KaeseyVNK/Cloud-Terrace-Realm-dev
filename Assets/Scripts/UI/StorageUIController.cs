@@ -16,6 +16,7 @@ namespace CloudTerraceRealm.UI
         [SerializeField] private GameObject _panelParent;
         [SerializeField] private TextMeshProUGUI _titleText;
         [SerializeField] private TextMeshProUGUI _infoText;
+        [SerializeField] private bool _enableStoragePanel = false;
 
         private GameObject _selectedStorageBuilding;
         private BuildingData _selectedBuildingData;
@@ -31,6 +32,11 @@ namespace CloudTerraceRealm.UI
 
         private void Update()
         {
+            if (!_enableStoragePanel)
+            {
+                return;
+            }
+
             if (Input.GetMouseButtonDown(0))
             {
                 if (UnityEngine.EventSystems.EventSystem.current != null && 
@@ -91,6 +97,12 @@ namespace CloudTerraceRealm.UI
         /// </summary>
         public void SelectStorage(GameObject building, BuildingData data)
         {
+            if (!_enableStoragePanel)
+            {
+                Deselect();
+                return;
+            }
+
             if (building == null || data == null) return;
 
             // Đóng các UI công trình khác để tránh đè nhau

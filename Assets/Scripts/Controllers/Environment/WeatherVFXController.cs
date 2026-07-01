@@ -2,12 +2,22 @@ using UnityEngine;
 
 public class WeatherVFXController : MonoBehaviour
 {
+#if UNITY_EDITOR
+    private const string RainSoundAssetPath = "Assets/Audio/SFX/sfx_rain_sound.mp3";
+#endif
+
     [Header("Rain")]
     [SerializeField] private GameObject _rainPrefab;
     [SerializeField] private Transform _rainAnchor;
     [SerializeField] private Vector3 _rainLocalOffset = new Vector3(0f, 8f, 12f);
     [SerializeField] private Vector3 _rainLocalEulerAngles = Vector3.zero;
     [SerializeField] private bool _spawnOnStart = true;
+
+    [Header("Rain Audio")]
+    [SerializeField] private AudioClip _rainSound;
+    [Range(0f, 1f)]
+    [SerializeField] private float _rainSoundVolume = 0.65f;
+    [SerializeField] private bool _playRainSound = true;
 
     [Header("Transition Settings")]
     [SerializeField] private float _weatherTransitionSpeed = 0.5f;
@@ -17,9 +27,21 @@ public class WeatherVFXController : MonoBehaviour
     private float[] _originalEmissionRates;
     private WeatherManager _weatherManager;
     private float _currentRainIntensity = 0f;
+    private AudioSource _rainAudioSource;
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        AutoAssignRainSoundInEditor();
+    }
+#endif
 
     private void Start()
     {
+#if UNITY_EDITOR
+        AutoAssignRainSoundInEditor();
+#endif
+
         if (_spawnOnStart)
         {
             EnsureRainInstance();
@@ -32,6 +54,7 @@ public class WeatherVFXController : MonoBehaviour
     {
         TryBindWeatherManager();
         UpdateRainIntensity();
+        UpdateRainAudio();
     }
 
     private void OnDestroy()
@@ -40,6 +63,8 @@ public class WeatherVFXController : MonoBehaviour
         {
             _weatherManager.OnWeatherChanged -= HandleWeatherChanged;
         }
+
+        StopRainAudio();
     }
 
     private void HandleWeatherChanged(WeatherState weather)
@@ -159,4 +184,97 @@ public class WeatherVFXController : MonoBehaviour
 
         _rainInstance.SetActive(false);
     }
+
+    private void UpdateRainAudio()
+    {
+        if (!_playRainSound || _rainSound == null)
+        {
+            StopRainAudio();
+            return;
+        }
+
+        EnsureRainAudioSource();
+        if (_rainAudioSource == null)
+        {
+            return;
+        }
+
+        if (_rainAudioSource.clip != _rainSound)
+        {
+            _rainAudioSource.clip = _rainSound;
+        }
+
+        if (_currentRainIntensity > 0.01f)
+        {
+            if (!_rainAudioSource.isPlaying)
+            {
+                _rainAudioSource.Play();
+            }
+
+            _rainAudioSource.volume = _currentRainIntensity * _rainSoundVolume * GetSfxVolume();
+        }
+        else
+        {
+            StopRainAudio();
+        }
+    }
+
+    private void EnsureRainAudioSource()
+    {
+        if (_rainAudioSource == null)
+        {
+            Transform existingSource = transform.Find("RainSFXSource");
+            if (existingSource == null)
+            {
+                GameObject sourceObject = new GameObject("RainSFXSource");
+                sourceObject.transform.SetParent(transform, false);
+                existingSource = sourceObject.transform;
+            }
+
+            _rainAudioSource = existingSource.GetComponent<AudioSource>();
+            if (_rainAudioSource == null)
+            {
+                _rainAudioSource = existingSource.gameObject.AddComponent<AudioSource>();
+            }
+        }
+
+        _rainAudioSource.playOnAwake = false;
+        _rainAudioSource.loop = true;
+        _rainAudioSource.spatialBlend = 0f;
+        _rainAudioSource.volume = 0f;
+    }
+
+    private void StopRainAudio()
+    {
+        if (_rainAudioSource == null || !_rainAudioSource.isPlaying)
+        {
+            return;
+        }
+
+        _rainAudioSource.Stop();
+        _rainAudioSource.volume = 0f;
+    }
+
+    private float GetSfxVolume()
+    {
+        return MyGame.Audio.AudioManager.Instance != null
+            ? MyGame.Audio.AudioManager.Instance.SFXVolume
+            : 1f;
+    }
+
+#if UNITY_EDITOR
+    private void AutoAssignRainSoundInEditor()
+    {
+        if (_rainSound != null)
+        {
+            return;
+        }
+
+        _rainSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(RainSoundAssetPath);
+        if (_rainSound != null)
+        {
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+    }
+#endif
 }

@@ -805,7 +805,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
             DrawBadgeUGUI(
                 shelter.transform.position,
                 GetCachedHeight(shelter.gameObject, 3.5f) + 0.95f,
-                $"🏠 {occupants} / {shelter.Capacity}",
+                $"{occupants} / {shelter.Capacity}",
                 new Color(0.08f, 0.09f, 0.12f, 0.88f),
                 new Color(0.25f, 0.75f, 1.0f, 0.6f)
             );
@@ -827,7 +827,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
             DrawBadgeUGUI(
                 tower.transform.position,
                 GetCachedHeight(tower.gameObject, 5.0f) + 0.95f,
-                $"🏹 {occupants} / {tower.Capacity}",
+                $"{occupants} / {tower.Capacity}",
                 new Color(0.15f, 0.11f, 0.08f, 0.9f),
                 new Color(1.0f, 0.7f, 0.1f, 0.7f)
             );

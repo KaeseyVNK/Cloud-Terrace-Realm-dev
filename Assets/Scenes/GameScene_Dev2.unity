@@ -132739,6 +132739,10 @@ MonoBehaviour:
   _rainLocalOffset: {x: 0, y: 0, z: 0}
   _rainLocalEulerAngles: {x: 0, y: 0, z: 0}
   _spawnOnStart: 1
+  _rainSound: {fileID: 8300000, guid: 8feabad54d1c0814a8a34ab35a67ea4c, type: 3}
+  _rainSoundVolume: 0.65
+  _playRainSound: 1
+  _weatherTransitionSpeed: 0.5
 --- !u!114 &382195868
 MonoBehaviour:
   m_ObjectHideFlags: 0
