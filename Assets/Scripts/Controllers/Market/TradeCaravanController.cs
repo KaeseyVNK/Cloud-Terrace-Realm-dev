@@ -44,6 +44,11 @@ public class TradeCaravanController : MonoBehaviour
         _navAgent = GetComponent<NavMeshAgent>();
         _combatController = GetComponent<BaseCombatUnitController>();
 
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayCaravanBell(transform.position);
+        }
+
         if (_navAgent != null)
         {
             _navAgent.speed = 3.5f;
@@ -89,6 +94,11 @@ public class TradeCaravanController : MonoBehaviour
     private void Arrive()
     {
         _hasArrived = true;
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayCaravanBell(transform.position);
+        }
 
         // Add resource to player storage
         if (ResourceManager.Instance != null)

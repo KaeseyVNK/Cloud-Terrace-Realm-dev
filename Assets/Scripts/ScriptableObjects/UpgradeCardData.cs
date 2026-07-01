@@ -4,7 +4,8 @@ public enum UpgradeCardType
 {
     StatBuff,
     Unlock,
-    Instant
+    Instant,
+    Decree
 }
 
 /// <summary>

@@ -74,26 +74,7 @@ public class IdleVillagerUI : MonoBehaviour
 
     private void OnGUI()
     {
-        int idleCount = GetIdleCount();
-        if (idleCount <= 0) return;
-
-        InitializeStyles();
-
-        // Vẽ ở góc trên bên phải màn hình (Dưới thanh tài nguyên của bạn)
-        float xPos = Screen.width - 220f;
-        float yPos = 80f; // Bắt đầu ở tọa độ Y = 80px để tránh đè tài nguyên HUD
-        Rect btnRect = new Rect(xPos, yPos, 200f, 45f);
-
-        // Tạo viền sáng xung quanh nút
-        GUI.color = new Color(1.0f, 0.65f, 0.1f, 0.6f);
-        GUI.Box(new Rect(btnRect.x - 1, btnRect.y - 1, btnRect.width + 2, btnRect.height + 2), "");
-        GUI.color = Color.white;
-
-        string text = $"⚠️ DÂN RẢNH RỖI: {idleCount}\n(Tab: tới dân | Shift+Tab: về)";
-        if (GUI.Button(btnRect, text, _hudButtonStyle))
-        {
-            CycleIdleVillager();
-        }
+        // Legacy IMGUI rendering is disabled.
     }
 
     /// <summary>

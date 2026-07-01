@@ -30,6 +30,32 @@ namespace MyGame.Audio
         [Range(0f, 1f)]
         [SerializeField] private float _sfxVolume = 0.5f;
 
+        [Header("SFX Clips")]
+        [SerializeField] private AudioClip _sfxChooseCard;
+        [SerializeField] private AudioClip _sfxArrowHit;
+        [SerializeField] private AudioClip _sfxBowShoot;
+        [SerializeField] private AudioClip _sfxCaravanBell;
+        [SerializeField] private AudioClip _sfxCardDraft;
+        [SerializeField] private AudioClip _sfxCardSelect;
+        [SerializeField] private AudioClip _sfxChopWood;
+        [SerializeField] private AudioClip _sfxEnemySpawn;
+        [SerializeField] private AudioClip _sfxExplosion;
+        [SerializeField] private AudioClip _sfxHarvestCrop;
+        [SerializeField] private AudioClip _sfxMarketTrade;
+        [SerializeField] private AudioClip _sfxMineGold;
+        [SerializeField] private AudioClip _sfxMineStone;
+        [SerializeField] private AudioClip _sfxPortalHum;
+        [SerializeField] private AudioClip _sfxPortalOpen;
+        [SerializeField] private AudioClip _sfxSwordHit;
+        [SerializeField] private AudioClip _sfxTrainingStart;
+        [SerializeField] private AudioClip _sfxUiClick;
+        [SerializeField] private AudioClip _sfxUiHover;
+        [SerializeField] private AudioClip _sfxUiPanelOpen;
+        [SerializeField] private AudioClip _sfxUnitMilitiaSelect;
+        [SerializeField] private AudioClip _sfxVillagerMove1;
+        [SerializeField] private AudioClip _sfxVillagerMove2;
+        [SerializeField] private AudioClip _sfxVillagerSelect;
+
         private AudioSource _audioSourceA;
         private AudioSource _audioSourceB;
         private AudioSource _activeSource;
@@ -39,6 +65,9 @@ namespace MyGame.Audio
         private int _currentTrackIndex = -1;
         private bool _isTransitioning = false;
         private Coroutine _fadeCoroutine;
+
+        // Anti-spam throttling
+        private readonly Dictionary<string, float> _throttledSFXTimes = new Dictionary<string, float>();
 
         /// <summary>
         /// Thuộc tính âm lượng nhạc nền.
@@ -269,5 +298,91 @@ namespace MyGame.Audio
 
             Destroy(sfxObj, clip.length + 0.1f);
         }
+
+        /// <summary>
+        /// Phát hiệu ứng âm thanh 3D giãn cách thời gian để chống chồng chéo ồn ào.
+        /// </summary>
+        public void PlaySFX3DThrottled(AudioClip clip, Vector3 position, float cooldown = 0.15f, float maxDistance = 15f)
+        {
+            if (clip == null) return;
+            string clipName = clip.name;
+
+            if (_throttledSFXTimes.TryGetValue(clipName, out float lastTime))
+            {
+                if (Time.time - lastTime < cooldown) return;
+            }
+            _throttledSFXTimes[clipName] = Time.time;
+
+            PlaySFX3DWithPitch(clip, position, Random.Range(0.9f, 1.1f), maxDistance);
+        }
+
+        /// <summary>
+        /// Phát âm thanh 3D kèm cao độ (pitch) ngẫu nhiên.
+        /// </summary>
+        public void PlaySFX3DWithPitch(AudioClip clip, Vector3 position, float pitch, float maxDistance = 15f)
+        {
+            if (clip == null) return;
+
+            GameObject sfxObj = new GameObject("TempSFX_3D_Pitch");
+            sfxObj.transform.position = position;
+
+            AudioSource source = sfxObj.AddComponent<AudioSource>();
+            source.clip = clip;
+            source.volume = _sfxVolume;
+            source.spatialBlend = 1f;
+            source.rolloffMode = AudioRolloffMode.Linear;
+            source.minDistance = 1f;
+            source.maxDistance = maxDistance;
+            source.pitch = pitch;
+            source.Play();
+
+            Destroy(sfxObj, (clip.length / Mathf.Max(0.1f, pitch)) + 0.1f);
+        }
+
+        #region Public SFX Players
+
+        public void PlayChooseCard() => PlaySFX2D(_sfxChooseCard);
+        public void PlayArrowHit(Vector3 pos) => PlaySFX3D(_sfxArrowHit, pos);
+        public void PlayBowShoot(Vector3 pos) => PlaySFX3D(_sfxBowShoot, pos);
+        public void PlayCaravanBell(Vector3 pos) => PlaySFX3D(_sfxCaravanBell, pos);
+        public void PlayCardDraft() => PlaySFX2D(_sfxCardDraft);
+        public void PlayCardSelect() => PlaySFX2D(_sfxCardSelect);
+        public void PlayChopWood(Vector3 pos) => PlaySFX3DThrottled(_sfxChopWood, pos, 0.15f);
+        public void PlayEnemySpawn(Vector3 pos) => PlaySFX3D(_sfxEnemySpawn, pos);
+        public void PlayExplosion(Vector3 pos) => PlaySFX3D(_sfxExplosion, pos);
+        public void PlayHarvestCrop(Vector3 pos) => PlaySFX3DThrottled(_sfxHarvestCrop, pos, 0.15f);
+        public void PlayMarketTrade() => PlaySFX2D(_sfxMarketTrade);
+        public void PlayMineGold(Vector3 pos) => PlaySFX3DThrottled(_sfxMineGold, pos, 0.15f);
+        public void PlayMineStone(Vector3 pos) => PlaySFX3DThrottled(_sfxMineStone, pos, 0.15f);
+        
+        public void PlayPortalHum(AudioSource source)
+        {
+            if (source != null && _sfxPortalHum != null)
+            {
+                source.clip = _sfxPortalHum;
+                source.loop = true;
+                source.volume = _sfxVolume * 0.7f;
+                source.spatialBlend = 1.0f;
+                source.Play();
+            }
+        }
+
+        public void PlayPortalOpen(Vector3 pos) => PlaySFX3D(_sfxPortalOpen, pos);
+        public void PlaySwordHit(Vector3 pos) => PlaySFX3D(_sfxSwordHit, pos);
+        public void PlayTrainingStart() => PlaySFX2D(_sfxTrainingStart);
+        public void PlayUiClick() => PlaySFX2D(_sfxUiClick);
+        public void PlayUiHover() => PlaySFX2D(_sfxUiHover);
+        public void PlayUiPanelOpen() => PlaySFX2D(_sfxUiPanelOpen);
+        public void PlayUnitMilitiaSelect() => PlaySFX2D(_sfxUnitMilitiaSelect);
+        
+        public void PlayVillagerMove(Vector3 pos)
+        {
+            AudioClip clip = Random.value > 0.5f ? _sfxVillagerMove1 : _sfxVillagerMove2;
+            if (clip != null) PlaySFX3D(clip, pos);
+        }
+
+        public void PlayVillagerSelect() => PlaySFX2D(_sfxVillagerSelect);
+
+        #endregion
     }
 }

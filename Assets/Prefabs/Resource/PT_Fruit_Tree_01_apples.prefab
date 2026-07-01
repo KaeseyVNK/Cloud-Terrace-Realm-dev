@@ -16,7 +16,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &7166231712945947760
 Transform:
@@ -107,7 +107,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &1521031249066610457
 Transform:
@@ -264,7 +264,7 @@ MonoBehaviour:
   _currentQuantity: 20
   _hasSecondaryResource: 0
   _secondaryResourceType: 2
-  _secondaryYieldRatio: 1
+  _secondaryYieldRatio: 0
   _maxHarvestSlots: 8
 --- !u!208 &-589615517035808980
 NavMeshObstacle:
@@ -319,7 +319,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &9087542439647419754
 Transform:

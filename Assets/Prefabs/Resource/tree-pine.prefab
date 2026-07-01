@@ -72,6 +72,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: tree-pine
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: ee0807aa4ea9c184ca709c68c35d5e52, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -127,3 +131,4 @@ MonoBehaviour:
   _hasSecondaryResource: 0
   _secondaryResourceType: 2
   _secondaryYieldRatio: 1
+  _maxHarvestSlots: 8

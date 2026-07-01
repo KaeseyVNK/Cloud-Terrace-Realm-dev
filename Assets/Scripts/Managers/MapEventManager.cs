@@ -122,6 +122,8 @@ public class MapEventManager : MonoBehaviour
 #endif
     }
 
+
+
     private void OnDestroy()
     {
         if (TimeManager.Instance != null)
@@ -330,7 +332,7 @@ public class MapEventManager : MonoBehaviour
         {
             HUDManager.Instance.ShowBloodMoonAlert(
                 "ĐOÀN THƯƠNG NHÂN BỊ PHỤC KÍCH",
-                "Quái vật đang xuất hiện để tấn công đoàn xe thồ thương nhân! Hãy bảo vệ họ! ⚔️",
+                "Quái vật đang xuất hiện để tấn công đoàn xe thồ thương nhân! Hãy bảo vệ họ!",
                 4f
             );
         }
@@ -438,7 +440,7 @@ public class MapEventManager : MonoBehaviour
             {
                 HUDManager.Instance.ShowBloodMoonAlert(
                     "CỔNG HƯ VÔ XUẤT HIỆN",
-                    "Một Cổng Hư Vô mới đã mở ra ngoài sương mù hoang dã! Hãy tiêu diệt trước khi quái xâm chiếm. 😈",
+                    "Một Cổng Hư Vô mới đã mở ra ngoài sương mù hoang dã! Hãy tiêu diệt trước khi quái xâm chiếm.",
                     5f
                 );
             }
@@ -497,6 +499,16 @@ public class MapEventManager : MonoBehaviour
             destPos.y = Terrain.activeTerrain.SampleHeight(destPos) + Terrain.activeTerrain.transform.position.y;
         }
 
+        // Đảm bảo điểm bắt đầu và điểm đích nằm trên NavMesh sau khi thay đổi địa hình
+        if (NavMesh.SamplePosition(startPos, out NavMeshHit startHit, 30f, NavMesh.AllAreas))
+        {
+            startPos = startHit.position;
+        }
+        if (NavMesh.SamplePosition(destPos, out NavMeshHit destHit, 30f, NavMesh.AllAreas))
+        {
+            destPos = destHit.position;
+        }
+
         // 2. Xác định quy mô đoàn xe (1 = Nhỏ, 2 = Vừa, 3 = Lớn)
         int sizeRoll = Random.Range(1, 4); // 1, 2, hoặc 3
 
@@ -517,6 +529,11 @@ public class MapEventManager : MonoBehaviour
             if (Terrain.activeTerrain != null)
             {
                 individualSpawnPos.y = Terrain.activeTerrain.SampleHeight(individualSpawnPos) + Terrain.activeTerrain.transform.position.y;
+            }
+
+            if (NavMesh.SamplePosition(individualSpawnPos, out NavMeshHit spawnHit, 15f, NavMesh.AllAreas))
+            {
+                individualSpawnPos = spawnHit.position;
             }
 
             GameObject caravanObj = Instantiate(_merchantCaravanPrefab, individualSpawnPos, Quaternion.identity);
@@ -540,7 +557,7 @@ public class MapEventManager : MonoBehaviour
         {
             HUDManager.Instance.ShowBloodMoonAlert(
                 $"ĐOÀN THƯƠNG NHÂN {sizeName} CẦN HỘ TỐNG",
-                $"Đoàn thương nhân đang di chuyển cắt ngang bản đồ! Hãy hộ tống họ đến đích an toàn. 🐎",
+                $"Đoàn thương nhân đang di chuyển cắt ngang bản đồ! Hãy hộ tống họ đến đích an toàn.",
                 5.5f
             );
         }
@@ -686,7 +703,7 @@ public class MapEventManager : MonoBehaviour
             string bonusText = getSoldiers ? " và nhận thêm 2 lính phòng thủ!" : "";
             HUDManager.Instance.ShowBloodMoonAlert(
                 "HỘ TỐNG THÀNH CÔNG",
-                $"Đoàn xe thồ đã đến đích an toàn! Bạn nhận được +{goldReward} vàng, +{woodReward} gỗ{bonusText} 🏆",
+                $"Đoàn xe thồ đã đến đích an toàn! Bạn nhận được +{goldReward} vàng, +{woodReward} gỗ{bonusText}",
                 5.5f
             );
         }
@@ -731,7 +748,7 @@ public class MapEventManager : MonoBehaviour
         {
             HUDManager.Instance.ShowBloodMoonAlert(
                 "ĐOÀN XE THƯƠNG NHÂN BỊ TIÊU DIỆT",
-                "Bạn đã thất bại trong việc bảo vệ đoàn xe thồ thương nhân! 💀",
+                "Bạn đã thất bại trong việc bảo vệ đoàn xe thồ thương nhân!",
                 4.5f
             );
         }

@@ -148,6 +148,8 @@ public class EnemyManager : MonoBehaviour
 
     private List<EnemyUnitController> _activeEnemies = new List<EnemyUnitController>();
     public List<EnemyUnitController> ActiveEnemies => _activeEnemies;
+    private float _nextCleanupTime = 0f;
+    private const float CleanupCooldown = 0.5f;
     private bool _nightRaidPending = false;
     private bool[] _spawnedWavesThisNight = new bool[0];
     private bool _dayRainRaidSpawned = false;
@@ -359,7 +361,11 @@ public class EnemyManager : MonoBehaviour
             ProcessScheduledNightWaves(timeRatio);
         }
 
-        CleanupActiveEnemies();
+        if (Time.time >= _nextCleanupTime)
+        {
+            _nextCleanupTime = Time.time + CleanupCooldown;
+            CleanupActiveEnemies();
+        }
     }
 
     // ===== Daytime raid events =====
@@ -892,6 +898,13 @@ public class EnemyManager : MonoBehaviour
         EnsureStatsScaler();
         WeatherState weather = WeatherManager.Instance != null ? WeatherManager.Instance.CurrentWeather : WeatherState.Clear;
         _statsScaler.GetMultipliers(nightNumber, weather, out healthMultiplier, out damageMultiplier, out speedMultiplier);
+
+        // Nếu Sắc lệnh "Trinh sát đi đêm" đang hoạt động -> Tăng sức mạnh quái vật đêm lên 50%
+        if (CardManager.Instance != null && CardManager.Instance.IsDecreeActive("decree_night_scout"))
+        {
+            healthMultiplier *= 1.5f;
+            damageMultiplier *= 1.5f;
+        }
     }
 
     private void EnsureGroupRallyController()

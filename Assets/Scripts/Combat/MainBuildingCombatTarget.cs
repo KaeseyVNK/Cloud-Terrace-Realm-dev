@@ -47,9 +47,10 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
         Debug.Log("[MainBuilding] Yêu cầu toàn bộ dân làng ra ngoài khẩn cấp!");
 
         // Set cờ override cho tất cả dân làng để họ không chạy ngay vào nhà nếu trời đang mưa/đêm
-        VillagerController[] villagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Include);
-        foreach (VillagerController villager in villagers)
+        var villagers = VillagerController.AllVillagers;
+        for (int i = 0; i < villagers.Count; i++)
         {
+            var villager = villagers[i];
             if (villager != null)
             {
                 villager.SetOverrideShelter(true);
@@ -57,18 +58,20 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
         }
 
         // Trục xuất toàn bộ dân khỏi nhà
-        HouseShelter[] shelters = FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude);
-        foreach (HouseShelter shelter in shelters)
+        var shelters = HouseShelter.Registry;
+        for (int i = 0; i < shelters.Count; i++)
         {
+            var shelter = shelters[i];
             if (shelter != null)
             {
                 shelter.EjectAll();
             }
         }
 
-        WatchTowerGarrison[] garrisons = FindObjectsByType<WatchTowerGarrison>(FindObjectsInactive.Exclude);
-        foreach (WatchTowerGarrison garrison in garrisons)
+        var garrisons = WatchTowerGarrison.Registry;
+        for (int i = 0; i < garrisons.Count; i++)
         {
+            var garrison = garrisons[i];
             if (garrison != null)
             {
                 garrison.EjectAll();

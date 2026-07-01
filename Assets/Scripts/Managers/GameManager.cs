@@ -91,6 +91,10 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
+        // Uncap FPS to target 90+ FPS (Disable VSync and set target to 120 FPS)
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 120;
+
         if (s_instance == null)
         {
             s_instance = this; 

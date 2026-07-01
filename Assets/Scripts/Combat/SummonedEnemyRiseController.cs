@@ -39,6 +39,11 @@ public class SummonedEnemyRiseController : MonoBehaviour
         combatUnit = GetComponent<BaseCombatUnitController>();
         unitRigidbody = GetComponent<Rigidbody>();
 
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayEnemySpawn(transform.position);
+        }
+
         bool restoreCombatController = combatUnit != null && combatUnit.enabled;
         if (combatUnit != null)
         {
@@ -69,8 +74,11 @@ public class SummonedEnemyRiseController : MonoBehaviour
             restoreRigidbodyKinematic = unitRigidbody.isKinematic;
             restoreRigidbodyGravity = unitRigidbody.useGravity;
             restoreRigidbodyConstraints = unitRigidbody.constraints;
-            unitRigidbody.linearVelocity = Vector3.zero;
-            unitRigidbody.angularVelocity = Vector3.zero;
+            if (!unitRigidbody.isKinematic)
+            {
+                unitRigidbody.linearVelocity = Vector3.zero;
+                unitRigidbody.angularVelocity = Vector3.zero;
+            }
             unitRigidbody.useGravity = false;
             unitRigidbody.isKinematic = true;
             unitRigidbody.constraints = RigidbodyConstraints.FreezeAll;
@@ -130,8 +138,11 @@ public class SummonedEnemyRiseController : MonoBehaviour
 
         if (unitRigidbody != null)
         {
-            unitRigidbody.linearVelocity = Vector3.zero;
-            unitRigidbody.angularVelocity = Vector3.zero;
+            if (!unitRigidbody.isKinematic)
+            {
+                unitRigidbody.linearVelocity = Vector3.zero;
+                unitRigidbody.angularVelocity = Vector3.zero;
+            }
             unitRigidbody.constraints = restoreRigidbodyConstraints;
             unitRigidbody.isKinematic = restoreRigidbodyKinematic;
             unitRigidbody.useGravity = restoreRigidbodyGravity;

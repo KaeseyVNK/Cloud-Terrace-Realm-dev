@@ -22,7 +22,14 @@ public class MerchantCaravanUnit : BaseCombatUnitController
     /// </summary>
     public void SetDestination(Vector3 dest)
     {
-        _destination = dest;
+        if (NavMesh.SamplePosition(dest, out NavMeshHit destHit, 30f, NavMesh.AllAreas))
+        {
+            _destination = destHit.position;
+        }
+        else
+        {
+            _destination = dest;
+        }
         _hasDest = true;
 
         if (navAgent == null)
@@ -33,6 +40,10 @@ public class MerchantCaravanUnit : BaseCombatUnitController
         if (navAgent != null)
         {
             navAgent.enabled = true;
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+            {
+                navAgent.Warp(hit.position);
+            }
             navAgent.speed = 2.2f;
             navAgent.stoppingDistance = 1.0f;
             navAgent.SetDestination(_destination);
@@ -43,13 +54,26 @@ public class MerchantCaravanUnit : BaseCombatUnitController
     {
         base.Start();
 
+        if (navAgent == null)
+        {
+            navAgent = GetComponent<NavMeshAgent>();
+        }
+
         if (navAgent != null)
         {
             navAgent.enabled = true;
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+            {
+                navAgent.Warp(hit.position);
+            }
             navAgent.speed = 2.2f;
             navAgent.stoppingDistance = 1.0f;
             if (_hasDest)
             {
+                if (NavMesh.SamplePosition(_destination, out NavMeshHit destHit, 30f, NavMesh.AllAreas))
+                {
+                    _destination = destHit.position;
+                }
                 navAgent.SetDestination(_destination);
             }
         }
@@ -67,9 +91,10 @@ public class MerchantCaravanUnit : BaseCombatUnitController
         if (currentState == CombatState.Dead) return;
 
         // Giữ lộ trình di chuyển tới đích
-        if (_hasDest && navAgent != null && navAgent.enabled)
+        if (_hasDest && navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
         {
-            if (navAgent.destination != _destination)
+            // Chỉ đặt lại đích nếu agent thực sự không có lộ trình nào và không đang tính toán lộ trình
+            if (!navAgent.hasPath && !navAgent.pathPending)
             {
                 navAgent.SetDestination(_destination);
             }

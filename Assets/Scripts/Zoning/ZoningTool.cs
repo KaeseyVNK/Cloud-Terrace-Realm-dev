@@ -34,35 +34,9 @@ public class ZoningTool : MonoBehaviour
         // Hệ thống Zoning đã được vô hiệu hóa để nhường chỗ cho RTS
     }
 
-    // Vẽ cái hộp UI bằng OnGUI (Không cần setup Canvas phức tạp)
     void OnGUI()
     {
-        if (isDragging && toolActive)
-        {
-            Vector2 currentMousePos = Mouse.current.position.ReadValue();
-
-            // Lật ngược trục Y vì OnGUI tính (0,0) từ góc TRÊN TRÁI, còn Input.Mouse tính từ DƯỚI TRÁI
-            float startY = Screen.height - startMousePos.y;
-            float currentY = Screen.height - currentMousePos.y;
-
-            Rect rect = new Rect(
-                Mathf.Min(startMousePos.x, currentMousePos.x),
-                Mathf.Min(startY, currentY),
-                Mathf.Abs(startMousePos.x - currentMousePos.x),
-                Mathf.Abs(startY - currentY)
-            );
-
-            // Vẽ nền
-            GUI.color = GetZoneColor();
-            GUI.DrawTexture(rect, whiteTexture);
-
-            // Vẽ viền ngoài
-            GUI.color = new Color(1, 1, 1, 0.8f);
-            GUI.DrawTexture(new Rect(rect.xMin, rect.yMin, rect.width, 2), whiteTexture); // Viền trên
-            GUI.DrawTexture(new Rect(rect.xMin, rect.yMax - 2, rect.width, 2), whiteTexture); // Viền dưới
-            GUI.DrawTexture(new Rect(rect.xMin, rect.yMin, 2, rect.height), whiteTexture); // Viền trái
-            GUI.DrawTexture(new Rect(rect.xMax - 2, rect.yMin, 2, rect.height), whiteTexture); // Viền phải
-        }
+        // Legacy IMGUI zoning UI is disabled.
     }
 
     void ConfirmZone(Vector2 startPos, Vector2 endPos)

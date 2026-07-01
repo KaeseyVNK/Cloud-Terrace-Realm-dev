@@ -70,6 +70,10 @@ public class HungerSystem : MonoBehaviour
         // Lấy danh sách cư dân từ SpawnedVillagers tĩnh để bao gồm cả cư dân đang trú ẩn
         List<VillagerController> villagers = VillagerController.SpawnedVillagers;
         int foodNeeded = villagers.Count;
+        if (CardManager.Instance != null && CardManager.Instance.IsDecreeActive("decree_martial_law"))
+        {
+            foodNeeded = Mathf.CeilToInt(villagers.Count * 0.8f); // Giảm 20% lượng tiêu thụ thực phẩm
+        }
 
         if (foodNeeded <= 0)
         {

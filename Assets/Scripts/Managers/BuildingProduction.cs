@@ -233,6 +233,12 @@ public class BuildingProduction : MonoBehaviour
 
         // 4. Thêm vào hàng đợi
         _productionQueue.Enqueue(unit);
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayTrainingStart();
+        }
+
         Debug.Log("Đã thêm " + unit.unitName + " vào hàng đợi sản xuất.");
 
         // 5. Nếu đang không bận rộn thì bắt đầu sản xuất ngay

@@ -19,21 +19,132 @@ public class CardManager : MonoBehaviour
     [Header("UI Controller")]
     [SerializeField] private CardDraftUIController _draftUIController;
 
+    // Backing Fields
+    private float _combatUnitMaxHealthMultiplier = 1.0f;
+    private float _combatUnitAttackDamageMultiplier = 1.0f;
+    private float _combatUnitMoveSpeedMultiplier = 1.0f;
+    private float _villagerMoveSpeedMultiplier = 1.0f;
+    private int _villagerCarryCapacityBonus = 0;
+    private float _woodGatherSpeedMultiplier = 1.0f;
+    private float _stoneGatherSpeedMultiplier = 1.0f;
+    private float _goldGatherSpeedMultiplier = 1.0f;
+    private float _foodGatherSpeedMultiplier = 1.0f;
+    private float _buildingMaxHealthMultiplier = 1.0f;
+    private int _populationCapBonus = 0;
+
     // Stat Multipliers
-    public float CombatUnitMaxHealthMultiplier { get; private set; } = 1.0f;
-    public float CombatUnitAttackDamageMultiplier { get; private set; } = 1.0f;
-    public float CombatUnitMoveSpeedMultiplier { get; private set; } = 1.0f;
+    public float CombatUnitMaxHealthMultiplier
+    {
+        get
+        {
+            float val = _combatUnitMaxHealthMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.unitHealthMultiplier;
+            return val;
+        }
+    }
+    public float CombatUnitAttackDamageMultiplier
+    {
+        get
+        {
+            float val = _combatUnitAttackDamageMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.unitDamageMultiplier;
+            return val;
+        }
+    }
+    public float CombatUnitMoveSpeedMultiplier
+    {
+        get
+        {
+            float val = _combatUnitMoveSpeedMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.unitSpeedMultiplier;
+            return val;
+        }
+    }
 
-    public float VillagerMoveSpeedMultiplier { get; private set; } = 1.0f;
-    public int VillagerCarryCapacityBonus { get; private set; } = 0;
+    public float VillagerMoveSpeedMultiplier
+    {
+        get
+        {
+            float val = _villagerMoveSpeedMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.villagerSpeedMultiplier;
+            return val;
+        }
+    }
+    public int VillagerCarryCapacityBonus
+    {
+        get
+        {
+            int val = _villagerCarryCapacityBonus;
+            if (_activeDecreeCard != null) val += _activeDecreeCard.villagerCarryCapacityBonus;
+            return val;
+        }
+    }
     
-    public float WoodGatherSpeedMultiplier { get; private set; } = 1.0f;
-    public float StoneGatherSpeedMultiplier { get; private set; } = 1.0f;
-    public float GoldGatherSpeedMultiplier { get; private set; } = 1.0f;
-    public float FoodGatherSpeedMultiplier { get; private set; } = 1.0f;
+    public float WoodGatherSpeedMultiplier
+    {
+        get
+        {
+            float val = _woodGatherSpeedMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.woodGatherMultiplier;
+            return val;
+        }
+    }
+    public float StoneGatherSpeedMultiplier
+    {
+        get
+        {
+            float val = _stoneGatherSpeedMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.stoneGatherMultiplier;
+            return val;
+        }
+    }
+    public float GoldGatherSpeedMultiplier
+    {
+        get
+        {
+            float val = _goldGatherSpeedMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.goldGatherMultiplier;
+            return val;
+        }
+    }
+    public float FoodGatherSpeedMultiplier
+    {
+        get
+        {
+            float val = _foodGatherSpeedMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.foodGatherMultiplier;
+            return val;
+        }
+    }
 
-    public float BuildingMaxHealthMultiplier { get; private set; } = 1.0f;
-    public int PopulationCapBonus { get; private set; } = 0;
+    public float BuildingMaxHealthMultiplier
+    {
+        get
+        {
+            float val = _buildingMaxHealthMultiplier;
+            if (_activeDecreeCard != null) val *= _activeDecreeCard.buildingMaxHealthMultiplier;
+            return val;
+        }
+    }
+    public int PopulationCapBonus
+    {
+        get
+        {
+            int val = _populationCapBonus;
+            if (_activeDecreeCard != null) val += _activeDecreeCard.populationCapBonus;
+            return val;
+        }
+    }
+
+    [Header("Morning Decree System")]
+    private UpgradeCardData _activeDecreeCard = null;
+    public UpgradeCardData ActiveDecreeCard => _activeDecreeCard;
+    public float DecreeFogVisionMultiplier => IsDecreeActive("decree_night_scout") ? 2.0f : 1.0f;
+
+    public bool IsDecreeActive(string decreeId)
+    {
+        return _activeDecreeCard != null && _activeDecreeCard.cardId == decreeId;
+    }
 
     private readonly HashSet<string> _unlockedUnitIds = new HashSet<string>();
     private readonly HashSet<string> _discoveredUnitIds = new HashSet<string>();
@@ -55,6 +166,7 @@ public class CardManager : MonoBehaviour
         }
 
         InitializeCardUnlockableUnits();
+        InitializeDefaultDecrees();
     }
 
     private void Start()
@@ -64,12 +176,22 @@ public class CardManager : MonoBehaviour
             TechnologyManager.Instance.OnTechnologyUnlocked += HandleTechnologyUnlocked;
         }
 
+        if (TimeManager.Instance != null)
+        {
+            TimeManager.Instance.OnDayChanged += HandleDayChanged;
+        }
+
         // Add existing unlocked cards to available lists on start if pre-populated
         foreach (var card in _unlockedCards)
         {
             ApplyCardEffects(card, false);
         }
         OnCardStateChanged?.Invoke();
+
+        if (TimeManager.Instance != null && TimeManager.Instance.dayCount == 1)
+        {
+            StartCoroutine(TriggerDecreeDraftDelayedRoutine());
+        }
     }
 
     private void OnDestroy()
@@ -77,6 +199,10 @@ public class CardManager : MonoBehaviour
         if (TechnologyManager.HasInstance)
         {
             TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+        }
+        if (TimeManager.Instance != null)
+        {
+            TimeManager.Instance.OnDayChanged -= HandleDayChanged;
         }
     }
 
@@ -341,35 +467,25 @@ public class CardManager : MonoBehaviour
         {
             _unlockedCards.Add(card);
 
-            CombatUnitMaxHealthMultiplier *= card.unitHealthMultiplier;
-            CombatUnitAttackDamageMultiplier *= card.unitDamageMultiplier;
-            CombatUnitMoveSpeedMultiplier *= card.unitSpeedMultiplier;
+            _combatUnitMaxHealthMultiplier *= card.unitHealthMultiplier;
+            _combatUnitAttackDamageMultiplier *= card.unitDamageMultiplier;
+            _combatUnitMoveSpeedMultiplier *= card.unitSpeedMultiplier;
 
-            VillagerMoveSpeedMultiplier *= card.villagerSpeedMultiplier;
-            VillagerCarryCapacityBonus += card.villagerCarryCapacityBonus;
+            _villagerMoveSpeedMultiplier *= card.villagerSpeedMultiplier;
+            _villagerCarryCapacityBonus += card.villagerCarryCapacityBonus;
 
-            WoodGatherSpeedMultiplier *= card.woodGatherMultiplier;
-            StoneGatherSpeedMultiplier *= card.stoneGatherMultiplier;
-            GoldGatherSpeedMultiplier *= card.goldGatherMultiplier;
-            FoodGatherSpeedMultiplier *= card.foodGatherMultiplier;
+            _woodGatherSpeedMultiplier *= card.woodGatherMultiplier;
+            _stoneGatherSpeedMultiplier *= card.stoneGatherMultiplier;
+            _goldGatherSpeedMultiplier *= card.goldGatherMultiplier;
+            _foodGatherSpeedMultiplier *= card.foodGatherMultiplier;
 
-            // Recalculate stats for all existing combat units
-            foreach (var unit in BaseCombatUnitController.Registry)
-            {
-                if (unit != null)
-                {
-                    unit.ApplyPlayerTechnologyStats();
-                }
-            }
-
-            // Recalculate stats for all existing villagers
-            foreach (var villager in VillagerController.AllVillagers)
-            {
-                if (villager != null)
-                {
-                    villager.ApplyVillagerTechnologyStats();
-                }
-            }
+            RecalculateAllUnitStats();
+        }
+        else if (card.cardType == UpgradeCardType.Decree)
+        {
+            _activeDecreeCard = card;
+            Debug.Log($"[CardManager] Active Decree: {card.cardName}");
+            RecalculateAllUnitStats();
         }
         else if (card.cardType == UpgradeCardType.Instant)
         {
@@ -409,13 +525,13 @@ public class CardManager : MonoBehaviour
         {
             if (card.buildingMaxHealthMultiplier != 1f)
             {
-                BuildingMaxHealthMultiplier *= card.buildingMaxHealthMultiplier;
+                _buildingMaxHealthMultiplier *= card.buildingMaxHealthMultiplier;
                 Debug.Log($"[CardManager] Building HP multiplier now: {BuildingMaxHealthMultiplier:F2}x");
             }
 
             if (card.populationCapBonus != 0)
             {
-                PopulationCapBonus += card.populationCapBonus;
+                _populationCapBonus += card.populationCapBonus;
                 Debug.Log($"[CardManager] Population cap bonus: +{card.populationCapBonus} (total: {PopulationCapBonus})");
             }
         }
@@ -481,4 +597,133 @@ public class CardManager : MonoBehaviour
             Debug.Log($"[CardManager] Main Building healed by {percent * 100f:F0}% ({healAmount:F0} HP).");
         }
     }
+
+    #region Morning Decree System Internals
+
+    private void HandleDayChanged(int dayCount)
+    {
+        // 1. Clear previous decree
+        _activeDecreeCard = null;
+        RecalculateAllUnitStats();
+
+        // 2. Trigger new decree draft
+        TriggerDecreeDraft();
+    }
+
+    private System.Collections.IEnumerator TriggerDecreeDraftDelayedRoutine()
+    {
+        yield return new WaitForSeconds(0.2f);
+        TriggerDecreeDraft();
+    }
+
+    public void TriggerDecreeDraft()
+    {
+        if (_draftUIController == null)
+        {
+            _draftUIController = FindAnyObjectByType<CardDraftUIController>(FindObjectsInactive.Include);
+        }
+
+        if (_draftUIController == null)
+        {
+            Debug.LogError("[CardManager] Cannot trigger decree draft: CardDraftUIController is missing!");
+            return;
+        }
+
+        // Lấy tất cả các thẻ Decree
+        List<UpgradeCardData> decreeChoices = new List<UpgradeCardData>();
+        foreach (var card in _allCards)
+        {
+            if (card != null && card.cardType == UpgradeCardType.Decree)
+            {
+                decreeChoices.Add(card);
+            }
+        }
+
+        if (decreeChoices.Count == 0)
+        {
+            Debug.LogWarning("[CardManager] No decree cards available in database. Initializing defaults...");
+            InitializeDefaultDecrees();
+            foreach (var card in _allCards)
+            {
+                if (card != null && card.cardType == UpgradeCardType.Decree)
+                {
+                    decreeChoices.Add(card);
+                }
+            }
+        }
+
+        // Xáo trộn và chọn tối đa 3 thẻ
+        List<UpgradeCardData> choices = new List<UpgradeCardData>();
+        List<UpgradeCardData> remaining = new List<UpgradeCardData>(decreeChoices);
+        for (int i = 0; i < 3 && remaining.Count > 0; i++)
+        {
+            int idx = UnityEngine.Random.Range(0, remaining.Count);
+            choices.Add(remaining[idx]);
+            remaining.RemoveAt(idx);
+        }
+
+        if (choices.Count > 0)
+        {
+            Time.timeScale = 0f; // Pause game
+            _draftUIController.OpenMenu(choices);
+        }
+    }
+
+    private void InitializeDefaultDecrees()
+    {
+        CreateDecreeIfNotExists("decree_good_harvest", "Thu Hoạch Trúng Mùa", 
+            "Tốc độ làm ruộng tăng 50% nhưng sát thương của lính giảm 15% cho hôm nay.", 
+            UpgradeCardType.Decree, 1.5f, 0.85f, 1f, 1f);
+        CreateDecreeIfNotExists("decree_martial_law", "Thiết Quân Luật", 
+            "Giảm 20% lượng thực phẩm dân làng tiêu thụ nhưng tăng thời gian xây dựng thêm 20% cho hôm nay.", 
+            UpgradeCardType.Decree, 1f, 1f, 1f, 1f);
+        CreateDecreeIfNotExists("decree_night_scout", "Trinh Sát Đi Đêm", 
+            "Tầm nhìn sương mù (Fog war) tăng gấp đôi nhưng quái vật ban đêm sẽ mạnh hơn 50% cho hôm nay.", 
+            UpgradeCardType.Decree, 1f, 1f, 1f, 1f);
+    }
+
+    private void CreateDecreeIfNotExists(string id, string name, string desc, UpgradeCardType type, float foodMult, float dmgMult, float healthMult, float speedMult)
+    {
+        foreach (var c in _allCards)
+        {
+            if (c != null && c.cardId == id) return;
+        }
+
+        UpgradeCardData newCard = ScriptableObject.CreateInstance<UpgradeCardData>();
+        newCard.cardId = id;
+        newCard.cardName = name;
+        newCard.description = desc;
+        newCard.cardType = type;
+        newCard.rarity = CardRarity.Rare;
+        
+        newCard.foodGatherMultiplier = foodMult;
+        newCard.unitDamageMultiplier = dmgMult;
+        newCard.unitHealthMultiplier = healthMult;
+        newCard.unitSpeedMultiplier = speedMult;
+
+        _allCards.Add(newCard);
+    }
+
+    private void RecalculateAllUnitStats()
+    {
+        // Cập nhật lại chỉ số cho tất cả lính chiến đấu
+        foreach (var unit in BaseCombatUnitController.Registry)
+        {
+            if (unit != null)
+            {
+                unit.ApplyPlayerTechnologyStats();
+            }
+        }
+
+        // Cập nhật lại chỉ số cho tất cả dân làng
+        foreach (var villager in VillagerController.AllVillagers)
+        {
+            if (villager != null)
+            {
+                villager.ApplyVillagerTechnologyStats();
+            }
+        }
+    }
+
+    #endregion
 }

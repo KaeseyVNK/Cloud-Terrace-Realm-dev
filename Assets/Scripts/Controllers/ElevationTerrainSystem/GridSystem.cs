@@ -66,7 +66,7 @@ public class GridSystem : MonoBehaviour
     [UnityEngine.Serialization.FormerlySerializedAs("riverWidth")]
     [Range(0, 1)] [SerializeField] private float _riverWidth = 0.04f;
     [UnityEngine.Serialization.FormerlySerializedAs("riverDepth")]
-    [SerializeField] private float _riverDepth = 0.15f;
+    // [SerializeField] private float _riverDepth = 0.15f;
     [SerializeField] private float _waterHeight = 2.0f; // Độ cao mực nước để xác định sông hồ
 
     [Header("Resource Spawning")]

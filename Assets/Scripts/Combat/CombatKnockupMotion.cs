@@ -133,8 +133,11 @@ public class CombatKnockupMotion : MonoBehaviour
             restoreRigidbodyKinematic = activeRigidbody.isKinematic;
             restoreRigidbodyGravity = activeRigidbody.useGravity;
             restoreRigidbodyConstraints = activeRigidbody.constraints;
-            activeRigidbody.linearVelocity = Vector3.zero;
-            activeRigidbody.angularVelocity = Vector3.zero;
+            if (!activeRigidbody.isKinematic)
+            {
+                activeRigidbody.linearVelocity = Vector3.zero;
+                activeRigidbody.angularVelocity = Vector3.zero;
+            }
             activeRigidbody.useGravity = false;
             activeRigidbody.isKinematic = true;
             activeRigidbody.constraints = RigidbodyConstraints.FreezeAll;
@@ -188,8 +191,11 @@ public class CombatKnockupMotion : MonoBehaviour
 
         if (shouldRestoreRigidbody && activeRigidbody != null)
         {
-            activeRigidbody.linearVelocity = Vector3.zero;
-            activeRigidbody.angularVelocity = Vector3.zero;
+            if (!activeRigidbody.isKinematic)
+            {
+                activeRigidbody.linearVelocity = Vector3.zero;
+                activeRigidbody.angularVelocity = Vector3.zero;
+            }
             activeRigidbody.constraints = restoreRigidbodyConstraints;
             activeRigidbody.isKinematic = restoreRigidbodyKinematic;
             activeRigidbody.useGravity = restoreRigidbodyGravity;

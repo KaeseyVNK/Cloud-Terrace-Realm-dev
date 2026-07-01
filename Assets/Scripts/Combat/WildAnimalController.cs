@@ -9,6 +9,20 @@ using Unity.AI.Navigation;
 [RequireComponent(typeof(NavMeshAgent))]
 public class WildAnimalController : BaseCombatUnitController, IPoolable
 {
+    public static readonly System.Collections.Generic.List<WildAnimalController> AllAnimals = new System.Collections.Generic.List<WildAnimalController>();
+
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        AllAnimals.Add(this);
+    }
+
+    protected override void OnDisable()
+    {
+        base.OnDisable();
+        AllAnimals.Remove(this);
+    }
+
     [Header("Cấu hình Động Vật")]
     [Tooltip("Lượng thức ăn sinh ra khi bị tiêu diệt")]
     [SerializeField] private int _foodAmount = 50;

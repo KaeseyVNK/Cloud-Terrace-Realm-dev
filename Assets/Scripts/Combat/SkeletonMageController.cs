@@ -491,8 +491,11 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
             restoreRigidbodyKinematic = mageRigidbody.isKinematic;
             restoreRigidbodyGravity = mageRigidbody.useGravity;
             restoreRigidbodyConstraints = mageRigidbody.constraints;
-            mageRigidbody.linearVelocity = Vector3.zero;
-            mageRigidbody.angularVelocity = Vector3.zero;
+            if (!mageRigidbody.isKinematic)
+            {
+                mageRigidbody.linearVelocity = Vector3.zero;
+                mageRigidbody.angularVelocity = Vector3.zero;
+            }
             mageRigidbody.useGravity = false;
             mageRigidbody.isKinematic = true;
             mageRigidbody.constraints = RigidbodyConstraints.FreezeAll;
@@ -524,8 +527,11 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
         if (mageRigidbody != null)
         {
-            mageRigidbody.linearVelocity = Vector3.zero;
-            mageRigidbody.angularVelocity = Vector3.zero;
+            if (!mageRigidbody.isKinematic)
+            {
+                mageRigidbody.linearVelocity = Vector3.zero;
+                mageRigidbody.angularVelocity = Vector3.zero;
+            }
             mageRigidbody.constraints = restoreRigidbodyConstraints;
             mageRigidbody.isKinematic = restoreRigidbodyKinematic;
             mageRigidbody.useGravity = restoreRigidbodyGravity;

@@ -1102,7 +1102,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AncientRuins
   _guards:
   - guardPrefab: {fileID: 441517115746933756, guid: cecad7e0a09f79d49a3ac88f1a2cc985, type: 3}
-    count: 10
+    count: 2
   - guardPrefab: {fileID: 4124591595950808763, guid: 788e87baededd3a4f8e0d37f84685cff, type: 3}
     count: 2
   _guardSpawnRadius: 5

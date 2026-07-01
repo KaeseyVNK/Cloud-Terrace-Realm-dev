@@ -345,7 +345,7 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         // Phát âm thanh dừng nếu có
         if (MyGame.Audio.AudioManager.Instance != null)
         {
-            // MyGame.Audio.AudioManager.Instance.PlaySFX(...) - tuỳ chọn
+            MyGame.Audio.AudioManager.Instance.PlayChooseCard();
         }
 
         // 4. Hiệu ứng Squash & Stretch nhẹ trên thẻ root để tạo cảm giác cơ học đàn hồi
@@ -375,6 +375,11 @@ public class CardDraftSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             Color glowColor = _cardData.RarityColor;
             glowColor.a = 0.65f;
             _rarityGlowImage.color = glowColor;
+        }
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayUiHover();
         }
 
         if (_scaleCoroutine != null) StopCoroutine(_scaleCoroutine);

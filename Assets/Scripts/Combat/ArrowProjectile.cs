@@ -14,7 +14,7 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
     [Tooltip("Thời gian mũi tên cắm dưới đất trước khi biến mất (0 = tắt hiệu ứng)")]
     [SerializeField] private float stickDuration = 2.5f;
     [Tooltip("Góc nghiêng mũi tên khi cắm xuống đất (độ so với trục -Y)")]
-    [SerializeField] private float stickAngleDegrees = 75f;
+    // [SerializeField] private float stickAngleDegrees = 75f;
 
     private BaseCombatUnitController _target;
     private Vector3 _fixedTargetPosition;
@@ -45,6 +45,11 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
         Vector3 targetPosition = GetTargetPosition();
         float distance = Vector3.Distance(_startPosition, targetPosition);
         _flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayBowShoot(transform.position);
+        }
     }
 
     public void LaunchAtPosition(BaseCombatUnitController originalTarget, Vector3 targetPosition, int newDamage, BaseCombatUnitController newLauncher = null)
@@ -61,6 +66,11 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
 
         float distance = Vector3.Distance(_startPosition, _fixedTargetPosition);
         _flightDuration = Mathf.Clamp(distance / Mathf.Max(0.1f, speed), minFlightDuration, maxFlightDuration);
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayBowShoot(transform.position);
+        }
     }
 
     private void Update()
@@ -226,6 +236,12 @@ public class ArrowProjectile : MonoBehaviour, IPoolable
         }
 
         _target.TakeDamage(_damage, _launcher);
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayArrowHit(impactPosition);
+        }
+
         return true;
     }
 }

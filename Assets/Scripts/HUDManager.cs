@@ -72,6 +72,10 @@ public class HUDManager : MonoBehaviour
     [SerializeField] private GameObject _victoryPanel;
     [SerializeField] private GameObject _defeatPanel;
 
+    public bool IsEndScreenActive => (_victoryPanel != null && _victoryPanel.activeInHierarchy) || 
+                                     (_defeatPanel != null && _defeatPanel.activeInHierarchy) || 
+                                     (GameObject.Find("DynamicEndScreen") != null);
+
     void Start()
     {
         EnsurePopulationText();

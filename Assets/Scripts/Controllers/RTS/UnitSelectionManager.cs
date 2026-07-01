@@ -162,6 +162,35 @@ public class UnitSelectionManager : MonoBehaviour
             _prevSelectedUnits.Clear();
             _prevSelectedUnits.AddRange(selectedUnits);
             OnSelectionChanged?.Invoke();
+
+            if (selectedUnits.Count > 0 && MyGame.Audio.AudioManager.Instance != null)
+            {
+                bool hasCombatUnit = false;
+                foreach (var unit in selectedUnits)
+                {
+                    if (unit != null)
+                    {
+                        var combat = unit.GetComponent<BaseCombatUnitController>();
+                        bool isVillager = unit.GetComponent<VillagerController>() != null;
+                        if (combat != null && combat.faction == UnitFaction.Player 
+                            && !isVillager 
+                            && !(combat is MerchantCaravanUnit))
+                        {
+                            hasCombatUnit = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasCombatUnit)
+                {
+                    MyGame.Audio.AudioManager.Instance.PlayUnitMilitiaSelect();
+                }
+                else
+                {
+                    MyGame.Audio.AudioManager.Instance.PlayVillagerSelect();
+                }
+            }
         }
     }
 
@@ -368,6 +397,13 @@ public class UnitSelectionManager : MonoBehaviour
         // Khi click chuột phải ra lệnh
         if (Input.GetMouseButtonDown(1))
         {
+            // Avoid issuing commands when clicking on UGUI elements
+            if (UnityEngine.EventSystems.EventSystem.current != null && 
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
             if (_isAttackMode || _isGatherMode || _isBuildMode)
             {
                 ClearTargetingModes();
@@ -599,40 +635,6 @@ public class UnitSelectionManager : MonoBehaviour
 
     void OnGUI()
     {
-        #if UNITY_ANDROID || UNITY_IOS || UNITY_EDITOR
-        if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WindowsEditor)
-        {
-            // Vẽ nút Toggle chế độ Box Select ở góc phải màn hình
-            Rect toggleRect = new Rect(Screen.width - 250, 10, 240, 45);
-            IsBoxSelectMode = GUI.Toggle(toggleRect, IsBoxSelectMode, " Chế độ Quét Chọn (Box Select)", "Button");
-
-            // Vẽ nút Hủy chọn nhanh (Deselect All) ngay bên dưới
-            if (selectedUnits.Count > 0)
-            {
-                Rect clearRect = new Rect(Screen.width - 250, 65, 240, 45);
-                if (GUI.Button(clearRect, "Hủy chọn tất cả (Deselect)"))
-                {
-                    DeselectAll();
-                }
-            }
-
-            // Vẽ nút Chơi lại (Restart Game) hỗ trợ test nhanh ở góc phải y=295
-            Rect restartRect = new Rect(Screen.width - 250, 295, 240, 45);
-            if (GUI.Button(restartRect, "Chơi Lại (Restart Game)"))
-            {
-                if (GameManager.Instance != null)
-                {
-                    GameManager.Instance.RestartGame();
-                }
-                else
-                {
-                    string activeSceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-                    UnityEngine.SceneManagement.SceneManager.LoadScene(activeSceneName);
-                }
-            }
-        }
-        #endif
-
         if (isDragging && Vector2.Distance(startMousePos, Input.mousePosition) > 10f)
         {
             float startY = Screen.height - startMousePos.y;
@@ -670,6 +672,12 @@ public class UnitSelectionManager : MonoBehaviour
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
             Debug.Log($"[RTS] Raycast RightClick trúng: {hit.collider.gameObject.name} tại điểm {hit.point}");
+
+            // Play movement/order sound
+            if (MyGame.Audio.AudioManager.Instance != null && selectedUnits.Count > 0)
+            {
+                MyGame.Audio.AudioManager.Instance.PlayVillagerMove(hit.point);
+            }
             
             // 1. Kiểm tra xem click thẳng vào công trình đang cần xây dựng không
             ConstructibleBuilding clickedBuilding = hit.collider.GetComponentInParent<ConstructibleBuilding>();

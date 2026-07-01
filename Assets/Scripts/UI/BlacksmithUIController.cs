@@ -27,6 +27,7 @@ public class BlacksmithUIController : MonoBehaviour
     private readonly List<BlacksmithCardUI> _spawnedCards = new List<BlacksmithCardUI>();
 
     private CanvasGroup _canvasGroup;
+    private Coroutine _fadeCoroutine;
 
     private void Awake()
     {
@@ -46,7 +47,20 @@ public class BlacksmithUIController : MonoBehaviour
             _canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
 
-        SetPanelActive(false);
+        if (_panelRoot != null)
+        {
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(false);
+            }
+            _panelRoot.transform.localScale = new Vector3(0.92f, 0.92f, 1f);
+        }
+        if (_canvasGroup != null)
+        {
+            _canvasGroup.alpha = 0f;
+            _canvasGroup.interactable = false;
+            _canvasGroup.blocksRaycasts = false;
+        }
     }
 
     private void Start()
@@ -107,35 +121,82 @@ public class BlacksmithUIController : MonoBehaviour
         }
     }
 
-    private void SetPanelActive(bool active)
-    {
-        if (_panelRoot == null) return;
-
-        if (_panelRoot != gameObject)
-        {
-            _panelRoot.SetActive(active);
-        }
-        else
-        {
-            if (_canvasGroup != null)
-            {
-                _canvasGroup.alpha = active ? 1f : 0f;
-                _canvasGroup.interactable = active;
-                _canvasGroup.blocksRaycasts = active;
-            }
-        }
-    }
-
     private void OpenMenu()
     {
-        SetPanelActive(true);
+        if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+        _fadeCoroutine = StartCoroutine(FadeRoutine(true, 0.2f));
         PopulateCards();
     }
 
     private void CloseMenuInternal()
     {
-        SetPanelActive(false);
+        if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+        _fadeCoroutine = StartCoroutine(FadeRoutine(false, 0.15f));
         ClearCards();
+    }
+
+    private System.Collections.IEnumerator FadeRoutine(bool show, float duration)
+    {
+        if (_panelRoot == null) yield break;
+
+        if (show)
+        {
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(true);
+            }
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = true;
+                _canvasGroup.blocksRaycasts = true;
+            }
+        }
+        else
+        {
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = false;
+                _canvasGroup.blocksRaycasts = false;
+            }
+        }
+
+        float startAlpha = _canvasGroup != null ? _canvasGroup.alpha : (show ? 0f : 1f);
+        float targetAlpha = show ? 1f : 0f;
+
+        Vector3 startScale = show ? new Vector3(0.92f, 0.92f, 1f) : Vector3.one;
+        Vector3 targetScale = show ? Vector3.one : new Vector3(0.95f, 0.95f, 1f);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float tSmooth = t * t * (3f - 2f * t);
+
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, tSmooth);
+            }
+
+            _panelRoot.transform.localScale = Vector3.Lerp(startScale, targetScale, tSmooth);
+            yield return null;
+        }
+
+        if (_canvasGroup != null)
+        {
+            _canvasGroup.alpha = targetAlpha;
+        }
+        _panelRoot.transform.localScale = targetScale;
+
+        if (!show)
+        {
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(false);
+            }
+        }
+
+        _fadeCoroutine = null;
     }
 
     private void PopulateCards()

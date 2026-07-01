@@ -90,6 +90,11 @@ public class MarketUIController : MonoBehaviour
         _currentMarket = market;
         SetPanelActive(true);
 
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayUiPanelOpen();
+        }
+
         if (_woodColumn != null) _woodColumn.Setup(market);
         if (_stoneColumn != null) _stoneColumn.Setup(market);
         if (_foodColumn != null) _foodColumn.Setup(market);
@@ -103,6 +108,11 @@ public class MarketUIController : MonoBehaviour
     /// </summary>
     public void CloseMenu()
     {
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayUiClick();
+        }
+
         _currentMarket = null;
         SetPanelActive(false);
 

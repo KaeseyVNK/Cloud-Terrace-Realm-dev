@@ -89,6 +89,7 @@ public class VillagerController : MonoBehaviour
 
     #region Private Fields
 
+    private static Terrain _cachedTerrain;
     private GridSystem _gridSystem;
     private NavMeshAgent _navAgent;
     private Animator _animator;
@@ -137,6 +138,8 @@ public class VillagerController : MonoBehaviour
 
     private int _pathRetryCount = 0;
     private float _stuckTimer = 0f;
+    private float _unstuckDurationTimer = 0f;
+    private float _defaultAgentRadius = 0.35f;
 
     private const int MaxPathRetries = 5;
 
@@ -332,6 +335,7 @@ public class VillagerController : MonoBehaviour
         if (TryGetComponent(out _navAgent))
         {
             _navAgent.radius = 0.35f; // Khớp chuẩn xác với agentRadius đã bake (0.35) để không cọ xát vách đá
+            _defaultAgentRadius = _navAgent.radius;
             _navAgent.stoppingDistance = 0.25f;
             _navAgent.avoidancePriority = 50 + _avoidancePriorityOffset;
             _navAgent.autoBraking = true;
@@ -583,28 +587,41 @@ public class VillagerController : MonoBehaviour
             _nextSlopeCheckTime = Time.time + 0.15f; // Check ~7 times per second
             _isUphill = false;
 
-            if (_navAgent.velocity.sqrMagnitude > 0.05f && Terrain.activeTerrain != null)
+            if (_navAgent.velocity.sqrMagnitude > 0.05f)
             {
-                Vector3 direction = _navAgent.velocity.normalized;
-                Vector3 testPos = transform.position + direction * 1.0f;
-                float currentHeight = Terrain.activeTerrain.SampleHeight(transform.position);
-                float aheadHeight = Terrain.activeTerrain.SampleHeight(testPos);
-                if (aheadHeight - currentHeight >= 0.25f)
+                if (_cachedTerrain == null)
                 {
-                    _isUphill = true;
+                    _cachedTerrain = Terrain.activeTerrain;
+                }
+
+                if (_cachedTerrain != null)
+                {
+                    Vector3 direction = _navAgent.velocity.normalized;
+                    Vector3 testPos = transform.position + direction * 1.0f;
+                    float currentHeight = _cachedTerrain.SampleHeight(transform.position);
+                    float aheadHeight = _cachedTerrain.SampleHeight(testPos);
+                    if (aheadHeight - currentHeight >= 0.25f)
+                    {
+                        _isUphill = true;
+                    }
                 }
             }
-        }
 
-        float speedMultiplier = TechnologyManager.HasInstance ? TechnologyManager.Instance.VillagerMoveSpeedMultiplier : 1f;
-        if (CardManager.Instance != null)
-        {
-            speedMultiplier *= CardManager.Instance.VillagerMoveSpeedMultiplier;
-        }
-        float hungerMultiplier = _isHungry ? 0.7f : 1f;
-        float hillMultiplier = _isUphill ? 0.7f : 1f;
+            // Chỉ tính toán và cập nhật tốc độ NavMeshAgent 7 lần/giây thay vì chạy mỗi frame
+            float speedMultiplier = TechnologyManager.HasInstance ? TechnologyManager.Instance.VillagerMoveSpeedMultiplier : 1f;
+            if (CardManager.Instance != null)
+            {
+                speedMultiplier *= CardManager.Instance.VillagerMoveSpeedMultiplier;
+            }
+            float hungerMultiplier = _isHungry ? 0.7f : 1f;
+            float hillMultiplier = _isUphill ? 0.7f : 1f;
 
-        _navAgent.speed = _baseAgentSpeed * speedMultiplier * hungerMultiplier * hillMultiplier;
+            float targetSpeed = _baseAgentSpeed * speedMultiplier * hungerMultiplier * hillMultiplier;
+            if (Mathf.Abs(_navAgent.speed - targetSpeed) > 0.001f)
+            {
+                _navAgent.speed = targetSpeed;
+            }
+        }
     }
 
     private void Update()
@@ -759,6 +776,7 @@ public class VillagerController : MonoBehaviour
     {
         _currentState = newState;
         _stuckTimer = 0f;
+        _unstuckDurationTimer = 0f;
 
         if (_currentState != VillagerState.Gathering)
         {
@@ -801,6 +819,12 @@ public class VillagerController : MonoBehaviour
             bool isAgentActiveOnNavMesh = _navAgent.enabled && _navAgent.isOnNavMesh;
             int uniqueOffset = _avoidancePriorityOffset % 10;
 
+            // Khôi phục bán kính mặc định của Agent khi vào trạng thái tĩnh
+            if (_navAgent.enabled)
+            {
+                _navAgent.radius = _defaultAgentRadius;
+            }
+
             if (_currentState == VillagerState.Idle)
             {
                 if (isAgentActiveOnNavMesh)
@@ -829,6 +853,7 @@ public class VillagerController : MonoBehaviour
                 if (isAgentActiveOnNavMesh)
                 {
                     if (_navAgent.isStopped) _navAgent.isStopped = false;
+                    _navAgent.radius = _runtimeAgentRadius; // Thu nhỏ bán kính khi di chuyển nhóm
                 }
                 if (GetTotalCarryAmount() > 0)
                 {
@@ -910,16 +935,16 @@ public class VillagerController : MonoBehaviour
             }
 
             // Nếu đang đi săn và đã lọt vào tầm bắn _huntRange, cho dừng lại và bắn
-            float distToTarget = Vector3.Distance(transform.position, _huntTarget.transform.position);
-            if (distToTarget <= _huntRange)
+            float sqrDistToTarget = (transform.position - _huntTarget.transform.position).sqrMagnitude;
+            if (sqrDistToTarget <= _huntRange * _huntRange)
             {
                 _navAgent.ResetPath();
                 OnReachedDestination();
                 return;
             }
 
-            float distToTargetDest = Vector3.Distance(_navAgent.destination, _huntTarget.transform.position);
-            if (distToTargetDest > 0.5f)
+            float sqrDistToTargetDest = (_navAgent.destination - _huntTarget.transform.position).sqrMagnitude;
+            if (sqrDistToTargetDest > 0.25f) // 0.5f * 0.5f = 0.25f
             {
                 SetPathToTarget(_huntTarget.transform.position);
             }
@@ -932,47 +957,57 @@ public class VillagerController : MonoBehaviour
             if (_stuckTimer > 1.2f)
             {
                 _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+                _unstuckDurationTimer = 2.0f; // Duy trì trạng thái không né tránh trong 2 giây để thoát hẳn đám đông
+                _stuckTimer = 0f;
             }
         }
         else
         {
             _stuckTimer = 0f;
 
-            // Khi gần đến đích làm việc, tạm thời tắt né tránh để cập bến hoàn hảo
-            bool isNearWorkTarget = false;
-            float disableAvoidanceDistanceSqr = _disableAvoidanceNearTargetDistance * _disableAvoidanceNearTargetDistance;
-            if (_targetBuilding != null)
+            if (_unstuckDurationTimer > 0f)
             {
-                float distToDestSqr = (transform.position - _buildTargetPos).sqrMagnitude;
-                if (distToDestSqr <= disableAvoidanceDistanceSqr)
-                {
-                    isNearWorkTarget = true;
-                }
-            }
-            else if (_repairTarget != null)
-            {
-                float distToDestSqr = (transform.position - _repairTargetPos).sqrMagnitude;
-                if (distToDestSqr <= disableAvoidanceDistanceSqr)
-                {
-                    isNearWorkTarget = true;
-                }
-            }
-            else if (_currentJob != null && _navAgent.hasPath)
-            {
-                float distToDestinationSqr = (transform.position - _navAgent.destination).sqrMagnitude;
-                if (distToDestinationSqr <= disableAvoidanceDistanceSqr)
-                {
-                    isNearWorkTarget = true;
-                }
-            }
-
-            if (isNearWorkTarget)
-            {
+                _unstuckDurationTimer -= Time.deltaTime;
                 _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
             }
-            else if (_navAgent.obstacleAvoidanceType == ObstacleAvoidanceType.NoObstacleAvoidance && _currentState == VillagerState.Moving)
+            else
             {
-                _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.MedQualityObstacleAvoidance;
+                // Khi gần đến đích làm việc, tạm thời tắt né tránh để cập bến hoàn hảo
+                bool isNearWorkTarget = false;
+                float disableAvoidanceDistanceSqr = _disableAvoidanceNearTargetDistance * _disableAvoidanceNearTargetDistance;
+                if (_targetBuilding != null)
+                {
+                    float distToDestSqr = (transform.position - _buildTargetPos).sqrMagnitude;
+                    if (distToDestSqr <= disableAvoidanceDistanceSqr)
+                    {
+                        isNearWorkTarget = true;
+                    }
+                }
+                else if (_repairTarget != null)
+                {
+                    float distToDestSqr = (transform.position - _repairTargetPos).sqrMagnitude;
+                    if (distToDestSqr <= disableAvoidanceDistanceSqr)
+                    {
+                        isNearWorkTarget = true;
+                    }
+                }
+                else if (_currentJob != null && _navAgent.hasPath)
+                {
+                    float distToDestinationSqr = (transform.position - _navAgent.destination).sqrMagnitude;
+                    if (distToDestinationSqr <= disableAvoidanceDistanceSqr)
+                    {
+                        isNearWorkTarget = true;
+                    }
+                }
+
+                if (isNearWorkTarget)
+                {
+                    _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+                }
+                else if (_navAgent.obstacleAvoidanceType == ObstacleAvoidanceType.NoObstacleAvoidance && _currentState == VillagerState.Moving)
+                {
+                    _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.MedQualityObstacleAvoidance;
+                }
             }
         }
 
@@ -1489,6 +1524,10 @@ public class VillagerController : MonoBehaviour
             {
                 float progressFactor = Time.deltaTime;
                 if (_isHungry) progressFactor *= 0.7f;
+                if (CardManager.Instance != null && CardManager.Instance.IsDecreeActive("decree_good_harvest"))
+                {
+                    progressFactor *= 1.5f; // Tốc độ trồng/chăm sóc lúa tăng 50%
+                }
                 _targetRiceField.FarmProgress(progressFactor);
             }
             else if (_targetRiceField.CurrentState == RiceField.RiceFieldState.Ripe)
@@ -1516,6 +1555,7 @@ public class VillagerController : MonoBehaviour
                             _totalCarryAmount += extracted;
                             UpdateCarryVisuals();
                             MyGame.UI.FloatingText.Spawn(transform.position, $"+{extracted} {GetResourceName(node.ResourceType)}", GetResourceColor(node.ResourceType));
+                            PlayGatherSFX(node.ResourceType);
                             node.TriggerBounceEffect();
                         }
                     }
@@ -1594,6 +1634,7 @@ public class VillagerController : MonoBehaviour
 
                     // Hiển thị số nổi tài nguyên vừa thu hoạch
                     MyGame.UI.FloatingText.Spawn(transform.position, $"+{extracted} {GetResourceName(node.ResourceType)}", GetResourceColor(node.ResourceType));
+                    PlayGatherSFX(node.ResourceType);
 
                     // Kiểm tra và thu hoạch tài nguyên phụ (ví dụ: lương thực từ cây gỗ)
                     if (node.HasSecondaryResource)
@@ -1816,7 +1857,7 @@ public class VillagerController : MonoBehaviour
         WildAnimalController closest = null;
         float closestDistSqr = radius * radius;
 
-        WildAnimalController[] animals = FindObjectsByType<WildAnimalController>(FindObjectsInactive.Exclude);
+        var animals = WildAnimalController.AllAnimals;
         foreach (var animal in animals)
         {
             if (animal == null || animal.currentState == CombatState.Dead) continue;
@@ -1966,7 +2007,7 @@ public class VillagerController : MonoBehaviour
         builders.Clear();
         if (building == null) return;
 
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        var allVillagers = AllVillagers;
         foreach (VillagerController villager in allVillagers)
         {
             if (villager != null && villager._targetBuilding == building)
@@ -2295,7 +2336,12 @@ public class VillagerController : MonoBehaviour
 
         float progress = Time.deltaTime;
         if (_isHungry) progress *= 0.7f;
-        float progressContribution = (1f / _targetBuilding.TotalBuildTime) * _buildSpeedMultiplier * progress;
+        float buildSpeed = _buildSpeedMultiplier;
+        if (CardManager.Instance != null && CardManager.Instance.IsDecreeActive("decree_martial_law"))
+        {
+            buildSpeed *= 0.8f; // Thiết quân luật: Giảm 20% tốc độ xây dựng
+        }
+        float progressContribution = (1f / _targetBuilding.TotalBuildTime) * buildSpeed * progress;
         _targetBuilding.Construct(progressContribution);
 
         if (_targetBuilding.IsCompleted)
@@ -2731,7 +2777,7 @@ public class VillagerController : MonoBehaviour
     {
         if (building == null) return -1;
 
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        var allVillagers = AllVillagers;
         HashSet<int> occupiedSlots = new HashSet<int>();
         foreach (var v in allVillagers)
         {
@@ -2756,7 +2802,7 @@ public class VillagerController : MonoBehaviour
     {
         if (target == null) return -1;
 
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        var allVillagers = AllVillagers;
         HashSet<int> occupiedSlots = new HashSet<int>();
         foreach (var v in allVillagers)
         {
@@ -3047,7 +3093,7 @@ public class VillagerController : MonoBehaviour
         if (building == null) return 0;
         
         s_tempIndexBuilders.Clear();
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        var allVillagers = AllVillagers;
         foreach (var v in allVillagers)
         {
             if (v != null && v._targetBuilding == building)
@@ -3065,7 +3111,7 @@ public class VillagerController : MonoBehaviour
     private static int GetGathererIndex(VillagerController villager, Vector3 resourcePosition)
     {
         s_tempIndexGatherers.Clear();
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude);
+        var allVillagers = AllVillagers;
         foreach (var v in allVillagers)
         {
             if (v != null && v._currentJob != null && v._currentJob.position == resourcePosition)
@@ -3224,6 +3270,26 @@ public class VillagerController : MonoBehaviour
             case ResourceType.Gold: return new Color(1.0f, 0.9f, 0.1f); // Bright Gold
             case ResourceType.Water: return new Color(0.3f, 0.6f, 1.0f); // Blue
             default: return Color.white;
+        }
+    }
+
+    private void PlayGatherSFX(ResourceType type)
+    {
+        if (MyGame.Audio.AudioManager.Instance == null) return;
+        switch (type)
+        {
+            case ResourceType.Wood:
+                MyGame.Audio.AudioManager.Instance.PlayChopWood(transform.position);
+                break;
+            case ResourceType.Stone:
+                MyGame.Audio.AudioManager.Instance.PlayMineStone(transform.position);
+                break;
+            case ResourceType.Gold:
+                MyGame.Audio.AudioManager.Instance.PlayMineGold(transform.position);
+                break;
+            case ResourceType.Food:
+                MyGame.Audio.AudioManager.Instance.PlayHarvestCrop(transform.position);
+                break;
         }
     }
 

@@ -38,6 +38,9 @@ public class ProductionUIController : MonoBehaviour
     private CanvasGroup _canvasGroup;
     private GameObject _slotTemplate;
     private readonly List<GameObject> _activeSlots = new List<GameObject>();
+    private UnitCardUI _unitCardTemplate;
+    private Coroutine _fadeCoroutine;
+
 
     // -------- Lifecycle --------
 
@@ -51,17 +54,36 @@ public class ProductionUIController : MonoBehaviour
             return;
         }
 
-        _canvasGroup = GetComponent<CanvasGroup>();
-        if (_canvasGroup == null)
+        if (_panelRoot != null)
         {
-            _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(false);
+            }
+            _panelRoot.transform.localScale = new Vector3(0.92f, 0.92f, 1f);
         }
-
-        SetPanelActive(false);
+        if (_canvasGroup != null)
+        {
+            _canvasGroup.alpha = 0f;
+            _canvasGroup.interactable = false;
+            _canvasGroup.blocksRaycasts = false;
+        }
     }
 
     private void Start()
     {
+        // Cache unit card template and reparent out of Content if it resides in the scene
+        if (_unitCardPrefab != null)
+        {
+            _unitCardTemplate = _unitCardPrefab;
+            bool isPrefabAsset = string.IsNullOrEmpty(_unitCardPrefab.gameObject.scene.name);
+            if (!isPrefabAsset)
+            {
+                _unitCardTemplate.gameObject.SetActive(false);
+                _unitCardTemplate.transform.SetParent(transform, false);
+            }
+        }
+
         // Khởi tạo template hàng đợi và dọn các slot mẫu dư thừa
         if (_queueSlotsParent != null && _queueSlotsParent.childCount > 0)
         {
@@ -146,28 +168,10 @@ public class ProductionUIController : MonoBehaviour
 
     // -------- Private Helpers --------
 
-    private void SetPanelActive(bool active)
-    {
-        if (_panelRoot == null) return;
-
-        if (_panelRoot != gameObject)
-        {
-            _panelRoot.SetActive(active);
-        }
-        else
-        {
-            if (_canvasGroup != null)
-            {
-                _canvasGroup.alpha = active ? 1f : 0f;
-                _canvasGroup.interactable = active;
-                _canvasGroup.blocksRaycasts = active;
-            }
-        }
-    }
-
     private void OpenPanel()
     {
-        SetPanelActive(true);
+        if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+        _fadeCoroutine = StartCoroutine(FadeRoutine(true, 0.2f));
 
         // Tiêu đề
         if (_titleText != null && _currentProduction.BuildingData != null)
@@ -180,10 +184,72 @@ public class ProductionUIController : MonoBehaviour
 
     private void ClosePanel()
     {
-        SetPanelActive(false);
+        if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+        _fadeCoroutine = StartCoroutine(FadeRoutine(false, 0.15f));
+    }
 
-        ClearUnitCards();
-        ClearQueueSlots();
+    private System.Collections.IEnumerator FadeRoutine(bool show, float duration)
+    {
+        if (_panelRoot == null) yield break;
+
+        if (show)
+        {
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(true);
+            }
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = true;
+                _canvasGroup.blocksRaycasts = true;
+            }
+        }
+        else
+        {
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = false;
+                _canvasGroup.blocksRaycasts = false;
+            }
+        }
+
+        float startAlpha = _canvasGroup != null ? _canvasGroup.alpha : (show ? 0f : 1f);
+        float targetAlpha = show ? 1f : 0f;
+
+        Vector3 startScale = show ? new Vector3(0.92f, 0.92f, 1f) : Vector3.one;
+        Vector3 targetScale = show ? Vector3.one : new Vector3(0.95f, 0.95f, 1f);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float tSmooth = t * t * (3f - 2f * t);
+
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, tSmooth);
+            }
+
+            _panelRoot.transform.localScale = Vector3.Lerp(startScale, targetScale, tSmooth);
+            yield return null;
+        }
+
+        if (_canvasGroup != null)
+        {
+            _canvasGroup.alpha = targetAlpha;
+        }
+        _panelRoot.transform.localScale = targetScale;
+
+        if (!show)
+        {
+            if (_panelRoot != gameObject)
+            {
+                _panelRoot.SetActive(false);
+            }
+        }
+
+        _fadeCoroutine = null;
     }
 
     private void PopulateUnitCards()
@@ -191,7 +257,9 @@ public class ProductionUIController : MonoBehaviour
         ClearUnitCards();
 
         if (_currentProduction?.BuildingData?.producibleUnits == null) return;
-        if (_unitCardPrefab == null || _unitCardsContainer == null) return;
+
+        UnitCardUI templateToUse = _unitCardTemplate != null ? _unitCardTemplate : _unitCardPrefab;
+        if (templateToUse == null || _unitCardsContainer == null) return;
 
         foreach (var unitData in _currentProduction.BuildingData.producibleUnits)
         {
@@ -201,7 +269,8 @@ public class ProductionUIController : MonoBehaviour
             if (CardManager.Instance != null && !CardManager.Instance.IsUnitDiscovered(unitData))
                 continue;
 
-            UnitCardUI card = Instantiate(_unitCardPrefab, _unitCardsContainer, false);
+            UnitCardUI card = Instantiate(templateToUse, _unitCardsContainer, false);
+            card.gameObject.SetActive(true);
             UnitData capturedUnit = unitData; // Capture for lambda
             card.Setup(unitData, () => _currentProduction?.RequestProduceUnit(capturedUnit));
             _spawnedCards.Add(card);

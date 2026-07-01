@@ -21,6 +21,15 @@ public class VoidPortal : BaseCombatUnitController
         {
             navAgent.enabled = false;
         }
+
+        // Play portal open sound and start portal hum loop
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayPortalOpen(transform.position);
+
+            AudioSource humSource = gameObject.AddComponent<AudioSource>();
+            MyGame.Audio.AudioManager.Instance.PlayPortalHum(humSource);
+        }
     }
 
     protected override void Update()

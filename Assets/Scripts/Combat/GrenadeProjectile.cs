@@ -140,6 +140,11 @@ public class GrenadeProjectile : MonoBehaviour, IPoolable
         hitUnits.Clear();
         SpawnExplosionEffect(explosionCenter);
 
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayExplosion(explosionCenter);
+        }
+
         Collider[] colliders = Physics.OverlapSphere(explosionCenter, explosionRadius);
         for (int i = 0; i < colliders.Length; i++)
         {

@@ -137,27 +137,6 @@ public class WatchTowerGarrisonUI : MonoBehaviour
 
     void OnGUI()
     {
-        if (selectedWatchTower == null)
-        {
-            return;
-        }
-
-        GUI.Box(PanelRect, "Tháp Canh Phòng Thủ");
-
-        string countText = $"Đơn vị đóng quân: {selectedWatchTower.OccupantCount} / {selectedWatchTower.Capacity}";
-        GUI.Label(new Rect(20, 45, 280, 25), countText);
-
-        if (selectedWatchTower.OccupantCount > 0)
-        {
-            if (GUI.Button(new Rect(20, 85, 280, 40), "Cho toàn bộ đi ra (Eject All)"))
-            {
-                selectedWatchTower.EjectAll();
-                Debug.Log("Đã cho toàn bộ đơn vị ra khỏi tháp canh.");
-            }
-        }
-        else
-        {
-            GUI.Label(new Rect(20, 85, 280, 40), "(Không có đơn vị nào trong tháp)");
-        }
+        // Legacy IMGUI rendering is disabled.
     }
 }

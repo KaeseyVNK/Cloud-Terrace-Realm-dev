@@ -327,6 +327,10 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private static int ToSightRange(float worldRadius)
     {
+        if (CardManager.Instance != null)
+        {
+            worldRadius *= CardManager.Instance.DecreeFogVisionMultiplier;
+        }
         return Mathf.Max(1, Mathf.RoundToInt(worldRadius));
     }
 

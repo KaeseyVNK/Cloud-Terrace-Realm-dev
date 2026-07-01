@@ -799,6 +799,14 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         currentHealth -= damage;
         currentHealth = Mathf.Max(0, currentHealth);
 
+        if (MyGame.Audio.AudioManager.Instance != null && attacker != null)
+        {
+            if (!(attacker is RangedCombatUnitController))
+            {
+                MyGame.Audio.AudioManager.Instance.PlaySwordHit(transform.position);
+            }
+        }
+
         Debug.Log($"[Combat] {unitName} nhận {damage} sát thương. Máu còn lại: {currentHealth}/{maxHealth}");
 
         // Kích hoạt nhấp nháy đỏ phản hồi thị giác (không làm gián đoạn hành động/animation)

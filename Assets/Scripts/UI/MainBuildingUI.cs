@@ -31,6 +31,13 @@ public class MainBuildingUI : MonoBehaviour
 
     private void Update()
     {
+        // Avoid clicks when hovering or interacting with UGUI (such as Pause/Options panels)
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             HandleLeftClickDeselect();
@@ -77,15 +84,15 @@ public class MainBuildingUI : MonoBehaviour
 
     private void RefreshVillagerCounts()
     {
-        VillagerController[] allVillagers = FindObjectsByType<VillagerController>(FindObjectsInactive.Include);
-        _cachedTotalVillagers = allVillagers != null ? allVillagers.Length : 0;
+        _cachedTotalVillagers = VillagerController.AllVillagers != null ? VillagerController.AllVillagers.Count : 0;
         
         int shelteredCount = 0;
-        HouseShelter[] shelters = FindObjectsByType<HouseShelter>(FindObjectsInactive.Exclude);
+        var shelters = HouseShelter.Registry;
         if (shelters != null)
         {
-            foreach (var shelter in shelters)
+            for (int i = 0; i < shelters.Count; i++)
             {
+                var shelter = shelters[i];
                 if (shelter != null)
                 {
                     shelteredCount += shelter.OccupantCount;

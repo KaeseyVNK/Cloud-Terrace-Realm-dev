@@ -271,6 +271,11 @@ public class MarketResourceColumnUI : MonoBehaviour, IPointerEnterHandler, IPoin
 
     private void ToggleBuySell()
     {
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayUiClick();
+        }
+
         if (_flipRoutine != null) StopCoroutine(_flipRoutine);
         _flipRoutine = StartCoroutine(FlipCardRoutine());
     }
@@ -313,6 +318,11 @@ public class MarketResourceColumnUI : MonoBehaviour, IPointerEnterHandler, IPoin
 
     private void IncreaseAmount()
     {
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayUiHover();
+        }
+
         int maxTrade = GetMaxPossibleTrade();
         _currentTradeAmount = Mathf.Min(_currentTradeAmount + _stepAmount, maxTrade);
         RefreshUI();
@@ -320,6 +330,11 @@ public class MarketResourceColumnUI : MonoBehaviour, IPointerEnterHandler, IPoin
 
     private void DecreaseAmount()
     {
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayUiHover();
+        }
+
         _currentTradeAmount = Mathf.Max(_currentTradeAmount - _stepAmount, 0);
         RefreshUI();
     }
@@ -360,6 +375,11 @@ public class MarketResourceColumnUI : MonoBehaviour, IPointerEnterHandler, IPoin
     private void ExecuteTrade()
     {
         if (_market == null || _currentTradeAmount <= 0) return;
+
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayMarketTrade();
+        }
 
         if (_isBuying)
         {

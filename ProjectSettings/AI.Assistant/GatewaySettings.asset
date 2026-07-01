@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.AI.Assistant.Editor:Unity.AI.Assistant.Editor:GatewayProjectSettings
   m_ProviderWorkingDirs:
-  - providerId: cursor
-    workingDir: F:/Unity/Cloud Terrace Realm
+  - providerId: gemini
+    workingDir: E:/Antigravity/Antigravity IDE/Antigravity IDE
   m_IncludeDefaultAgentsMd: 1

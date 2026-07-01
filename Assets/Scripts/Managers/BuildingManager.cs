@@ -1446,38 +1446,6 @@ public class BuildingManager : MonoBehaviour
         }
     }
 
-    void OnGUI()
-    {
-        #if UNITY_ANDROID || UNITY_IOS || UNITY_EDITOR
-        if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WindowsEditor)
-        {
-            // Nút Toggle Chế độ Xây ở x=Screen.width - 250, y=120
-            Rect buildRect = new Rect(Screen.width - 250, 120, 240, 45);
-            bool isBuildActive = GUI.Toggle(buildRect, IsBuildMode, " Chế độ Xây (Build Mode)", "Button");
-            if (isBuildActive != IsBuildMode)
-            {
-                ToggleBuildMode();
-            }
 
-            // Nút Toggle Chế độ Xóa ở x=Screen.width - 250, y=175
-            Rect deleteRect = new Rect(Screen.width - 250, 175, 240, 45);
-            bool isDeleteActive = GUI.Toggle(deleteRect, IsDeleteMode, " Chế độ Xóa (Delete)", "Button");
-            if (isDeleteActive != IsDeleteMode)
-            {
-                ToggleDeleteMode();
-            }
-
-            // Nếu đang trong chế độ xây và có ghost building, hiện thêm nút Xoay công trình ở y=230
-            if (IsBuildMode)
-            {
-                Rect rotateRect = new Rect(Screen.width - 250, 230, 240, 45);
-                if (GUI.Button(rotateRect, "Xoay Công Trình (Rotate 90°)"))
-                {
-                    RotateGhostBuilding();
-                }
-            }
-        }
-        #endif
-    }
 
 }

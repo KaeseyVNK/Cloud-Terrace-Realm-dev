@@ -282,7 +282,7 @@ public class CreateRiceFieldPrefab : EditorWindow
         }
 
         // Kiểm tra xem có BuildingManager nào đang hoạt động trong Scene hiện tại không
-        BuildingManager activeManager = FindFirstObjectByType<BuildingManager>();
+        BuildingManager activeManager = Object.FindAnyObjectByType<BuildingManager>();
         if (activeManager != null)
         {
             if (!activeManager.AvailableBuildings.Contains(riceFieldData))

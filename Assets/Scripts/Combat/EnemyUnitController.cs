@@ -924,9 +924,10 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         s_nextPlayerBuildingCacheRefreshTime = Time.time + PLAYER_BUILDING_CACHE_INTERVAL;
         s_cachedPlayerBuildingTargets.Clear();
 
-        BaseCombatUnitController[] allUnits = FindObjectsByType<BaseCombatUnitController>(FindObjectsInactive.Exclude);
-        foreach (BaseCombatUnitController unit in allUnits)
+        var allUnits = BaseCombatUnitController.Registry;
+        for (int i = 0; i < allUnits.Count; i++)
         {
+            BaseCombatUnitController unit = allUnits[i];
             if (unit == null || unit.currentState == CombatState.Dead || unit.faction != UnitFaction.Player)
             {
                 continue;

@@ -14,6 +14,8 @@ using UnityEngine.UI;
 /// </summary>
 public class CardDraftUIController : MonoBehaviour
 {
+    public static CardDraftUIController Instance { get; private set; }
+
     [Header("Panel Settings")]
     [SerializeField] private GameObject _panelRoot;
     [SerializeField] private CanvasGroup _canvasGroup;
@@ -25,6 +27,16 @@ public class CardDraftUIController : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         if (_canvasGroup == null)
         {
             _canvasGroup = GetComponent<CanvasGroup>();
@@ -44,6 +56,12 @@ public class CardDraftUIController : MonoBehaviour
 
         if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
         _fadeCoroutine = StartCoroutine(FadeRoutine(true, 0.3f));
+
+        // Play card draft/roll sound
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayCardDraft();
+        }
 
         // Populate slots
         int numSlots = _cardSlots.Count;
@@ -70,6 +88,11 @@ public class CardDraftUIController : MonoBehaviour
 
     private void OnCardSelected(UpgradeCardData selectedCard)
     {
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayCardSelect();
+        }
+
         if (CardManager.Instance != null)
         {
             CardManager.Instance.ApplyCard(selectedCard);

@@ -13,7 +13,7 @@ namespace CloudTerraceRealm.Editor
         [MenuItem("Tools/Generate HUD Text Objects")]
         public static void GenerateHUDObjects()
         {
-            HUDManager hud = Object.FindFirstObjectByType<HUDManager>();
+            HUDManager hud = Object.FindAnyObjectByType<HUDManager>();
             if (hud == null)
             {
                 Debug.LogError("[CreateHUDObjects] Không tìm thấy HUDManager trong scene hiện tại!");
@@ -486,7 +486,7 @@ namespace CloudTerraceRealm.Editor
         [MenuItem("Tools/Generate Action Command Panel")]
         public static void GenerateActionCommandPanel()
         {
-            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+            Canvas canvas = Object.FindAnyObjectByType<Canvas>();
             if (canvas == null)
             {
                 Debug.LogError("[CreateHUDObjects] Không tìm thấy Canvas trong scene!");
@@ -598,6 +598,308 @@ namespace CloudTerraceRealm.Editor
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(panelObj.scene);
 
             Debug.Log("[CreateHUDObjects] Đã tạo thành công ActionCommandPanel ở góc trái dưới Canvas!");
+        }
+
+        [MenuItem("Tools/Generate Pause UI Panel")]
+        public static void GeneratePauseUIPanel()
+        {
+            Canvas canvas = Object.FindAnyObjectByType<Canvas>();
+            if (canvas == null)
+            {
+                Debug.LogError("[CreateHUDObjects] Không tìm thấy Canvas trong scene!");
+                return;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int groupIndex = Undo.GetCurrentGroup();
+
+            // Tìm hoặc xóa panel cũ
+            Transform oldPanel = canvas.transform.Find("PausePanel");
+            if (oldPanel != null)
+            {
+                Undo.DestroyObjectImmediate(oldPanel.gameObject);
+            }
+
+            // Thiết lập Default Controls Resources
+            UnityEngine.UI.DefaultControls.Resources uiResources = new UnityEngine.UI.DefaultControls.Resources();
+            uiResources.background = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
+            uiResources.standard = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            uiResources.knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            uiResources.checkmark = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
+            uiResources.dropdown = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/DropdownArrow.psd");
+            uiResources.mask = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UIMask.psd");
+
+            // 1. Tạo PausePanel chính (Full Screen Background)
+            GameObject pausePanelObj = new GameObject("PausePanel", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(CanvasGroup), typeof(PauseUIController));
+            pausePanelObj.transform.SetParent(canvas.transform, false);
+            Undo.RegisterCreatedObjectUndo(pausePanelObj, "Create PausePanel");
+
+            RectTransform panelRT = pausePanelObj.GetComponent<RectTransform>();
+            panelRT.anchorMin = Vector2.zero;
+            panelRT.anchorMax = Vector2.one;
+            panelRT.pivot = new Vector2(0.5f, 0.5f);
+            panelRT.sizeDelta = Vector2.zero; // Full stretch
+
+            UnityEngine.UI.Image bgImg = pausePanelObj.GetComponent<UnityEngine.UI.Image>();
+            bgImg.color = new Color(0.04f, 0.04f, 0.06f, 0.7f); // Nền mờ tối
+
+            PauseUIController pauseController = pausePanelObj.GetComponent<PauseUIController>();
+
+            // 2. Tạo CenterBox của Pause Menu
+            GameObject pauseCenterBoxObj = new GameObject("CenterBox", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+            pauseCenterBoxObj.transform.SetParent(pausePanelObj.transform, false);
+            RectTransform pauseBoxRT = pauseCenterBoxObj.GetComponent<RectTransform>();
+            pauseBoxRT.anchorMin = new Vector2(0.5f, 0.5f);
+            pauseBoxRT.anchorMax = new Vector2(0.5f, 0.5f);
+            pauseBoxRT.pivot = new Vector2(0.5f, 0.5f);
+            pauseBoxRT.sizeDelta = new Vector2(300f, 360f); // Tăng chiều cao để chứa nút Options
+
+            UnityEngine.UI.Image boxImg = pauseCenterBoxObj.GetComponent<UnityEngine.UI.Image>();
+            boxImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
+            boxImg.type = UnityEngine.UI.Image.Type.Sliced;
+            boxImg.color = new Color(0.12f, 0.14f, 0.18f, 0.95f);
+
+            UnityEngine.UI.Outline outline = pauseCenterBoxObj.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = new Color(0.85f, 0.65f, 0.2f, 0.75f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            // Bố cục dọc cho CenterBox
+            UnityEngine.UI.VerticalLayoutGroup layout = pauseCenterBoxObj.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            layout.padding = new RectOffset(20, 20, 25, 25);
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+
+            // Tiêu đề TẠM DỪNG
+            GameObject titleObj = new GameObject("TitleText", typeof(RectTransform), typeof(TextMeshProUGUI));
+            titleObj.transform.SetParent(pauseCenterBoxObj.transform, false);
+            TextMeshProUGUI titleText = titleObj.GetComponent<TextMeshProUGUI>();
+            titleText.text = "TẠM DỪNG";
+            titleText.fontSize = 26f;
+            titleText.fontStyle = FontStyles.Bold;
+            titleText.alignment = TextAlignmentOptions.Center;
+            titleText.color = new Color(0.95f, 0.75f, 0.2f);
+            titleText.raycastTarget = false;
+
+            // Spacer
+            GameObject spacer = new GameObject("Spacer", typeof(RectTransform));
+            spacer.transform.SetParent(pauseCenterBoxObj.transform, false);
+            spacer.GetComponent<RectTransform>().sizeDelta = new Vector2(10f, 10f);
+
+            // Hàm tạo Button
+            System.Func<Transform, string, string, UnityEngine.UI.Button> createBtn = (parent, btnName, btnLabel) =>
+            {
+                GameObject btnObj = new GameObject(btnName, typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.Button));
+                btnObj.transform.SetParent(parent, false);
+                
+                RectTransform btnRT = btnObj.GetComponent<RectTransform>();
+                btnRT.sizeDelta = new Vector2(220f, 42f);
+
+                UnityEngine.UI.Image btnImg = btnObj.GetComponent<UnityEngine.UI.Image>();
+                btnImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/InputFieldBackground.psd");
+                btnImg.type = UnityEngine.UI.Image.Type.Sliced;
+                btnImg.color = new Color(0.18f, 0.22f, 0.28f, 0.95f);
+
+                GameObject txtObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+                txtObj.transform.SetParent(btnObj.transform, false);
+                RectTransform txtRT = txtObj.GetComponent<RectTransform>();
+                txtRT.anchorMin = Vector2.zero;
+                txtRT.anchorMax = Vector2.one;
+                txtRT.offsetMin = Vector2.zero;
+                txtRT.offsetMax = Vector2.zero;
+
+                TextMeshProUGUI tmpText = txtObj.GetComponent<TextMeshProUGUI>();
+                tmpText.text = btnLabel;
+                tmpText.fontSize = 14f;
+                tmpText.fontStyle = FontStyles.Bold;
+                tmpText.alignment = TextAlignmentOptions.Center;
+                tmpText.color = Color.white;
+                tmpText.raycastTarget = false;
+
+                return btnObj.GetComponent<UnityEngine.UI.Button>();
+            };
+
+            UnityEngine.UI.Button resumeButton = createBtn(pauseCenterBoxObj.transform, "ResumeButton", "TIẾP TỤC");
+            UnityEngine.UI.Button optionsButton = createBtn(pauseCenterBoxObj.transform, "OptionsButton", "CÀI ĐẶT");
+            UnityEngine.UI.Button restartButton = createBtn(pauseCenterBoxObj.transform, "RestartButton", "CHƠI LẠI");
+            UnityEngine.UI.Button quitButton = createBtn(pauseCenterBoxObj.transform, "QuitButton", "THOÁT GAME");
+
+            // 3. Tạo OptionsPanel chính
+            GameObject optionsPanelObj = new GameObject("OptionsPanel", typeof(RectTransform), typeof(OptionsUIController));
+            optionsPanelObj.transform.SetParent(pausePanelObj.transform, false);
+            Undo.RegisterCreatedObjectUndo(optionsPanelObj, "Create OptionsPanel");
+
+            RectTransform optionsPanelRT = optionsPanelObj.GetComponent<RectTransform>();
+            optionsPanelRT.anchorMin = new Vector2(0.5f, 0.5f);
+            optionsPanelRT.anchorMax = new Vector2(0.5f, 0.5f);
+            optionsPanelRT.pivot = new Vector2(0.5f, 0.5f);
+            optionsPanelRT.sizeDelta = new Vector2(420f, 480f); // Kích thước gọn gàng cho Settings
+
+            UnityEngine.UI.Image optionsBgImg = optionsPanelObj.AddComponent<UnityEngine.UI.Image>();
+            optionsBgImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
+            optionsBgImg.type = UnityEngine.UI.Image.Type.Sliced;
+            optionsBgImg.color = new Color(0.12f, 0.14f, 0.18f, 0.95f);
+
+            UnityEngine.UI.Outline optionsOutline = optionsPanelObj.AddComponent<UnityEngine.UI.Outline>();
+            optionsOutline.effectColor = new Color(0.85f, 0.65f, 0.2f, 0.75f);
+            optionsOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            OptionsUIController optionsController = optionsPanelObj.GetComponent<OptionsUIController>();
+
+            // Bố cục dọc cho Options
+            UnityEngine.UI.VerticalLayoutGroup optionsLayout = optionsPanelObj.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            optionsLayout.padding = new RectOffset(25, 25, 25, 25);
+            optionsLayout.spacing = 15f;
+            optionsLayout.childAlignment = TextAnchor.UpperCenter;
+            optionsLayout.childForceExpandWidth = true;
+            optionsLayout.childForceExpandHeight = false;
+            optionsLayout.childControlWidth = true;
+            optionsLayout.childControlHeight = true;
+
+            // Tiêu đề CÀI ĐẶT
+            GameObject optionsTitleObj = new GameObject("OptionsTitleText", typeof(RectTransform), typeof(TextMeshProUGUI));
+            optionsTitleObj.transform.SetParent(optionsPanelObj.transform, false);
+            TextMeshProUGUI optionsTitleText = optionsTitleObj.GetComponent<TextMeshProUGUI>();
+            optionsTitleText.text = "CÀI ĐẶT";
+            optionsTitleText.fontSize = 24f;
+            optionsTitleText.fontStyle = FontStyles.Bold;
+            optionsTitleText.alignment = TextAlignmentOptions.Center;
+            optionsTitleText.color = new Color(0.95f, 0.75f, 0.2f);
+            optionsTitleText.raycastTarget = false;
+
+            // Hàm tạo Row chứa Label và Control
+            System.Func<string, string, GameObject> createRow = (rowName, rowLabel) =>
+            {
+                GameObject rowObj = new GameObject(rowName, typeof(RectTransform));
+                rowObj.transform.SetParent(optionsPanelObj.transform, false);
+                RectTransform rowRT = rowObj.GetComponent<RectTransform>();
+                rowRT.sizeDelta = new Vector2(370f, 32f);
+
+                UnityEngine.UI.HorizontalLayoutGroup rowLg = rowObj.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+                rowLg.padding = new RectOffset(5, 5, 2, 2);
+                rowLg.spacing = 15f;
+                rowLg.childAlignment = TextAnchor.MiddleLeft;
+                rowLg.childForceExpandWidth = false;
+                rowLg.childForceExpandHeight = false;
+                rowLg.childControlWidth = false;
+                rowLg.childControlHeight = false;
+
+                GameObject labelObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+                labelObj.transform.SetParent(rowObj.transform, false);
+                RectTransform labelRT = labelObj.GetComponent<RectTransform>();
+                labelRT.sizeDelta = new Vector2(140f, 25f);
+
+                TextMeshProUGUI tmpText = labelObj.GetComponent<TextMeshProUGUI>();
+                tmpText.text = rowLabel;
+                tmpText.fontSize = 13f;
+                tmpText.fontStyle = FontStyles.Bold;
+                tmpText.alignment = TextAlignmentOptions.Left;
+                tmpText.color = Color.white;
+                tmpText.raycastTarget = false;
+
+                return rowObj;
+            };
+
+            // 1. Master Volume Row
+            GameObject masterVolRow = createRow("MasterVolumeRow", "Âm Lượng Tổng");
+            GameObject masterSliderObj = UnityEngine.UI.DefaultControls.CreateSlider(uiResources);
+            masterSliderObj.transform.SetParent(masterVolRow.transform, false);
+            masterSliderObj.name = "MasterVolumeSlider";
+            masterSliderObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200f, 20f);
+            UnityEngine.UI.Slider masterSlider = masterSliderObj.GetComponent<UnityEngine.UI.Slider>();
+
+            // 2. Music Volume Row
+            GameObject musicVolRow = createRow("MusicVolumeRow", "Âm Nhạc (BGM)");
+            GameObject musicSliderObj = UnityEngine.UI.DefaultControls.CreateSlider(uiResources);
+            musicSliderObj.transform.SetParent(musicVolRow.transform, false);
+            musicSliderObj.name = "MusicVolumeSlider";
+            musicSliderObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200f, 20f);
+            UnityEngine.UI.Slider musicSlider = musicSliderObj.GetComponent<UnityEngine.UI.Slider>();
+
+            // 3. SFX Volume Row
+            GameObject sfxVolRow = createRow("SFXVolumeRow", "Hiệu Ứng (SFX)");
+            GameObject sfxSliderObj = UnityEngine.UI.DefaultControls.CreateSlider(uiResources);
+            sfxSliderObj.transform.SetParent(sfxVolRow.transform, false);
+            sfxSliderObj.name = "SFXVolumeSlider";
+            sfxSliderObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200f, 20f);
+            UnityEngine.UI.Slider sfxSlider = sfxSliderObj.GetComponent<UnityEngine.UI.Slider>();
+
+            // 4. Fullscreen Row
+            GameObject fullscreenRow = createRow("FullscreenRow", "Toàn Màn Hình");
+            GameObject fullscreenToggleObj = UnityEngine.UI.DefaultControls.CreateToggle(uiResources);
+            fullscreenToggleObj.transform.SetParent(fullscreenRow.transform, false);
+            fullscreenToggleObj.name = "FullscreenToggle";
+            fullscreenToggleObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200f, 20f);
+            // Hide the default Label of default Toggle
+            Transform toggleLabel = fullscreenToggleObj.transform.Find("Label");
+            if (toggleLabel != null) toggleLabel.gameObject.SetActive(false);
+            UnityEngine.UI.Toggle fullscreenToggle = fullscreenToggleObj.GetComponent<UnityEngine.UI.Toggle>();
+
+            // 5. Graphic Quality Row
+            GameObject qualityRow = createRow("QualityRow", "Chất Lượng Đồ Họa");
+            GameObject qualityDropdownObj = UnityEngine.UI.DefaultControls.CreateDropdown(uiResources);
+            qualityDropdownObj.transform.SetParent(qualityRow.transform, false);
+            qualityDropdownObj.name = "QualityDropdown";
+            qualityDropdownObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200f, 26f);
+            UnityEngine.UI.Dropdown qualityDropdown = qualityDropdownObj.GetComponent<UnityEngine.UI.Dropdown>();
+
+            // 6. Resolution Row
+            GameObject resolutionRow = createRow("ResolutionRow", "Độ Phân Giải");
+            GameObject resolutionDropdownObj = UnityEngine.UI.DefaultControls.CreateDropdown(uiResources);
+            resolutionDropdownObj.transform.SetParent(resolutionRow.transform, false);
+            resolutionDropdownObj.name = "ResolutionDropdown";
+            resolutionDropdownObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200f, 26f);
+            UnityEngine.UI.Dropdown resolutionDropdown = resolutionDropdownObj.GetComponent<UnityEngine.UI.Dropdown>();
+
+            // Spacer dưới
+            GameObject optSpacer = new GameObject("OptSpacer", typeof(RectTransform));
+            optSpacer.transform.SetParent(optionsPanelObj.transform, false);
+            optSpacer.GetComponent<RectTransform>().sizeDelta = new Vector2(10f, 5f);
+
+            // 7. Back Button
+            UnityEngine.UI.Button backButton = createBtn(optionsPanelObj.transform, "BackButton", "QUAY LẠI");
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 38f);
+
+            // 4. Gán references vào component PauseUIController
+            SerializedObject pauseSO = new SerializedObject(pauseController);
+            pauseSO.FindProperty("_panelRoot").objectReferenceValue = pausePanelObj;
+            pauseSO.FindProperty("_resumeButton").objectReferenceValue = resumeButton;
+            pauseSO.FindProperty("_optionsButton").objectReferenceValue = optionsButton;
+            pauseSO.FindProperty("_restartButton").objectReferenceValue = restartButton;
+            pauseSO.FindProperty("_quitButton").objectReferenceValue = quitButton;
+            pauseSO.ApplyModifiedProperties();
+
+            // 5. Gán references vào component OptionsUIController
+            SerializedObject optSO = new SerializedObject(optionsController);
+            optSO.FindProperty("_optionsRoot").objectReferenceValue = optionsPanelObj;
+            optSO.FindProperty("_pauseMenuCenterBox").objectReferenceValue = pauseCenterBoxObj;
+            optSO.FindProperty("_masterVolumeSlider").objectReferenceValue = masterSlider;
+            optSO.FindProperty("_musicVolumeSlider").objectReferenceValue = musicSlider;
+            optSO.FindProperty("_sfxVolumeSlider").objectReferenceValue = sfxSlider;
+            optSO.FindProperty("_fullscreenToggle").objectReferenceValue = fullscreenToggle;
+            optSO.FindProperty("_qualityDropdown").objectReferenceValue = qualityDropdown;
+            optSO.FindProperty("_resolutionDropdown").objectReferenceValue = resolutionDropdown;
+            optSO.FindProperty("_backButton").objectReferenceValue = backButton;
+            optSO.ApplyModifiedProperties();
+
+            // Đưa panel chính về trạng thái ẩn ban đầu
+            CanvasGroup cg = pausePanelObj.GetComponent<CanvasGroup>();
+            cg.alpha = 0f;
+            cg.interactable = false;
+            cg.blocksRaycasts = false;
+            pausePanelObj.transform.localScale = new Vector3(0.92f, 0.92f, 1f);
+
+            optionsPanelObj.SetActive(false); // Ẩn options lúc đầu
+
+            Undo.CollapseUndoOperations(groupIndex);
+
+            EditorUtility.SetDirty(pausePanelObj);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(pausePanelObj.scene);
+
+            Debug.Log("[CreateHUDObjects] Đã tạo thành công PausePanel và OptionsPanel dưới Canvas!");
         }
     }
 }
