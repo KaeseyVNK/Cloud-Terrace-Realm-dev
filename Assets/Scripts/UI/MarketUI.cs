@@ -33,18 +33,20 @@ public class MarketUI : MonoBehaviour
 
     private void Update()
     {
-        // Check if cursor is over any UGUI element
-        bool isOverUI = UnityEngine.EventSystems.EventSystem.current != null && 
-                         UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
 
-        if (Input.GetMouseButtonDown(0) && !isOverUI)
+        if (Input.GetMouseButtonDown(0))
         {
             HandleLeftClickDeselect();
         }
 
-        // Select market building on Right-click (always) or Left-click (when no units are selected and not over UI)
+        // Select market building on Right-click or Left-click (when no units are selected)
         bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
-                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !isOverUI);
+                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0);
 
         if (isSelectTriggered)
         {

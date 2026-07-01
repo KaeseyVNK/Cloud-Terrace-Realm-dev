@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Handles selection of the WatchTower via right click (when no units are selected)
@@ -7,12 +9,52 @@ using UnityEngine;
 public class WatchTowerGarrisonUI : MonoBehaviour
 {
     private static readonly Rect PanelRect = new Rect(10, 10, 320, 160);
+    private const string PanelName = "WatchTowerGarrisonPanel";
+    private const string TitleName = "WatchTowerTitleText";
+    private const string OccupancyName = "WatchTowerOccupancyText";
+    private const string EjectButtonName = "WatchTowerEjectAllButton";
+    private const string CloseButtonName = "WatchTowerCloseButton";
+
+    [Header("UGUI Panel")]
+    [SerializeField] private GameObject _panelRoot;
+    [SerializeField] private Button _ejectAllButton;
+    [SerializeField] private Button _closeButton;
+    [SerializeField] private TMP_Text _titleTMP;
+    [SerializeField] private TMP_Text _occupancyTMP;
+
     private WatchTowerGarrison selectedWatchTower;
 
     public WatchTowerGarrison SelectedWatchTower => selectedWatchTower;
 
+    private void Awake()
+    {
+        BindPanelReferences();
+        SetPanelVisible(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (_ejectAllButton != null)
+        {
+            _ejectAllButton.onClick.RemoveListener(EjectSelectedWatchTower);
+        }
+
+        if (_closeButton != null)
+        {
+            _closeButton.onClick.RemoveListener(DeselectWatchTower);
+        }
+    }
+
     void Update()
     {
+        RefreshPanel();
+
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             HandleLeftClickDeselect();
@@ -76,6 +118,8 @@ public class WatchTowerGarrisonUI : MonoBehaviour
     public void SelectWatchTower(WatchTowerGarrison watchTower)
     {
         selectedWatchTower = watchTower;
+        SetPanelVisible(selectedWatchTower != null);
+        RefreshPanel();
 
         // Deselect any production buildings to avoid overlapping UIs
         TestProductionUI productionUI = FindAnyObjectByType<TestProductionUI>();
@@ -88,10 +132,20 @@ public class WatchTowerGarrisonUI : MonoBehaviour
     public void DeselectWatchTower()
     {
         selectedWatchTower = null;
+        SetPanelVisible(false);
     }
 
     private bool IsMouseOverPanel()
     {
+        if (_panelRoot != null && _panelRoot.activeInHierarchy)
+        {
+            RectTransform panelRect = _panelRoot.transform as RectTransform;
+            if (panelRect != null)
+            {
+                return RectTransformUtility.RectangleContainsScreenPoint(panelRect, Input.mousePosition);
+            }
+        }
+
         Vector2 mouse = Input.mousePosition;
         mouse.y = Screen.height - mouse.y;
         return PanelRect.Contains(mouse);
@@ -133,6 +187,121 @@ public class WatchTowerGarrisonUI : MonoBehaviour
         }
 
         return watchTower != null;
+    }
+
+    private void BindPanelReferences()
+    {
+        if (_panelRoot == null)
+        {
+            GameObject panel = GameObject.Find(PanelName);
+            if (panel != null)
+            {
+                _panelRoot = panel;
+            }
+        }
+
+        if (_panelRoot == null)
+        {
+            return;
+        }
+
+        if (_titleTMP == null)
+        {
+            Transform title = _panelRoot.transform.Find(TitleName);
+            if (title != null)
+            {
+                _titleTMP = title.GetComponent<TMP_Text>();
+            }
+        }
+
+        if (_occupancyTMP == null)
+        {
+            Transform occupancy = _panelRoot.transform.Find(OccupancyName);
+            if (occupancy != null)
+            {
+                _occupancyTMP = occupancy.GetComponent<TMP_Text>();
+            }
+        }
+
+        if (_ejectAllButton == null)
+        {
+            Transform eject = _panelRoot.transform.Find(EjectButtonName);
+            if (eject != null)
+            {
+                _ejectAllButton = eject.GetComponent<Button>();
+            }
+        }
+
+        if (_closeButton == null)
+        {
+            Transform close = _panelRoot.transform.Find(CloseButtonName);
+            if (close != null)
+            {
+                _closeButton = close.GetComponent<Button>();
+            }
+        }
+
+        if (_ejectAllButton != null)
+        {
+            _ejectAllButton.onClick.RemoveListener(EjectSelectedWatchTower);
+            _ejectAllButton.onClick.AddListener(EjectSelectedWatchTower);
+        }
+
+        if (_closeButton != null)
+        {
+            _closeButton.onClick.RemoveListener(DeselectWatchTower);
+            _closeButton.onClick.AddListener(DeselectWatchTower);
+        }
+    }
+
+    private void RefreshPanel()
+    {
+        if (_panelRoot == null)
+        {
+            BindPanelReferences();
+        }
+
+        if (_panelRoot == null || selectedWatchTower == null)
+        {
+            SetPanelVisible(false);
+            return;
+        }
+
+        SetPanelVisible(true);
+        SetText(_titleTMP, selectedWatchTower.gameObject.name);
+        SetText(_occupancyTMP, $"Garrison: {selectedWatchTower.OccupantCount}/{selectedWatchTower.Capacity}");
+
+        if (_ejectAllButton != null)
+        {
+            _ejectAllButton.interactable = selectedWatchTower.OccupantCount > 0;
+        }
+    }
+
+    private void EjectSelectedWatchTower()
+    {
+        if (selectedWatchTower == null)
+        {
+            return;
+        }
+
+        selectedWatchTower.EjectAll();
+        RefreshPanel();
+    }
+
+    private void SetPanelVisible(bool visible)
+    {
+        if (_panelRoot != null && _panelRoot.activeSelf != visible)
+        {
+            _panelRoot.SetActive(visible);
+        }
+    }
+
+    private void SetText(TMP_Text text, string value)
+    {
+        if (text != null)
+        {
+            text.text = value;
+        }
     }
 
     void OnGUI()

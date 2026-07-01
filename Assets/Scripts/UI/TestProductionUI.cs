@@ -29,6 +29,12 @@ public class TestProductionUI : MonoBehaviour
 
     void Update()
     {
+        if (UnityEngine.EventSystems.EventSystem.current != null && 
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
+
         // Nhấn Esc để hủy chế độ đặt Rally Point
         if (Input.GetKeyDown(KeyCode.Escape))
         {

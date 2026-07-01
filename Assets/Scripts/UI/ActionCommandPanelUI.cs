@@ -247,11 +247,30 @@ public class ActionCommandPanelUI : MonoBehaviour
     {
         if (_isVillagerMode)
         {
-            if (UnitSelectionManager.Instance != null) UnitSelectionManager.Instance.StartBuildMode();
+            OpenBuildingMenu();
         }
         else
         {
             if (UnitSelectionManager.Instance != null) UnitSelectionManager.Instance.StartAttackMode();
+        }
+    }
+
+    private void OpenBuildingMenu()
+    {
+        BuildingManager buildingManager = BuildingManager.Instance;
+        if (buildingManager != null)
+        {
+            if (!buildingManager.IsBuildMode)
+            {
+                buildingManager.ToggleBuildMode();
+            }
+
+            return;
+        }
+
+        if (UnitSelectionManager.Instance != null)
+        {
+            UnitSelectionManager.Instance.StartBuildMode();
         }
     }
 
