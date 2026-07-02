@@ -15,6 +15,9 @@ public class TestProductionUI : MonoBehaviour
     private BuildingProduction selectedProduction;
     private BlacksmithResearch selectedResearch;
 
+    [Header("Main Building Canvas UI")]
+    [SerializeField] private MainBuildingMenuUI mainBuildingMenuUI;
+
     public BuildingProduction SelectedProduction => selectedProduction;
     public BlacksmithResearch SelectedResearch => selectedResearch;
 
@@ -129,6 +132,19 @@ public class TestProductionUI : MonoBehaviour
 
         selectedProduction = production;
         selectedResearch = null;
+
+        if (mainBuildingMenuUI != null)
+        {
+            if (IsMainBuildingProduction(selectedProduction))
+            {
+                mainBuildingMenuUI.ShowMenu();
+            }
+            else
+            {
+                mainBuildingMenuUI.HideMenu();
+            }
+        }
+
         if (selectedProduction != null)
         {
             selectedProduction.SetRallyFlagVisible(true);
@@ -156,6 +172,11 @@ public class TestProductionUI : MonoBehaviour
         }
 
         selectedProduction = null;
+
+        if (mainBuildingMenuUI != null)
+        {
+            mainBuildingMenuUI.HideMenu();
+        }
     }
 
     private void SelectResearch(BlacksmithResearch research)
@@ -167,6 +188,11 @@ public class TestProductionUI : MonoBehaviour
 
         selectedProduction = null;
         selectedResearch = research;
+
+        if (mainBuildingMenuUI != null)
+        {
+            mainBuildingMenuUI.HideMenu();
+        }
 
         WatchTowerGarrisonUI watchTowerUI = FindAnyObjectByType<WatchTowerGarrisonUI>();
         if (watchTowerUI != null)
@@ -184,6 +210,23 @@ public class TestProductionUI : MonoBehaviour
     public void DeselectResearch()
     {
         selectedResearch = null;
+    }
+
+    private bool IsMainBuildingProduction(BuildingProduction production)
+    {
+        if (production == null)
+        {
+            return false;
+        }
+
+        MainBuildingCombatTarget mainBuilding = production.GetComponent<MainBuildingCombatTarget>();
+
+        if (mainBuilding == null)
+        {
+            mainBuilding = production.GetComponentInChildren<MainBuildingCombatTarget>();
+        }
+
+        return mainBuilding != null;
     }
 
     private bool IsMouseOverActivePanel()
