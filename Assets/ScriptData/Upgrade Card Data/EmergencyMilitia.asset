@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_emergency_militia
   cardName: Emergency Militia
-  description: "Sinh ra ngay l\u1EADp t\u1EE9c 3 D\xE2n binh t\u1EA1i Nh\xE0 ch\xEDnh."
+  description: Instantly spawn 3 Militia at the Town Center.
   icon: {fileID: -939547783, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 2
   rarity: 1

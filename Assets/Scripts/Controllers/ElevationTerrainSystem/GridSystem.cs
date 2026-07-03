@@ -79,6 +79,7 @@ public class GridSystem : MonoBehaviour
     [UnityEngine.Serialization.FormerlySerializedAs("goldPrefab")]
     [SerializeField] private GameObject _goldPrefab;
     [SerializeField] private GameObject _bridgePrefab;
+    [SerializeField, Range(2, 8)] private int _proceduralBridgeMinRiverWidth = 4;
 
     [Header("Resource Node Amounts")]
     [SerializeField] private Vector2Int _woodNodeAmountRange = new Vector2Int(200, 300);
@@ -2002,8 +2003,8 @@ public class GridSystem : MonoBehaviour
                         }
                     }
 
-                    // Nếu tìm thấy bờ vùng B bên kia sông và chiều rộng sông hợp lệ (2 đến 8 ô)
-                    if (targetX != -1 && riverWidth >= 2 && riverWidth <= 8)
+                    // Nếu tìm thấy bờ vùng B bên kia sông và chiều rộng sông hợp lệ
+                    if (targetX != -1 && riverWidth >= _proceduralBridgeMinRiverWidth && riverWidth <= 8)
                     {
                         int bridgeCenterX = x + (targetX - x) / 2;
                         int bridgeCenterZ = z;
@@ -2058,7 +2059,7 @@ public class GridSystem : MonoBehaviour
                         }
                     }
 
-                    if (targetZ != -1 && riverWidth >= 2 && riverWidth <= 8)
+                    if (targetZ != -1 && riverWidth >= _proceduralBridgeMinRiverWidth && riverWidth <= 8)
                     {
                         int bridgeCenterX = x;
                         int bridgeCenterZ = z + (targetZ - z) / 2;
@@ -2131,6 +2132,7 @@ public class GridSystem : MonoBehaviour
                 }
 
                 if (overlaps) continue;
+                if (!IsProceduralBridgeAlignedWithRiver(cand, checkIsRiver)) continue;
 
                 // Đồng ý bắc cầu!
                 union(cand.fromComponent, cand.toComponent);
@@ -2170,6 +2172,30 @@ public class GridSystem : MonoBehaviour
         }
 
         Debug.Log($"[GridSystem] Đã tự động sinh {bridgesSpawned} cầu vượt sông dựa trên phân tích liên thông đất liền.");
+    }
+
+    private bool IsProceduralBridgeAlignedWithRiver(BridgeCandidate candidate, System.Func<int, int, bool> checkIsRiver)
+    {
+        int dx = candidate.isVertical ? 0 : 1;
+        int dz = candidate.isVertical ? 1 : 0;
+        int backward = (candidate.riverWidth - 1) / 2;
+        int forward = candidate.riverWidth / 2;
+
+        for (int offset = -backward; offset <= forward; offset++)
+        {
+            int x = candidate.centerX + dx * offset;
+            int z = candidate.centerZ + dz * offset;
+            if (!checkIsRiver(x, z))
+            {
+                return false;
+            }
+        }
+
+        int beforeX = candidate.centerX - dx * (backward + 1);
+        int beforeZ = candidate.centerZ - dz * (backward + 1);
+        int afterX = candidate.centerX + dx * (forward + 1);
+        int afterZ = candidate.centerZ + dz * (forward + 1);
+        return !checkIsRiver(beforeX, beforeZ) && !checkIsRiver(afterX, afterZ);
     }
 
     private struct BridgeCandidate

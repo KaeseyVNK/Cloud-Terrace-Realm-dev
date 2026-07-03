@@ -166,9 +166,9 @@ MonoBehaviour:
   _miningTool: {fileID: 0}
   _bowTool: {fileID: 0}
   _diggingTool: {fileID: 0}
-  _maxCarryCapacity: 5
-  _timeToGather: 3
-  _gatherAmountPerTick: 1
+  _maxCarryCapacity: 15
+  _timeToGather: 2.2
+  _gatherAmountPerTick: 3
   _timeToDeposit: 2
   _autoGatherAfterBuildRadius: 40
   _runtimeAgentRadius: 0.32

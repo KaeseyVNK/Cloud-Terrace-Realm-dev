@@ -150,7 +150,7 @@ namespace CloudTerraceRealm.UI
             string acceptedStr = "";
             if (_selectedBuildingData.acceptedResources == null || _selectedBuildingData.acceptedResources.Count == 0)
             {
-                acceptedStr = "Tất cả các loại";
+                acceptedStr = "All types";
             }
             else
             {
@@ -164,12 +164,12 @@ namespace CloudTerraceRealm.UI
 
             if (_infoText != null)
             {
-                _infoText.text = $"<b>Trữ Lượng Quốc Gia:</b>\n" +
-                                 $"- Gỗ: {wood}\n" +
-                                 $"- Lương thực: {food}\n" +
-                                 $"- Đá: {stone}\n" +
-                                 $"- Vàng: {gold}\n\n" +
-                                 $"<b>Loại tài nguyên chấp nhận:</b>\n{acceptedStr}";
+                _infoText.text = $"<b>Global Stockpile:</b>\n" +
+                                 $"- Wood: {wood}\n" +
+                                 $"- Food: {food}\n" +
+                                 $"- Stone: {stone}\n" +
+                                 $"- Gold: {gold}\n\n" +
+                                 $"<b>Accepted Resources:</b>\n{acceptedStr}";
             }
         }
 

@@ -53,6 +53,7 @@ public class MainBuildingUIController : MonoBehaviour
     private readonly List<GameObject> _activeSlots = new List<GameObject>();
     private UnitCardUI _unitCardTemplate;
     private Coroutine _fadeCoroutine;
+    private BuildingProduction _productionOverride;
 
     #endregion
 
@@ -159,16 +160,11 @@ public class MainBuildingUIController : MonoBehaviour
 
     private void Update()
     {
-        BuildingProduction activeProduction = TestProductionUI.Instance?.SelectedProduction;
-
-        // Verify if active production corresponds to Main Building
-        bool isMainBuilding = activeProduction != null && 
-            (activeProduction.GetComponent<MainBuildingCombatTarget>() != null || 
-             activeProduction.GetComponentInChildren<MainBuildingCombatTarget>() != null);
-
-        if (!isMainBuilding)
+        BuildingProduction activeProduction = _productionOverride;
+        if (activeProduction == null && MainBuildingUI.Instance != null && MainBuildingUI.Instance.SelectedMainBuilding != null)
         {
-            activeProduction = null;
+            activeProduction = MainBuildingUI.Instance.SelectedMainBuilding.GetComponent<BuildingProduction>() ?? 
+                               MainBuildingUI.Instance.SelectedMainBuilding.GetComponentInChildren<BuildingProduction>();
         }
 
         if (activeProduction != _currentProduction)
@@ -195,12 +191,28 @@ public class MainBuildingUIController : MonoBehaviour
     /// <param name="production">The Main Building's BuildingProduction component.</param>
     public void SetProduction(BuildingProduction production)
     {
+        if (_currentProduction == production)
+        {
+            return;
+        }
+
         _currentProduction = production;
 
         if (_currentProduction != null)
             OpenPanel();
         else
             ClosePanel();
+    }
+
+    public void SetProductionOverride(BuildingProduction production)
+    {
+        _productionOverride = production;
+        SetProduction(production);
+    }
+
+    public void ClearProductionOverride()
+    {
+        _productionOverride = null;
     }
 
     #endregion
@@ -385,12 +397,12 @@ public class MainBuildingUIController : MonoBehaviour
             _progressBar.value = totalTime > 0f ? 1f - (remaining / totalTime) : 0f;
 
             if (_queueLabel != null)
-                _queueLabel.text = $"Hàng đợi: {_currentProduction.CurrentProducingUnit.unitName} ({(_progressBar.value * 100f):F0}%)";
+                _queueLabel.text = $"Queue: {_currentProduction.CurrentProducingUnit.unitName} ({(_progressBar.value * 100f):F0}%)";
         }
         else
         {
             if (_queueLabel != null)
-                _queueLabel.text = "Hàng đợi";
+                _queueLabel.text = "Queue";
         }
     }
 
@@ -483,13 +495,7 @@ public class MainBuildingUIController : MonoBehaviour
     {
         if (TestProductionUI.Instance != null)
         {
-            var field = typeof(TestProductionUI).GetField("_isRallyTargetingMode",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
-            {
-                bool current = (bool)field.GetValue(TestProductionUI.Instance);
-                field.SetValue(TestProductionUI.Instance, !current);
-            }
+            TestProductionUI.Instance.ToggleRallyTargeting(_currentProduction);
         }
     }
 
@@ -505,7 +511,7 @@ public class MainBuildingUIController : MonoBehaviour
         // 1. Update weather info
         if (_weatherText != null)
         {
-            string weatherTextStr = "Thời tiết: ";
+            string weatherTextStr = "Weather: ";
             if (WeatherManager.Instance != null)
             {
                 weatherTextStr += WeatherManager.Instance.CurrentWeather.ToString();
@@ -516,11 +522,11 @@ public class MainBuildingUIController : MonoBehaviour
             }
             if (TimeManager.Instance != null && TimeManager.Instance.IsNight)
             {
-                weatherTextStr += " (Ban Đêm)";
+                weatherTextStr += " (Night)";
             }
             else
             {
-                weatherTextStr += " (Ban Ngày)";
+                weatherTextStr += " (Day)";
             }
             _weatherText.text = weatherTextStr;
         }
@@ -528,7 +534,7 @@ public class MainBuildingUIController : MonoBehaviour
         // 2. Update shelter status
         if (_shelterStatusText != null)
         {
-            string stateText = HouseShelter.IsEmergencyShelterActive ? "TRẠNG THÁI: YÊU CẦU TRÚ ẨN KHẨN CẤP" : "TRẠNG THÁI: Bình thường";
+            string stateText = HouseShelter.IsEmergencyShelterActive ? "STATUS: EMERGENCY SHELTER ACTIVE" : "STATUS: Normal";
             _shelterStatusText.text = stateText;
             _shelterStatusText.color = HouseShelter.IsEmergencyShelterActive ? Color.red : Color.yellow;
         }

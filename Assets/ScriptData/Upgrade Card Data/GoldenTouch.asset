@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_golden_touch
   cardName: Golden Touch
-  description: "+30% T\u1ED1c \u0111\u1ED9 khai th\xE1c V\xE0ng cho D\xE2n l\xE0ng."
+  description: +30% Gold gathering speed for Villagers.
   icon: {fileID: -861995593, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 0
   rarity: 1

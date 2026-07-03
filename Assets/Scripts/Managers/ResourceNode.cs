@@ -95,6 +95,7 @@ public class ResourceNode : MonoBehaviour
     }
     private const float DefaultHarvestSlotRadius = 3.4f;
     private const float OverflowHarvestSlotRadius = 4.6f;
+    private const float HarvestSlotColliderClearance = 0.85f;
     private int[] _reservedSlots; // Khởi tạo động trong Awake dựa trên _maxHarvestSlots
     private Transform _visualTarget; // Đối tượng visual thực tế được áp dụng hiệu ứng scale (không thay đổi Collider ở root)
 
@@ -110,6 +111,7 @@ public class ResourceNode : MonoBehaviour
 
     private void Awake()
     {
+        gameObject.isStatic = false; // Tắt static để có thể thực hiện hiệu ứng scale/bounce!
         if (_maxHarvestSlots <= 0) _maxHarvestSlots = 8;
         _reservedSlots = new int[_maxHarvestSlots];
         SetupVisualTarget();
@@ -132,55 +134,7 @@ public class ResourceNode : MonoBehaviour
 
     private void SetupVisualTarget()
     {
-        if (_visualTarget != null) return;
-
-        // 1. Tìm con có tên "Visual" hoặc "Model"
-        Transform modelChild = transform.Find("Visual");
-        if (modelChild == null) modelChild = transform.Find("Model");
-
-        // 2. Nếu không tìm thấy, lấy con đầu tiên có Renderer (không phải root)
-        if (modelChild == null)
-        {
-            Renderer[] childRenderers = GetComponentsInChildren<Renderer>(true);
-            foreach (var r in childRenderers)
-            {
-                if (r.transform != transform)
-                {
-                    modelChild = r.transform;
-                    break;
-                }
-            }
-        }
-
-        // 3. Nếu vẫn không có con nào có mesh, kiểm tra xem có mesh trực tiếp trên Root không.
-        // Nếu có, tự tạo một Visual Container và di chuyển Mesh/Renderer từ root xuống đó.
-        if (modelChild == null)
-        {
-            MeshFilter rootFilter = GetComponent<MeshFilter>();
-            MeshRenderer rootRenderer = GetComponent<MeshRenderer>();
-            if (rootFilter != null && rootRenderer != null)
-            {
-                GameObject container = new GameObject("VisualContainer");
-                container.transform.SetParent(transform);
-                container.transform.localPosition = Vector3.zero;
-                container.transform.localRotation = Quaternion.identity;
-                container.transform.localScale = Vector3.one;
-
-                MeshFilter copyFilter = container.AddComponent<MeshFilter>();
-                copyFilter.sharedMesh = rootFilter.sharedMesh;
-
-                MeshRenderer copyRenderer = container.AddComponent<MeshRenderer>();
-                copyRenderer.sharedMaterials = rootRenderer.sharedMaterials;
-
-                DestroyComponentSafely(rootRenderer);
-                DestroyComponentSafely(rootFilter);
-
-                modelChild = container.transform;
-            }
-        }
-
-        // 4. Fallback cuối cùng: dùng chính root transform
-        _visualTarget = (modelChild != null) ? modelChild : transform;
+        _visualTarget = transform;
     }
 
     private void DestroyComponentSafely(Component component)
@@ -306,7 +260,8 @@ public class ResourceNode : MonoBehaviour
         ReleaseSlot(villagerId);
 
         Vector3 nodeCenter = transform.position;
-        float slotRadius = GetHarvestSlotRadius();
+        Collider harvestCollider = GetHarvestCollider();
+        float slotRadius = GetHarvestSlotRadius(harvestCollider);
         int bestSlot = -1;
         float minDistance = float.MaxValue;
         Vector3 bestSlotPos = nodeCenter;
@@ -318,6 +273,7 @@ public class ResourceNode : MonoBehaviour
             if (_reservedSlots[i] != 0) continue;
 
             Vector3 candidatePos = GetSlotPosition(nodeCenter, i, slotRadius);
+            candidatePos = PushOutsideHarvestCollider(candidatePos, harvestCollider);
             Vector3 validPos = GetNearestNavMeshPosition(candidatePos, 1.5f, out bool hasNavMeshPos);
             if (!hasFallback)
             {
@@ -351,19 +307,32 @@ public class ResourceNode : MonoBehaviour
 
         int overflowSlot = Mathf.Abs(villagerId) % _maxHarvestSlots;
         Vector3 overflowPos = GetSlotPosition(nodeCenter, overflowSlot, OverflowHarvestSlotRadius);
+        overflowPos = PushOutsideHarvestCollider(overflowPos, harvestCollider);
         slotPosition = GetNearestNavMeshPosition(overflowPos, 2.0f, out _);
         return -1;
     }
 
-    private float GetHarvestSlotRadius()
+    private Collider GetHarvestCollider()
     {
+        return GetComponentInChildren<Collider>();
+    }
+
+    private float GetHarvestSlotRadius(Collider col)
+    {
+        if (col != null)
+        {
+            Vector3 extents = col.bounds.extents;
+            float horizontalSize = Mathf.Max(extents.x, extents.z);
+            return Mathf.Clamp(horizontalSize + HarvestSlotColliderClearance, 1.8f, 5.5f);
+        }
+
         switch (ResourceType)
         {
             case ResourceType.Food:
-                return 2.4f;
+                return 3.5f;
             case ResourceType.Stone:
             case ResourceType.Gold:
-                return 3.0f;
+                return 3.2f;
             default:
                 return DefaultHarvestSlotRadius;
         }
@@ -373,6 +342,34 @@ public class ResourceNode : MonoBehaviour
     {
         float angle = (slotIndex * (360f / _maxHarvestSlots)) * Mathf.Deg2Rad;
         return center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+    }
+
+    private Vector3 PushOutsideHarvestCollider(Vector3 position, Collider col)
+    {
+        if (col == null)
+        {
+            return position;
+        }
+
+        Bounds bounds = col.bounds;
+        Vector3 fromCenter = position - bounds.center;
+        fromCenter.y = 0f;
+
+        if (fromCenter.sqrMagnitude < 0.0001f)
+        {
+            fromCenter = transform.forward;
+            fromCenter.y = 0f;
+        }
+
+        float minRadius = Mathf.Max(bounds.extents.x, bounds.extents.z) + HarvestSlotColliderClearance;
+        if (fromCenter.magnitude >= minRadius)
+        {
+            return position;
+        }
+
+        Vector3 pushed = bounds.center + fromCenter.normalized * minRadius;
+        pushed.y = position.y;
+        return pushed;
     }
 
     private Vector3 GetNearestNavMeshPosition(Vector3 position, float maxDistance, out bool found)

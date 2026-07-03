@@ -56,10 +56,10 @@ public class UpgradeCardData : ScriptableObject
     /// <summary>Tên hiển thị rarity.</summary>
     public string RarityDisplayName => rarity switch
     {
-        CardRarity.Common    => "PHỔ THÔNG",
-        CardRarity.Rare      => "HIẾM",
-        CardRarity.Epic      => "SỬ THI",
-        CardRarity.Legendary => "HUYỀN THOẠI",
+        CardRarity.Common    => "COMMON",
+        CardRarity.Rare      => "RARE",
+        CardRarity.Epic      => "EPIC",
+        CardRarity.Legendary => "LEGENDARY",
         _                    => ""
     };
 

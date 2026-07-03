@@ -155,7 +155,7 @@ public class MarketUIController : MonoBehaviour
         {
             if (_currentMarket.isNeutral)
             {
-                _mercenaryStatusText.text = $"Vệ sĩ: {_currentMarket.HiredGuardCount}/{_currentMarket.MaxMercenaries} ({_currentMarket.MercenaryCost} Vàng)";
+                _mercenaryStatusText.text = $"Guards: {_currentMarket.HiredGuardCount}/{_currentMarket.MaxMercenaries} ({_currentMarket.MercenaryCost} Gold)";
             }
             else
             {

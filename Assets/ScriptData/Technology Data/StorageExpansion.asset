@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: StorageExpansion
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: storage_expansion
-  technologyName: "Kho Ch\u1EE9a M\u1EDF R\u1ED9ng"
-  description: "T\u0103ng s\u1EE9c ch\u1EE9a kho t\u1ED5ng h\u1EE3p th\xEAm 500 \u0111\u01A1n
-    v\u1ECB."
+  technologyName: Storage Expansion
+  description: Increases overall resource storage capacity by 500 units.
   icon: {fileID: -821131794, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
   researchTime: 15
   researchCosts:

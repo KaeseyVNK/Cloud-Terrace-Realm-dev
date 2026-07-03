@@ -12,10 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: Torch Stand
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "C\u1ED9t \u0110u\u1ED1c"
-  description: "C\xF4ng tr\xECnh chi\u1EBFu s\xE1ng khu v\u1EF1c xung quanh v\xE0o
-    ban \u0111\xEAm ho\u1EB7c tr\u1EDDi m\u01B0a, gi\xFAp d\u1EC5 d\xE0ng qu\u1EA3n
-    l\xFD t\xE0i nguy\xEAn v\xE0 ph\xE1t hi\u1EC7n k\u1EBB \u0111\u1ECBch."
+  buildingName: Torch Stand
+  description: Illuminates surrounding areas at night or during rain, making it easier
+    to manage resources and spot enemies.
   category: 0
   icon: {fileID: -1102286902, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   buildingPrefab: {fileID: 6055428234873679010, guid: fa1d46f41a3258745bb511239d2e92d3, type: 3}

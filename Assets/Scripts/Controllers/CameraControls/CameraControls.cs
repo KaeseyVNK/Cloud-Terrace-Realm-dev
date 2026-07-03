@@ -23,7 +23,7 @@ public class CameraControls : MonoBehaviour
     [Header("Mobile Touch Settings")]
     [SerializeField] private float touchPanSensitivity = 0.05f;
     [SerializeField] private float touchZoomSensitivity = 0.05f;
-    [SerializeField] private float touchRotationSensitivity = 0.1f;
+    [SerializeField] private float touchRotationSensitivity = 1.2f;
 
     [Header("References")]
     [Tooltip("Kéo Cinemachine Camera từ Scene vào đây")]
@@ -220,28 +220,36 @@ public class CameraControls : MonoBehaviour
                 return;
             }
 
-            // 1. Pinch to Zoom
-            float currentDistance = Vector2.Distance(touch0.position, touch1.position);
+            Vector2 currentVector = touch1.position - touch0.position;
+            float angle = Mathf.Abs(Mathf.Atan2(currentVector.y, currentVector.x) * Mathf.Rad2Deg);
+            float angleFromHorizontal = angle > 90f ? 180f - angle : angle;
+
             Vector2 prevPos0 = touch0.position - touch0.deltaPosition;
             Vector2 prevPos1 = touch1.position - touch1.deltaPosition;
-            float prevDistance = Vector2.Distance(prevPos0, prevPos1);
 
-            if (prevDistance > 0f)
+            // 1. Chụm 2 ngón tay dọc (Góc nghiêng lệch > 45 độ so với phương ngang) -> Chỉ Zoom
+            if (angleFromHorizontal > 45f)
             {
-                float zoomDelta = (currentDistance - prevDistance) * touchZoomSensitivity;
-                targetZoomDistance -= zoomDelta;
-                targetZoomDistance = Mathf.Clamp(targetZoomDistance, minZoomDistance, maxZoomDistance);
+                float currentDistance = Vector2.Distance(touch0.position, touch1.position);
+                float prevDistance = Vector2.Distance(prevPos0, prevPos1);
+
+                if (prevDistance > 0f)
+                {
+                    float zoomDelta = (currentDistance - prevDistance) * touchZoomSensitivity;
+                    targetZoomDistance -= zoomDelta;
+                    targetZoomDistance = Mathf.Clamp(targetZoomDistance, minZoomDistance, maxZoomDistance);
+                }
             }
+            // 2. Chụm 2 ngón tay ngang (Góc nghiêng lệch <= 45 độ so với phương ngang) -> Chỉ Xoay
+            else
+            {
+                Vector2 prevVector = prevPos1 - prevPos0;
+                float currentAngle = Mathf.Atan2(currentVector.y, currentVector.x) * Mathf.Rad2Deg;
+                float prevAngle = Mathf.Atan2(prevVector.y, prevVector.x) * Mathf.Rad2Deg;
 
-            // 2. Rotate Camera
-            Vector2 currentVector = touch1.position - touch0.position;
-            float currentAngle = Mathf.Atan2(currentVector.y, currentVector.x) * Mathf.Rad2Deg;
-
-            Vector2 prevVector = prevPos1 - prevPos0;
-            float prevAngle = Mathf.Atan2(prevVector.y, prevVector.x) * Mathf.Rad2Deg;
-
-            float angleDelta = Mathf.DeltaAngle(prevAngle, currentAngle);
-            transform.Rotate(Vector3.up, -angleDelta * touchRotationSensitivity, Space.World);
+                float angleDelta = Mathf.DeltaAngle(prevAngle, currentAngle);
+                transform.Rotate(Vector3.up, -angleDelta * touchRotationSensitivity, Space.World);
+            }
         }
     }
 

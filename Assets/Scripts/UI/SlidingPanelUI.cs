@@ -5,11 +5,11 @@ using UnityEngine.EventSystems;
 
 /// <summary>
 /// Điều khiển hiệu ứng trượt ra/vào (Slide Drawer) cho Panel hiển thị Thẻ Nâng Cấp.
-/// Khi click nút mũi tên, panel sẽ trượt ra ngoài màn hình.
-/// Khi click chuột ra ngoài vùng Panel, nó sẽ tự động thu gọn lại.
+/// Khi click hoặc chạm, panel sẽ trượt ra ngoài màn hình.
+/// Khi click chuột hoặc chạm ra ngoài vùng Panel, nó sẽ tự động thu gọn lại.
 /// </summary>
 [RequireComponent(typeof(RectTransform))]
-public class SlidingPanelUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class SlidingPanelUI : MonoBehaviour, IPointerClickHandler
 {
     [Header("Panel Settings")]
     [Tooltip("RectTransform của Panel chính cần trượt")]
@@ -52,20 +52,31 @@ public class SlidingPanelUI : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         }
     }
 
-    /// <summary>
-    /// Kích hoạt mở panel khi di chuột vào vùng UI
-    /// </summary>
-    public void OnPointerEnter(PointerEventData eventData)
+    private void Update()
     {
-        OpenPanel();
+        // Khi panel đang mở, nếu click/tap ra ngoài vùng panel thì tự động đóng lại
+        if (_isOpen && Input.GetMouseButtonDown(0))
+        {
+            if (!RectTransformUtility.RectangleContainsScreenPoint(_panelRect, Input.mousePosition, null))
+            {
+                ClosePanel();
+            }
+        }
     }
 
     /// <summary>
-    /// Kích hoạt thu gọn panel khi di chuột ra khỏi vùng UI
+    /// Kích hoạt mở/đóng panel khi click/tap vào panel
     /// </summary>
-    public void OnPointerExit(PointerEventData eventData)
+    public void OnPointerClick(PointerEventData eventData)
     {
-        ClosePanel();
+        if (!_isOpen)
+        {
+            OpenPanel();
+        }
+        else
+        {
+            ClosePanel();
+        }
     }
 
     /// <summary>

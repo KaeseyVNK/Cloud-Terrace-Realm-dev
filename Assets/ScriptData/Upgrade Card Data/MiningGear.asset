@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_mining_gear
   cardName: Mining Gear
-  description: "+30% T\u1ED1c \u0111\u1ED9 khai th\xE1c \u0110\xE1 cho D\xE2n l\xE0ng."
+  description: +30% Stone gathering speed for Villagers.
   icon: {fileID: -1660347954, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
   cardType: 0
+  rarity: 0
   unitHealthMultiplier: 1
   unitDamageMultiplier: 1
   unitSpeedMultiplier: 1
@@ -30,5 +31,11 @@ MonoBehaviour:
   unitToUnlock: {fileID: 0}
   instantResourceType: 0
   instantResourceAmount: 0
+  instantWoodAmount: 0
+  instantStoneAmount: 0
+  instantFoodAmount: 0
   instantMilitiaCount: 0
   healMainBuilding: 0
+  healMainBuildingPercent: 0
+  buildingMaxHealthMultiplier: 1
+  populationCapBonus: 0

@@ -43,10 +43,10 @@ public class BuildingDetailPanel : MonoBehaviour
         if (_current == null) return;
 
         buildingNameText.text = _current.buildingName;
-        villagersText.text = $"Villager được gán: {_current.villagersAssigned}";
+        villagersText.text = $"Assigned Villagers: {_current.villagersAssigned}";
         missingResourceText.text = string.IsNullOrEmpty(_current.missingResource)
-            ? "Đủ tài nguyên"
-            : $"Thiếu: {_current.missingResource}";
+            ? "Sufficient Resources"
+            : $"Missing: {_current.missingResource}";
         progressSlider.value = _current.progress / 100f;
 
         // Highlight nút đang active

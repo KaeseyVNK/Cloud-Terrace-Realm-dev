@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: MarketNeutral
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Ch\u1EE3 Trung L\u1EADp"
-  description: "N\u01A1i trao \u0111\u1ED5i t\xE0i nguy\xEAn v\u1EDBi c\xE1c l\xE0ng
-    kh\xE1c."
+  buildingName: Neutral Market
+  description: Exchange resources with other settlements.
   category: 0
   icon: {fileID: -787844382, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 3143731048422382929, guid: 00ec312d277bc27429aff1ca665e914a, type: 3}

@@ -677,7 +677,7 @@ GameObject:
   - component: {fileID: 8965333533647274102}
   - component: {fileID: 8181919279714365266}
   m_Layer: 6
-  m_Name: Ranger
+  m_Name: Villager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -821,9 +821,9 @@ MonoBehaviour:
   _miningTool: {fileID: 6845677517944120384}
   _bowTool: {fileID: 6084795842344277523}
   _diggingTool: {fileID: 5490128668800939922}
-  _maxCarryCapacity: 10
-  _timeToGather: 5
-  _gatherAmountPerTick: 2
+  _maxCarryCapacity: 15
+  _timeToGather: 2.2
+  _gatherAmountPerTick: 3
   _timeToDeposit: 2
   _autoGatherAfterBuildRadius: 20
   _runtimeAgentRadius: 0.32

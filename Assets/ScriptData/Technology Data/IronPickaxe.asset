@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: IronPickaxe
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: iron_pickaxe
-  technologyName: "Cu\u1ED1c s\u1EAFt"
-  description: "T\u0103ng t\u1ED1c \u0111\u1ED9 khai th\xE1c \u0111\xE1 v\xE0 v\xE0ng
-    c\u1EE7a d\xE2n l\xE0ng."
+  technologyName: Iron Pickaxe
+  description: Increases stone and gold gathering speed for Villagers by 20%.
   icon: {fileID: 327041701, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   researchTime: 16
   researchCosts:

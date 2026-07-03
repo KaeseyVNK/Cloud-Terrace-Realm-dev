@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: Market
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Ch\u1EE3"
-  description: "Cho ph\xE9p giao d\u1ECBch t\xE0i nguy\xEAn v\xE0 nh\u1EADn h\xE0ng
-    th\u1ED3 c\u1EE9u tr\u1EE3 v\xE0o ban \u0111\xEAm."
+  buildingName: Market
+  description: Allows resource trading and caravan delivery at night.
   category: 0
   icon: {fileID: -787844382, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 5580713827240879289, guid: ed5edbc57a012dd4c8517eff25ee82d9, type: 3}

@@ -24,9 +24,9 @@ public class BuildingQueueItem : MonoBehaviour
         progressText.text = $"{Mathf.RoundToInt(slot.progress)}%";
         priorityBadge.text = slot.priority switch
         {
-            BuildingPriority.High => "Cao",
-            BuildingPriority.Normal => "Thường",
-            _ => "Thấp"
+            BuildingPriority.High => "High",
+            BuildingPriority.Normal => "Normal",
+            _ => "Low"
         };
 
         moveUpButton.onClick.RemoveAllListeners();

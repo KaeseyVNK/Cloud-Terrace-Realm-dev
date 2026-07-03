@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: BattleHardened
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: BattleHardened
-  cardName: Day Dan Chien Tran
-  description: Mau linh +30%, sat thuong +20%, toc do +10%.
+  cardName: Battle Hardened
+  description: Unit health +30%, damage +20%, speed +10%.
   icon: {fileID: 0}
   cardType: 0
   rarity: 2

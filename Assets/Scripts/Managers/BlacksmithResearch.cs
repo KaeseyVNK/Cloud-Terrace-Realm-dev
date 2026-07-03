@@ -59,7 +59,7 @@ public class BlacksmithResearch : MonoBehaviour
         TechnologyData ancientTech = ScriptableObject.CreateInstance<TechnologyData>();
         ancientTech.technologyId = "ancient_weaponry";
         ancientTech.technologyName = "Ancient Weaponry";
-        ancientTech.description = "+30% Sat thuong va Mau toi da cho toan bo Binh linh phe ta.";
+        ancientTech.description = "+30% Damage and Max Health for all friendly Soldiers.";
         ancientTech.researchTime = 15f;
         
         ancientTech.researchCosts = new List<ResourceCost>

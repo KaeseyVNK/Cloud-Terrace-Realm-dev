@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: Wheelbarrow
   m_EditorClassIdentifier: Assembly-CSharp::TechnologyData
   technologyId: wheelbarrow
-  technologyName: "Xe c\xFAt k\xEDt"
-  description: "T\u0103ng s\u1EE9c ch\u1EE9a v\xE0 t\u1ED1c \u0111\u1ED9 di chuy\u1EC3n
-    c\u1EE7a d\xE2n l\xE0ng."
+  technologyName: Wheelbarrow
+  description: Increases carrying capacity and movement speed for Villagers.
   icon: {fileID: -407875679, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
   researchTime: 14
   researchCosts:

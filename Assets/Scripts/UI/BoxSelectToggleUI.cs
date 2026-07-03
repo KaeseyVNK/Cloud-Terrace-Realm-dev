@@ -18,6 +18,16 @@ namespace CloudTerraceRealm.UI
         [SerializeField] private Color _activeColor = new Color(0.2f, 0.8f, 0.2f, 1f); // Xanh lá
         [SerializeField] private Color _inactiveColor = new Color(0.5f, 0.5f, 0.5f, 1f); // Xám
 
+        private void OnEnable()
+        {
+            UnitSelectionManager.OnBoxSelectModeChanged += HandleBoxSelectModeChanged;
+        }
+
+        private void OnDisable()
+        {
+            UnitSelectionManager.OnBoxSelectModeChanged -= HandleBoxSelectModeChanged;
+        }
+
         private void Start()
         {
             // Thiết lập trạng thái mặc định (thường là OFF để pan camera)
@@ -33,6 +43,11 @@ namespace CloudTerraceRealm.UI
             UnitSelectionManager.IsBoxSelectMode = !UnitSelectionManager.IsBoxSelectMode;
             UpdateVisuals();
             Debug.Log($"[BoxSelectToggleUI] Chuyển đổi BoxSelectMode: {UnitSelectionManager.IsBoxSelectMode}");
+        }
+
+        private void HandleBoxSelectModeChanged(bool isOn)
+        {
+            UpdateVisuals();
         }
 
         private void UpdateVisuals()

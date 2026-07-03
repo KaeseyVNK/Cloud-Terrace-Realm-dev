@@ -8,15 +8,15 @@ namespace CloudTerraceRealm.UI
     /// </summary>
     public class MainMenuUI : MonoBehaviour
     {
-        private const string GameplaySceneName = "GameScene";
+        private const string LoadingSceneName = "LoadingScene";
 
         /// <summary>
-        /// Bắt đầu chơi game, chuyển cảnh sang Gameplay Scene bất đồng bộ.
+        /// Bắt đầu chơi game, chuyển sang Loading Scene để tải bất đồng bộ màn chơi chính.
         /// </summary>
         public void PlayGame()
         {
-            Debug.Log("[MainMenu] Starting game. Loading GameScene...");
-            SceneManager.LoadSceneAsync(GameplaySceneName);
+            Debug.Log("[MainMenu] Starting game. Loading LoadingScene...");
+            SceneManager.LoadScene(LoadingSceneName);
         }
 
         /// <summary>

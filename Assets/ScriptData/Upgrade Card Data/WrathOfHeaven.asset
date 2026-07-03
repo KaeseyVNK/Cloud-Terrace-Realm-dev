@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: WrathOfHeaven
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: WrathOfHeaven
-  cardName: Thien Loi Giang Xuong
-  description: Nha Chinh hoi phuc hoan toan. Nhan 200 Vang va 3 dan binh. An sung
-    cua troi!
+  cardName: Wrath of Heaven
+  description: Town Center fully healed. Receive 200 Gold and 3 Militia.
   icon: {fileID: 0}
   cardType: 2
   rarity: 3

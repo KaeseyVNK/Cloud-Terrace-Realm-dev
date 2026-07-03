@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: EnemyDifficultySettings
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDifficultySettings
   baseEnemyCount: 2
-  enemyIncreasePerNight: 2
+  enemyIncreasePerNight: 1
   maxEnemiesPerWave: 24
   maxActiveEnemies: 70
   waveIncreaseEveryNights: 3
   maxAutoWavesPerNight: 6
   autoWaveStartTimeRatio: 0.516
   autoWaveEndTimeRatio: 0.873
-  bloodMoonWaveMultiplier: 1.6
-  bloodMoonCountMultiplier: 1.45
+  bloodMoonWaveMultiplier: 1.35
+  bloodMoonCountMultiplier: 1.25
   enemyScalingStartNight: 10
-  healthGrowthPerNightAfterTutorial: 0.025
-  damageGrowthPerNightAfterTutorial: 0.018
+  healthGrowthPerNightAfterTutorial: 0.015
+  damageGrowthPerNightAfterTutorial: 0.012
   speedGrowthPerNightAfterTutorial: 0.008
   minorEventStartNight: 5
   dangerEventStartNight: 10

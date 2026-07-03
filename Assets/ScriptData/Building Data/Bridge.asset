@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: Bridge
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   buildingName: Bridge
-  description: "B\u1EAFc c\u1EA7u qua s\xF4ng \u0111\u1EC3 k\u1EBFt n\u1ED1i c\xE1c
-    v\xF9ng \u0111\u1EA5t b\u1ECB c\xF4 l\u1EADp."
+  description: Build bridges across rivers to connect isolated lands.
   category: 6
   icon: {fileID: 0}
   buildingPrefab: {fileID: 8556344373475006603, guid: 4db6c23c806b5014cb07c49ce17710a9, type: 3}

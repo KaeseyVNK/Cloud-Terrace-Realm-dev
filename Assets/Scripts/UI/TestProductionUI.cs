@@ -21,6 +21,7 @@ public class TestProductionUI : MonoBehaviour
     private Vector2 productionScrollPosition;
     private Vector2 researchScrollPosition;
     private bool _isRallyTargetingMode = false;
+    private BuildingProduction _rallyTargetOverride;
 
     private void Awake()
     {
@@ -39,6 +40,7 @@ public class TestProductionUI : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             _isRallyTargetingMode = false;
+            _rallyTargetOverride = null;
         }
 
         if (_isRallyTargetingMode)
@@ -50,9 +52,26 @@ public class TestProductionUI : MonoBehaviour
                     Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                     if (Physics.Raycast(ray, out RaycastHit hit))
                     {
-                        selectedProduction.SetRallyFromHit(hit);
+                    BuildingProduction targetProd = _rallyTargetOverride != null ? _rallyTargetOverride : selectedProduction;
+                    if (targetProd == null && MainBuildingUI.Instance != null && MainBuildingUI.Instance.SelectedMainBuilding != null)
+                    {
+                        targetProd = MainBuildingUI.Instance.SelectedMainBuilding.GetComponent<BuildingProduction>() ?? 
+                                     MainBuildingUI.Instance.SelectedMainBuilding.GetComponentInChildren<BuildingProduction>();
+                    }
+
+                    if (targetProd != null)
+                    {
+                        Debug.Log("[TestProductionUI] Setting Rally Point for: " + targetProd.gameObject.name + " at position " + hit.point);
+                        targetProd.SetRallyFromHit(hit);
+                        targetProd.SetRallyFlagVisible(true);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[TestProductionUI] Cannot set Rally Point: targetProd is null!");
+                    }
                     }
                     _isRallyTargetingMode = false;
+                    _rallyTargetOverride = null;
                 }
             }
             return;
@@ -63,16 +82,12 @@ public class TestProductionUI : MonoBehaviour
             HandleLeftClickDeselect();
         }
 
-        // Chọn công trình bằng chuột phải, hoặc bằng chuột trái/chạm khi không có unit nào đang được chọn.
+        // Chọn công trình bằng chuột phải, hoặc bằng chuột trái/chạm
         bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
-                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !IsMouseOverActivePanel());
+                                 (Input.GetMouseButtonDown(0) && !IsMouseOverActivePanel());
 
         if (isSelectTriggered)
         {
-            if (UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count > 0)
-            {
-                return;
-            }
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit))
@@ -170,6 +185,8 @@ public class TestProductionUI : MonoBehaviour
 
     private void SelectProduction(BuildingProduction production)
     {
+        Debug.Log("[TestProductionUI] SelectProduction called for: " + (production != null ? production.gameObject.name : "null"));
+
         if (selectedProduction != null && selectedProduction != production)
         {
             selectedProduction.SetRallyFlagVisible(false);
@@ -177,6 +194,12 @@ public class TestProductionUI : MonoBehaviour
 
         selectedProduction = production;
         selectedResearch = null;
+
+        if (UnitSelectionManager.Instance != null)
+        {
+            UnitSelectionManager.Instance.DeselectAll();
+        }
+
         if (selectedProduction != null)
         {
             selectedProduction.SetRallyFlagVisible(true);
@@ -191,7 +214,16 @@ public class TestProductionUI : MonoBehaviour
             MainBuildingUI mainBuildingUI = FindAnyObjectByType<MainBuildingUI>();
             if (mainBuildingUI != null)
             {
-                mainBuildingUI.DeselectMainBuilding();
+                var mbTarget = production.GetComponent<MainBuildingCombatTarget>() ?? 
+                               production.GetComponentInChildren<MainBuildingCombatTarget>();
+                if (mbTarget != null)
+                {
+                    mainBuildingUI.SelectMainBuilding(mbTarget);
+                }
+                else
+                {
+                    mainBuildingUI.DeselectMainBuilding();
+                }
             }
         }
     }
@@ -205,6 +237,25 @@ public class TestProductionUI : MonoBehaviour
 
         selectedProduction = null;
         _isRallyTargetingMode = false;
+        _rallyTargetOverride = null;
+    }
+
+    public void BeginRallyTargeting(BuildingProduction targetProduction = null)
+    {
+        _rallyTargetOverride = targetProduction;
+        _isRallyTargetingMode = true;
+    }
+
+    public void ToggleRallyTargeting(BuildingProduction targetProduction = null)
+    {
+        if (_isRallyTargetingMode && (_rallyTargetOverride == targetProduction || targetProduction == null))
+        {
+            _isRallyTargetingMode = false;
+            _rallyTargetOverride = null;
+            return;
+        }
+
+        BeginRallyTargeting(targetProduction);
     }
 
     private void SelectResearch(BlacksmithResearch research)
@@ -327,11 +378,11 @@ public class TestProductionUI : MonoBehaviour
     private void DrawResearchPanel()
     {
         Rect panelRect = GetResearchPanelRect();
-        GUI.Box(panelRect, "Nghiên Cứu: Blacksmith");
+        GUI.Box(panelRect, "Research: Blacksmith");
 
         if (selectedResearch.AvailableTechnologies == null || selectedResearch.AvailableTechnologies.Count == 0)
         {
-            GUI.Label(new Rect(panelRect.x + 10f, panelRect.y + 32f, panelRect.width - 20f, 20), "Blacksmith chưa có công nghệ để nghiên cứu.");
+            GUI.Label(new Rect(panelRect.x + 10f, panelRect.y + 32f, panelRect.width - 20f, 20), "No technology available to research.");
             return;
         }
 
@@ -350,7 +401,7 @@ public class TestProductionUI : MonoBehaviour
             bool unlocked = TechnologyManager.Instance.IsUnlocked(technology);
             bool isResearchingThis = selectedResearch.CurrentResearch == technology;
             bool canClick = !unlocked && !selectedResearch.IsResearching;
-            string buttonText = unlocked ? "Đã mở " + technology.technologyName : "Nghiên cứu " + technology.technologyName;
+            string buttonText = unlocked ? "Unlocked: " + technology.technologyName : "Research: " + technology.technologyName;
 
             GUI.Box(new Rect(0, yPos, content.width, ResearchRowHeight - 6f), "");
             GUI.enabled = canClick;
@@ -361,8 +412,8 @@ public class TestProductionUI : MonoBehaviour
 
             GUI.enabled = true;
             GUI.Label(new Rect(210, yPos + 6, content.width - 220, 20), technology.technologyName);
-            GUI.Label(new Rect(210, yPos + 28, content.width - 220, 20), "Chi phí: " + GetCostText(technology.researchCosts));
-            GUI.Label(new Rect(210, yPos + 50, content.width - 220, 20), "Tác dụng: " + technology.GetVillagerEffectText());
+            GUI.Label(new Rect(210, yPos + 28, content.width - 220, 20), "Cost: " + GetCostText(technology.researchCosts));
+            GUI.Label(new Rect(210, yPos + 50, content.width - 220, 20), "Effect: " + technology.GetVillagerEffectText());
             if (isResearchingThis)
             {
                 float progress = 1f - (selectedResearch.CurrentResearchTimer / Mathf.Max(0.1f, technology.researchTime));
@@ -379,7 +430,7 @@ public class TestProductionUI : MonoBehaviour
     {
         if (costs == null || costs.Count == 0)
         {
-            return "Miễn phí";
+            return "Free";
         }
 
         string costText = "";

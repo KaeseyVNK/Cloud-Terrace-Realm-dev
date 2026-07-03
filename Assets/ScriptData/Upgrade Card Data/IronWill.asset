@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_iron_will
   cardName: Iron Will
-  description: "+25% M\xE1u t\u1ED1i \u0111a cho t\u1EA5t c\u1EA3 Binh l\xEDnh."
+  description: +25% Max health for all Soldiers.
   icon: {fileID: -917026626, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 0
+  rarity: 0
   unitHealthMultiplier: 1.25
   unitDamageMultiplier: 1
   unitSpeedMultiplier: 1
@@ -30,5 +31,11 @@ MonoBehaviour:
   unitToUnlock: {fileID: 0}
   instantResourceType: 0
   instantResourceAmount: 0
+  instantWoodAmount: 0
+  instantStoneAmount: 0
+  instantFoodAmount: 0
   instantMilitiaCount: 0
   healMainBuilding: 0
+  healMainBuildingPercent: 0
+  buildingMaxHealthMultiplier: 1
+  populationCapBonus: 0

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_emergency_gold
   cardName: Emergency Gold
-  description: "Nh\u1EADn ngay 500 V\xE0ng kh\u1EA9n c\u1EA5p."
+  description: Instantly receive 500 Gold.
   icon: {fileID: 1995341195, guid: 93023335b444bcf4090cf23d5e6fafc5, type: 3}
   cardType: 2
   rarity: 1

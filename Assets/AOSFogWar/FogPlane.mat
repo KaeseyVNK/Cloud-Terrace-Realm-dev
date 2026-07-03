@@ -9,14 +9,17 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: FogPlane
   m_Shader: {fileID: 4800000, guid: ede93f0a2c7744c4f98986552dde1539, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 3100
   stringTagMap: {}
   disabledShaderPasses: []
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -30,3 +33,4 @@ Material:
     m_Colors:
     - _Color: {r: 0.019607844, g: 0.05882353, b: 0.09803922, a: 1}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

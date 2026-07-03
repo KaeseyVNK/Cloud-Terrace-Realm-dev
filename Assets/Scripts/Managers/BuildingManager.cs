@@ -127,6 +127,10 @@ public class BuildingManager : MonoBehaviour
     private csFogWar _fogWar;
     private bool _blockPlacementThisFrame = false;
 
+    private int _lastPreviewX = -999;
+    private int _lastPreviewZ = -999;
+    private int _lastPreviewRotation = -1;
+
     // Dictionary để quản lý nhà nào đang nằm trên ô nào
     private Dictionary<GridCell, GameObject> _builtStructures = new Dictionary<GridCell, GameObject>();
 
@@ -356,6 +360,10 @@ public class BuildingManager : MonoBehaviour
         _currentSelectedBuilding = buildingData;
         _currentRotationIndex = 0; // Reset góc xoay về 0 khi chọn công trình mới
 
+        _lastPreviewX = -999;
+        _lastPreviewZ = -999;
+        _lastPreviewRotation = -1;
+
         if (_ghostBuilding != null)
         {
             Destroy(_ghostBuilding);
@@ -471,7 +479,16 @@ public class BuildingManager : MonoBehaviour
 
     private void InteractWithGrid()
     {
-        if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame && (IsBuildMode || IsDeleteMode))
+        // Kiểm tra hủy bỏ chế độ đặt/phá (Click chuột phải hoặc ấn Escape)
+        bool cancelPressed = Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape);
+        #if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
+            cancelPressed = true;
+        if (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.rightButton.wasPressedThisFrame)
+            cancelPressed = true;
+        #endif
+
+        if (cancelPressed && (IsBuildMode || IsDeleteMode))
         {
             CancelBuildMode();
             return;
@@ -489,32 +506,34 @@ public class BuildingManager : MonoBehaviour
             return;
         }
 
-        // NGĂN CLICK XUYÊN QUA UI (UI Click-Through): Nếu chuột đang di chuyển đè lên thanh UI chọn công trình ở dưới,
-        // lập tức ẩn Ghost Building và bỏ qua mọi hành vi chọn ô lưới hoặc đặt nhà để tránh lỗi click chọn công trình là đặt nhà luôn.
-        // Ngăn click xuyên qua UI mới.
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        // Lấy vị trí input hiện tại (hỗ trợ cả Touch và Mouse)
+        Vector2 inputPos = Vector2.zero;
+        bool isPointerDown = false;
+
+        bool isTouch = Input.touchCount > 0;
+        if (isTouch)
+        {
+            Touch touch = Input.GetTouch(0);
+            inputPos = touch.position;
+            isPointerDown = (touch.phase == UnityEngine.TouchPhase.Ended);
+        }
+        else
+        {
+            inputPos = Input.mousePosition;
+            isPointerDown = Input.GetMouseButtonDown(0);
+        }
+
+        // NGĂN CLICK XUYÊN QUA UI (UI Click-Through)
+        if (IsPointerOverUI(inputPos))
         {
             if (_ghostBuilding != null)
             {
                 _ghostBuilding.SetActive(false);
             }
-
-            return;
-        }
-        // Giữ lại tương thích với UI cũ nếu component này vẫn còn bật.
-        BuildingSelectionUI ui = GetComponent<BuildingSelectionUI>();
-        if (ui != null && ui.enabled && ui.IsMouseOverUI())
-        {
-            if (_ghostBuilding != null)
-            {
-                _ghostBuilding.SetActive(false);
-            }
-
             return;
         }
 
-        Vector2 mousePos = Mouse.current.position.ReadValue();
-        Ray ray = Camera.main.ScreenPointToRay(mousePos);
+        Ray ray = Camera.main.ScreenPointToRay(inputPos);
 
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
@@ -533,13 +552,13 @@ public class BuildingManager : MonoBehaviour
                         size = new Vector2Int(size.y, size.x);
                     }
 
-                    // Trừ đi một nửa kích thước để chuột (centerCell) luôn nằm ở giữa công trình
+                    // Trừ đi một nửa kích thước để chuột/ngón tay (centerCell) luôn nằm ở giữa công trình
                     int startX = gridX - size.x / 2;
                     int startZ = gridZ - size.y / 2;
 
                     bool canBuild = CheckBuildingArea(startX, startZ, size, out List<GridCell> cellsToOccupy);
 
-                    // Đổi màu Ghost để báo hiệu (Xanh = Phù hợp, Đỏ = Trái phép / Có vật cản / Đất không bằng phẳng)
+                    // Đổi màu Ghost để báo hiệu (Xanh = Phù hợp, Đỏ = Trái phép / Có vật cản)
                     SetGhostColor(canBuild ? new Color(0, 1, 0, 0.5f) : new Color(1, 0, 0, 0.5f));
 
                     Vector3 centerPos = CalculateBuildingCenter(startX, startZ, centerCell.elevation, size);
@@ -550,14 +569,33 @@ public class BuildingManager : MonoBehaviour
                         _ghostBuilding.SetActive(true);
                     }
 
-                    if (Mouse.current.leftButton.wasPressedThisFrame)
+                    if (isPointerDown)
                     {
-                        TryBuild(startX, startZ, cellsToOccupy, centerPos, canBuild, CurrentSelectedBuilding);
+                        if (isTouch)
+                        {
+                            // Mobile double-tap/confirmation logic:
+                            if (gridX == _lastPreviewX && gridZ == _lastPreviewZ && _currentRotationIndex == _lastPreviewRotation)
+                            {
+                                TryBuild(startX, startZ, cellsToOccupy, centerPos, canBuild, CurrentSelectedBuilding);
+                            }
+                            else
+                            {
+                                _lastPreviewX = gridX;
+                                _lastPreviewZ = gridZ;
+                                _lastPreviewRotation = _currentRotationIndex;
+                                Debug.Log($"[BuildingManager] Touch preview placed at ({gridX}, {gridZ}). Tap again on same tile to construct.");
+                            }
+                        }
+                        else
+                        {
+                            // Mouse (PC): build instantly
+                            TryBuild(startX, startZ, cellsToOccupy, centerPos, canBuild, CurrentSelectedBuilding);
+                        }
                     }
                 }
                 else if (IsDeleteMode)
                 {
-                    if (Mouse.current.leftButton.wasPressedThisFrame)
+                    if (isPointerDown)
                     {
                         DeleteBuilding(centerCell);
                     }
@@ -568,6 +606,18 @@ public class BuildingManager : MonoBehaviour
         {
             if (_ghostBuilding != null) _ghostBuilding.SetActive(false);
         }
+    }
+
+    private bool IsPointerOverUI(Vector2 screenPos)
+    {
+        if (EventSystem.current == null) return false;
+        PointerEventData eventData = new PointerEventData(EventSystem.current);
+        eventData.position = screenPos;
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+        bool isOverUGUI = results.Count > 0;
+        bool isOverIMGUI = BuildingSelectionUI.Instance != null && BuildingSelectionUI.Instance.IsMouseOverUI();
+        return isOverUGUI || isOverIMGUI;
     }
 
     private Vector3 CalculateBuildingCenter(int startX, int startZ, int elevation, Vector2Int size)
@@ -929,6 +979,11 @@ public class BuildingManager : MonoBehaviour
         cb.buildingGridSize = data.buildingSize;
         cb.ConstructionFencePrefab = _constructionFencePrefab;
 
+        if (newBuilding.GetComponent<FogVisibilityTarget>() == null)
+        {
+            newBuilding.AddComponent<FogVisibilityTarget>();
+        }
+
         bool isInstant = data.isInstantBuild || 
                          (data.buildingPrefab != null && (
                              data.buildingPrefab.name.ToLower().Contains("torch") || data.buildingPrefab.name.ToLower().Contains("đoốc") || data.buildingPrefab.name.ToLower().Contains("đuốc") || data.buildingPrefab.name.ToLower().Contains("duoc") ||
@@ -1016,6 +1071,10 @@ public class BuildingManager : MonoBehaviour
         _currentSelectedBuilding = null;
         IsBuildMode = false;
         SetBuildingMenuVisible(false);
+
+        _lastPreviewX = -999;
+        _lastPreviewZ = -999;
+        _lastPreviewRotation = -1;
     }
 
     /// <summary>
@@ -1371,10 +1430,14 @@ public class BuildingManager : MonoBehaviour
         return count;
     }
 
-    private void CancelBuildMode()
+    public void CancelBuildMode()
     {
         IsBuildMode = false;
         IsDeleteMode = false;
+
+        _lastPreviewX = -999;
+        _lastPreviewZ = -999;
+        _lastPreviewRotation = -1;
 
         if (_ghostBuilding != null)
         {

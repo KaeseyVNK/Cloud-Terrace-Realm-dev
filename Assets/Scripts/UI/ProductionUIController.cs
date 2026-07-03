@@ -40,6 +40,7 @@ public class ProductionUIController : MonoBehaviour
     private readonly List<GameObject> _activeSlots = new List<GameObject>();
     private UnitCardUI _unitCardTemplate;
     private Coroutine _fadeCoroutine;
+    private BuildingProduction _productionOverride;
 
 
     // -------- Lifecycle --------
@@ -52,6 +53,12 @@ public class ProductionUIController : MonoBehaviour
         {
             Destroy(gameObject);
             return;
+        }
+
+        _canvasGroup = GetComponent<CanvasGroup>();
+        if (_canvasGroup == null)
+        {
+            _canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
 
         if (_panelRoot != null)
@@ -131,7 +138,7 @@ public class ProductionUIController : MonoBehaviour
     private void Update()
     {
         // Theo dõi TestProductionUI để mở/đóng panel
-        BuildingProduction activeProduction = TestProductionUI.Instance?.SelectedProduction;
+        BuildingProduction activeProduction = _productionOverride != null ? _productionOverride : TestProductionUI.Instance?.SelectedProduction;
 
         // Bỏ qua nếu là Nhà Chính (Main Building)
         if (activeProduction != null && 
@@ -158,12 +165,28 @@ public class ProductionUIController : MonoBehaviour
     /// <summary>Gắn dữ liệu công trình vào UI.</summary>
     public void SetProduction(BuildingProduction production)
     {
+        if (_currentProduction == production)
+        {
+            return;
+        }
+
         _currentProduction = production;
 
         if (_currentProduction != null)
             OpenPanel();
         else
             ClosePanel();
+    }
+
+    public void SetProductionOverride(BuildingProduction production)
+    {
+        _productionOverride = production;
+        SetProduction(production);
+    }
+
+    public void ClearProductionOverride()
+    {
+        _productionOverride = null;
     }
 
     // -------- Private Helpers --------
@@ -324,12 +347,12 @@ public class ProductionUIController : MonoBehaviour
             _progressBar.value = totalTime > 0f ? 1f - (remaining / totalTime) : 0f;
 
             if (_queueLabel != null)
-                _queueLabel.text = $"Hàng đợi: {_currentProduction.CurrentProducingUnit.unitName} ({(_progressBar.value * 100f):F0}%)";
+                _queueLabel.text = $"Queue: {_currentProduction.CurrentProducingUnit.unitName} ({(_progressBar.value * 100f):F0}%)";
         }
         else
         {
             if (_queueLabel != null)
-                _queueLabel.text = "Hàng đợi";
+                _queueLabel.text = "Queue";
         }
     }
 
@@ -430,13 +453,7 @@ public class ProductionUIController : MonoBehaviour
         // Tìm field qua reflection để toggle
         if (TestProductionUI.Instance != null)
         {
-            var field = typeof(TestProductionUI).GetField("_isRallyTargetingMode",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
-            {
-                bool current = (bool)field.GetValue(TestProductionUI.Instance);
-                field.SetValue(TestProductionUI.Instance, !current);
-            }
+            TestProductionUI.Instance.ToggleRallyTargeting(_currentProduction);
         }
     }
 

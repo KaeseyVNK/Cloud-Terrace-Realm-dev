@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: UnlockKnight
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: unlock_knight
-  cardName: "M\u1EDF kh\xF3a Chi\u1EBFn Binh Khi\xEAn"
-  description: "Cho ph\xE9p nghi\xEAn c\u1EE9u v\xE0 hu\u1EA5n luy\u1EC7n Chi\u1EBFn
-    Binh Khi\xEAn t\u1EA1i nh\xE0 l\xEDnh."
+  cardName: Unlock Shield Knight
+  description: Allows training Shield Knights at the Barracks.
   icon: {fileID: 2019317813, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 1
   rarity: 1

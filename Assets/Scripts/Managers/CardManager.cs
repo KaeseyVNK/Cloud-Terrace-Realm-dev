@@ -671,14 +671,14 @@ public class CardManager : MonoBehaviour
 
     private void InitializeDefaultDecrees()
     {
-        CreateDecreeIfNotExists("decree_good_harvest", "Thu Hoạch Trúng Mùa", 
-            "Tốc độ làm ruộng tăng 50% nhưng sát thương của lính giảm 15% cho hôm nay.", 
+        CreateDecreeIfNotExists("decree_good_harvest", "Bountiful Harvest", 
+            "Farming speed increased by 50%, but soldier damage reduced by 15% for today.", 
             UpgradeCardType.Decree, 1.5f, 0.85f, 1f, 1f);
-        CreateDecreeIfNotExists("decree_martial_law", "Thiết Quân Luật", 
-            "Giảm 20% lượng thực phẩm dân làng tiêu thụ nhưng tăng thời gian xây dựng thêm 20% cho hôm nay.", 
+        CreateDecreeIfNotExists("decree_martial_law", "Martial Law", 
+            "Food consumption reduced by 20%, but construction time increased by 20% for today.", 
             UpgradeCardType.Decree, 1f, 1f, 1f, 1f);
-        CreateDecreeIfNotExists("decree_night_scout", "Trinh Sát Đi Đêm", 
-            "Tầm nhìn sương mù (Fog war) tăng gấp đôi nhưng quái vật ban đêm sẽ mạnh hơn 50% cho hôm nay.", 
+        CreateDecreeIfNotExists("decree_night_scout", "Night Scout", 
+            "Fog of War vision doubled, but night monsters are 50% stronger for today.", 
             UpgradeCardType.Decree, 1f, 1f, 1f, 1f);
     }
 

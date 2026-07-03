@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_forestry_gear
   cardName: Forestry Gear
-  description: "+30% T\u1ED1c \u0111\u1ED9 khai th\xE1c G\u1ED7 cho D\xE2n l\xE0ng."
+  description: +30% Wood gathering speed for Villagers.
   icon: {fileID: -1696057453, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 0
+  rarity: 0
   unitHealthMultiplier: 1
   unitDamageMultiplier: 1
   unitSpeedMultiplier: 1
@@ -30,5 +31,11 @@ MonoBehaviour:
   unitToUnlock: {fileID: 0}
   instantResourceType: 0
   instantResourceAmount: 0
+  instantWoodAmount: 0
+  instantStoneAmount: 0
+  instantFoodAmount: 0
   instantMilitiaCount: 0
   healMainBuilding: 0
+  healMainBuildingPercent: 0
+  buildingMaxHealthMultiplier: 1
+  populationCapBonus: 0

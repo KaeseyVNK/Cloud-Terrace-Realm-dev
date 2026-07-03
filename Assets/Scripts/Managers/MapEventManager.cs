@@ -312,8 +312,8 @@ public class MapEventManager : MonoBehaviour
             unlocked = EnemyManager.Instance.GetUnlockedEnemyPrefabs(currentNight);
         }
 
-        // Tăng số lượng quái phục kích theo thời gian (cứ sau 4 đêm tăng thêm 1 quái)
-        int scalingBonus = (currentNight - 1) / 4;
+        // Tăng số lượng quái phục kích theo thời gian (cứ sau 3 đêm tăng thêm 1 quái)
+        int scalingBonus = (currentNight - 1) / 3;
         int finalCount = count + scalingBonus;
 
         MerchantCaravanUnit targetUnit = null;
@@ -366,11 +366,13 @@ public class MapEventManager : MonoBehaviour
 
             GameObject enemyObj = Instantiate(prefab, spawnPos, Quaternion.identity);
 
-            // Áp dụng hệ số nhân sức mạnh theo số đêm của game
+            // Áp dụng hệ số nhân sức mạnh theo số đêm của game (+15% cho lính phục kích đặc biệt)
             var enemyController = enemyObj.GetComponent<BaseCombatUnitController>();
             if (enemyController != null && EnemyManager.Instance != null)
             {
                 EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
+                healthMult *= 1.15f;
+                damageMult *= 1.15f;
                 enemyController.ApplyStatMultipliers(healthMult, damageMult, speedMult);
             }
 
@@ -424,15 +426,25 @@ public class MapEventManager : MonoBehaviour
                 cell.resourceObject = portalObj;
             }
 
+            int currentNight = EnemyManager.Instance != null ? EnemyManager.Instance.CurrentNightNumber : 1;
+
             VoidPortal portalComponent = portalObj.GetComponent<VoidPortal>();
             if (portalComponent != null)
             {
                 portalComponent.SetOccupiedCells(cellsToOccupy);
                 _activePortals.Add(portalComponent);
+
+                // Tăng máu của Cổng Hư Vô theo thời gian của game
+                if (EnemyManager.Instance != null)
+                {
+                    EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
+                    portalComponent.ApplyStatMultipliers(healthMult, 1f, 1f);
+                }
             }
 
-            // Spawn 3 quái gác cổng hư không
-            SpawnAmbushGuards(spawnPos, 3);
+            // Spawn quái gác cổng hư không tăng theo thời gian (3 quái mặc định, cứ 3 ngày thêm 1 quái)
+            int guardCount = 3 + (currentNight - 1) / 3;
+            SpawnAmbushGuards(spawnPos, guardCount);
 
             _activeEvents.Add(portalObj);
 

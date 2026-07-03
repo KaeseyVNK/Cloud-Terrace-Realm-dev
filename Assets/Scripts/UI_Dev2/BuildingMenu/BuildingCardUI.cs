@@ -7,7 +7,8 @@ using UnityEngine.UI;
 public class BuildingCardUI : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler,
-    IPointerClickHandler
+    IPointerDownHandler,
+    IPointerUpHandler
 {
     [Header("Card UI")]
     [SerializeField] private TMP_Text _buildingNameText;
@@ -42,6 +43,11 @@ public class BuildingCardUI : MonoBehaviour,
 
     private Coroutine _hoverScaleCoroutine;
     private Coroutine _popInCoroutine;
+    private bool _isUnlocked = true;
+    private bool _isPointerDown;
+    private bool _isHoldTooltipShown;
+    private float _pointerDownTime;
+    private const float HoldTooltipThreshold = 0.4f;
     private const float HoverScaleFactor = 1.05f;
     private const float ScaleDuration = 0.15f;
 
@@ -49,7 +55,8 @@ public class BuildingCardUI : MonoBehaviour,
     {
         if (_buildButton != null)
         {
-            _buildButton.onClick.AddListener(OnBuildButtonClicked);
+            _buildButton.onClick.RemoveListener(OnBuildButtonClicked);
+            _buildButton.enabled = false;
         }
 
         if (_tooltipRoot != null)
@@ -63,6 +70,20 @@ public class BuildingCardUI : MonoBehaviour,
         if (_buildButton != null)
         {
             _buildButton.onClick.RemoveListener(OnBuildButtonClicked);
+        }
+    }
+
+    private void Update()
+    {
+        if (!_isPointerDown || _isHoldTooltipShown)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime - _pointerDownTime >= HoldTooltipThreshold)
+        {
+            _isHoldTooltipShown = true;
+            ShowTooltip();
         }
     }
 
@@ -91,6 +112,8 @@ public class BuildingCardUI : MonoBehaviour,
         SetupIcon();
         // SetupCostText();
         SetupCostIcons();
+        _isUnlocked = IsBuildingUnlocked();
+        UpdateUnlockedState();
         SetupTooltip();
     }
 
@@ -166,10 +189,17 @@ public class BuildingCardUI : MonoBehaviour,
 
         if (_tooltipDescriptionText != null)
         {
-            _tooltipDescriptionText.text =
-                string.IsNullOrWhiteSpace(_buildingData.description)
-                    ? "No description available."
-                    : _buildingData.description;
+            if (!_isUnlocked)
+            {
+                _tooltipDescriptionText.text = GetRequirementText();
+            }
+            else
+            {
+                _tooltipDescriptionText.text =
+                    string.IsNullOrWhiteSpace(_buildingData.description)
+                        ? "No description available."
+                        : _buildingData.description;
+            }
         }
 
         if (_tooltipRoot != null)
@@ -183,6 +213,12 @@ public class BuildingCardUI : MonoBehaviour,
         if (_buildingData == null)
         {
             Debug.LogError("[BuildingCardUI] BuildingData is null.", this);
+            return;
+        }
+
+        if (!_isUnlocked)
+        {
+            Debug.Log($"[BuildingCardUI] Locked building: {_buildingData.buildingName}", this);
             return;
         }
 
@@ -212,13 +248,6 @@ public class BuildingCardUI : MonoBehaviour,
             return;
         }
 
-        if (_tooltipRoot != null)
-        {
-            CacheTooltipOriginalValues();
-            _tooltipRoot.SetActive(true);
-            MoveTooltipToTopLayer();
-        }
-
         if (_hoverScaleCoroutine != null) StopCoroutine(_hoverScaleCoroutine);
         if (_popInCoroutine != null)
         {
@@ -241,14 +270,43 @@ public class BuildingCardUI : MonoBehaviour,
         _hoverScaleCoroutine = StartCoroutine(ScaleTo(Vector3.one, ScaleDuration));
     }
 
-    public void OnPointerClick(PointerEventData eventData)
+    public void OnPointerDown(PointerEventData eventData)
     {
         if (eventData.button != PointerEventData.InputButton.Left)
         {
             return;
         }
 
-        OnBuildButtonClicked();
+        if (_buildingData == null)
+        {
+            return;
+        }
+
+        _isPointerDown = true;
+        _isHoldTooltipShown = false;
+        _pointerDownTime = Time.unscaledTime;
+        HideTooltip();
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+        {
+            return;
+        }
+
+        bool shouldBuild = _isPointerDown && !_isHoldTooltipShown;
+        bool shouldHideTooltip = _isHoldTooltipShown;
+        _isPointerDown = false;
+
+        if (shouldBuild)
+        {
+            OnBuildButtonClicked();
+        }
+        else if (shouldHideTooltip)
+        {
+            HideTooltip();
+        }
     }
 
     public void AnimatePopIn(float delay)
@@ -499,5 +557,104 @@ public class BuildingCardUI : MonoBehaviour,
         {
             amountText.text = amount.ToString();
         }
+    }
+
+    private void ShowTooltip()
+    {
+        if (_buildingData == null || _tooltipRoot == null)
+        {
+            return;
+        }
+
+        CacheTooltipOriginalValues();
+        _tooltipRoot.SetActive(true);
+        MoveTooltipToTopLayer();
+    }
+
+    private bool IsBuildingUnlocked()
+    {
+        if (_buildingData == null)
+        {
+            return false;
+        }
+
+        if (_buildingData.requiredBuildings == null || _buildingData.requiredBuildings.Count == 0)
+        {
+            return true;
+        }
+
+        BuildingManager manager = BuildingManager.Instance;
+        if (manager == null)
+        {
+            return false;
+        }
+
+        foreach (BuildingData requiredBuilding in _buildingData.requiredBuildings)
+        {
+            if (requiredBuilding == null)
+            {
+                continue;
+            }
+
+            if (!manager.BuiltBuildingCounts.TryGetValue(requiredBuilding, out int count) || count <= 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void UpdateUnlockedState()
+    {
+        if (_buildButton != null)
+        {
+            _buildButton.interactable = _isUnlocked;
+            _buildButton.enabled = false;
+        }
+
+        CanvasGroup canvasGroup = GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+        {
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+        }
+
+        canvasGroup.alpha = _isUnlocked ? 1f : 0.48f;
+        canvasGroup.interactable = _isUnlocked;
+        canvasGroup.blocksRaycasts = true;
+
+        if (_buildingNameText != null && !_isUnlocked)
+        {
+            _buildingNameText.text = _buildingData.buildingName + " (Locked)";
+        }
+    }
+
+    private string GetRequirementText()
+    {
+        if (_buildingData == null ||
+            _buildingData.requiredBuildings == null ||
+            _buildingData.requiredBuildings.Count == 0)
+        {
+            return "Locked";
+        }
+
+        StringBuilder builder = new StringBuilder("Requires: ");
+        for (int i = 0; i < _buildingData.requiredBuildings.Count; i++)
+        {
+            BuildingData requiredBuilding = _buildingData.requiredBuildings[i];
+            if (requiredBuilding == null)
+            {
+                continue;
+            }
+
+            if (builder.Length > "Requires: ".Length)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(requiredBuilding.buildingName);
+        }
+
+        return builder.ToString();
     }
 }

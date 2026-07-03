@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: FenceWood
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "H\xE0ng R\xE0o G\u1ED7"
-  description: "R\xE0o g\u1ED7 d\xF9ng \u0111\u1EC3 c\u1EA3n \u0111\u01B0\u1EDDng
-    qu\xE1i v\u1EADt v\xE0o ban \u0111\xEAm."
+  buildingName: Wooden Fence
+  description: Wooden fence used to block monsters at night.
   category: 5
   icon: {fileID: 0}
   buildingPrefab: {fileID: 6771794388567804410, guid: 5565b24d3933cf3408ecf002b481e7fa, type: 3}

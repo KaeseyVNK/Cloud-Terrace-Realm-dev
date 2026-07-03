@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: UnlockBommer
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: unlock_bommer
-  cardName: "M\u1EDF kh\xF3a L\xEDnh Qu\u0103ng Bom"
-  description: "Cho ph\xE9p nghi\xEAn c\u1EE9u v\xE0 hu\u1EA5n luy\u1EC7n L\xEDnh
-    Qu\u0103ng Bom t\u1EA1i nh\xE0 l\xEDnh."
+  cardName: Unlock Bomber
+  description: Allows training Bombers at the Barracks.
   icon: {fileID: 20535701, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 1
   rarity: 2

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: EmergencySupply
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: EmergencySupply
-  cardName: Tiep Te Khan Cap
-  description: Ngay lap tuc nhan duoc 150 Go, 100 Da va 80 Thuc An.
+  cardName: Emergency Supplies
+  description: Instantly receive 150 Wood, 100 Stone, and 80 Food.
   icon: {fileID: 0}
   cardType: 2
   rarity: 1

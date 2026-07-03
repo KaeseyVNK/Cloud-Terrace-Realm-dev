@@ -1,8 +1,12 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System.Collections.Generic;
 
 public class UnitSelectionManager : MonoBehaviour
 {
+    private const int WalkableNavMeshAreaMask = ~2;
+    private const float CommandDestinationSampleRadius = 4f;
+
     public static UnitSelectionManager Instance;
 
     public List<SelectableUnit> selectedUnits = new List<SelectableUnit>();
@@ -22,7 +26,18 @@ public class UnitSelectionManager : MonoBehaviour
     private bool _isBuildMode = false;
 
     private Vector2 _commandScreenPos;
-    public static bool IsBoxSelectMode { get; set; } = false;
+    private static bool _isBoxSelectMode = false;
+    public static event System.Action<bool> OnBoxSelectModeChanged;
+    public static bool IsBoxSelectMode
+    {
+        get => _isBoxSelectMode;
+        set
+        {
+            if (_isBoxSelectMode == value) return;
+            _isBoxSelectMode = value;
+            OnBoxSelectModeChanged?.Invoke(_isBoxSelectMode);
+        }
+    }
 
     private float _touchStartTime = 0f;
     private Vector2 _touchStartPos;
@@ -269,8 +284,8 @@ public class UnitSelectionManager : MonoBehaviour
 
         if (touch.phase == TouchPhase.Began)
         {
-            if (UnityEngine.EventSystems.EventSystem.current != null && 
-                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(touch.fingerId))
+            _touchStartedOverUI = IsPointerOverUI(touch.position);
+            if (_touchStartedOverUI)
             {
                 return;
             }
@@ -289,11 +304,23 @@ public class UnitSelectionManager : MonoBehaviour
             if (IsBoxSelectMode)
             {
                 startMousePos = touch.position;
+                _dragCurrentScreenPos = touch.position;
                 isDragging = true;
             }
         }
-        else if (touch.phase == TouchPhase.Moved)
+        
+        if (_touchStartedOverUI)
         {
+            if (touch.phase == TouchPhase.Ended)
+            {
+                _touchStartedOverUI = false;
+            }
+            return;
+        }
+
+        if (touch.phase == TouchPhase.Moved)
+        {
+            _dragCurrentScreenPos = touch.position;
             if (Vector2.Distance(_touchStartPos, touch.position) > 15f)
             {
                 _hasTouchMoved = true;
@@ -301,6 +328,8 @@ public class UnitSelectionManager : MonoBehaviour
         }
         else if (touch.phase == TouchPhase.Ended)
         {
+            _dragCurrentScreenPos = touch.position;
+
             if (isDragging && IsBoxSelectMode)
             {
                 isDragging = false;
@@ -317,6 +346,17 @@ public class UnitSelectionManager : MonoBehaviour
             else if (!_hasTouchMoved && (Time.time - _touchStartTime < 0.4f))
             {
                 _commandScreenPos = touch.position;
+
+                // CLICK OUTSIDE BUILD MENU -> CLOSE IT (but ignore if clicked on UI)
+                if (BuildingManager.Instance != null && BuildingManager.Instance.IsBuildMode && BuildingManager.Instance.CurrentSelectedBuilding == null)
+                {
+                    // Check again at Ended to make absolutely sure we didn't release over UI
+                    if (!IsPointerOverUI(touch.position))
+                    {
+                        BuildingManager.Instance.CancelBuildMode();
+                        return;
+                    }
+                }
 
                 if (selectedUnits.Count > 0)
                 {
@@ -361,9 +401,8 @@ public class UnitSelectionManager : MonoBehaviour
         // Bắt đầu click trái
         if (Input.GetMouseButtonDown(0))
         {
-            // Avoid starting selection logic when clicking on UGUI elements
-            if (UnityEngine.EventSystems.EventSystem.current != null && 
-                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            // Avoid starting selection logic when clicking on UI elements
+            if (IsPointerOverUI(Input.mousePosition))
             {
                 return;
             }
@@ -375,13 +414,27 @@ public class UnitSelectionManager : MonoBehaviour
                 return;
             }
 
+            // CLICK OUTSIDE BUILD MENU -> CLOSE IT
+            if (BuildingManager.Instance != null && BuildingManager.Instance.IsBuildMode && BuildingManager.Instance.CurrentSelectedBuilding == null)
+            {
+                BuildingManager.Instance.CancelBuildMode();
+                return;
+            }
+
             startMousePos = Input.mousePosition;
+            _dragCurrentScreenPos = Input.mousePosition;
             isDragging = true;
+        }
+
+        if (isDragging)
+        {
+            _dragCurrentScreenPos = Input.mousePosition;
         }
 
         // Thả chuột trái
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
+            _dragCurrentScreenPos = Input.mousePosition;
             isDragging = false;
             if (Vector2.Distance(startMousePos, Input.mousePosition) > 10f)
             {
@@ -397,9 +450,8 @@ public class UnitSelectionManager : MonoBehaviour
         // Khi click chuột phải ra lệnh
         if (Input.GetMouseButtonDown(1))
         {
-            // Avoid issuing commands when clicking on UGUI elements
-            if (UnityEngine.EventSystems.EventSystem.current != null && 
-                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            // Avoid issuing commands when clicking on UI elements
+            if (IsPointerOverUI(Input.mousePosition))
             {
                 return;
             }
@@ -466,18 +518,9 @@ public class UnitSelectionManager : MonoBehaviour
                             }
                             else
                             {
-                                Vector3 targetPos = hit.point + GetFormationOffset(moveIndex, 1.5f);
-                                if (Terrain.activeTerrain != null)
-                                {
-                                    targetPos.y = Terrain.activeTerrain.SampleHeight(targetPos) + Terrain.activeTerrain.transform.position.y;
-                                }
-                                else
-                                {
-                                    targetPos.y = 0f;
-                                }
+                                Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.5f), hit.point);
                                 combatUnit.CommandAttackMove(targetPos);
                                 moveIndex++;
-                                Debug.Log($"[RTS] Chỉ định di chuyển tấn công tới: {targetPos}");
                             }
                         }
                     }
@@ -602,12 +645,14 @@ public class UnitSelectionManager : MonoBehaviour
 
     private void HandleBoxSelection()
     {
+        bool shouldAutoDisableBoxSelect = IsBoxSelectMode;
+
         if (!Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
         {
             DeselectAll();
         }
 
-        Vector2 endMousePos = Input.mousePosition;
+        Vector2 endMousePos = _dragCurrentScreenPos;
         Rect selectionRect = new Rect(
             Mathf.Min(startMousePos.x, endMousePos.x),
             Mathf.Min(startMousePos.y, endMousePos.y),
@@ -631,19 +676,24 @@ public class UnitSelectionManager : MonoBehaviour
                 }
             }
         }
+
+        if (shouldAutoDisableBoxSelect)
+        {
+            IsBoxSelectMode = false;
+        }
     }
 
     void OnGUI()
     {
-        if (isDragging && Vector2.Distance(startMousePos, Input.mousePosition) > 10f)
+        if (isDragging && Vector2.Distance(startMousePos, _dragCurrentScreenPos) > 10f)
         {
             float startY = Screen.height - startMousePos.y;
-            float currentY = Screen.height - Input.mousePosition.y;
+            float currentY = Screen.height - _dragCurrentScreenPos.y;
 
             Rect rect = new Rect(
-                Mathf.Min(startMousePos.x, Input.mousePosition.x),
+                Mathf.Min(startMousePos.x, _dragCurrentScreenPos.x),
                 Mathf.Min(startY, currentY),
-                Mathf.Abs(startMousePos.x - Input.mousePosition.x),
+                Mathf.Abs(startMousePos.x - _dragCurrentScreenPos.x),
                 Mathf.Abs(startY - currentY)
             );
 
@@ -851,18 +901,9 @@ public class UnitSelectionManager : MonoBehaviour
                         else
                         {
                             // Tính vị trí trong đội hình vòng tròn đồng tâm
-                            Vector3 targetPos = hit.point + GetFormationOffset(moveIndex, 1.2f);
-                            if (Terrain.activeTerrain != null)
-                            {
-                                targetPos.y = Terrain.activeTerrain.SampleHeight(targetPos) + Terrain.activeTerrain.transform.position.y;
-                            }
-                            else
-                            {
-                                targetPos.y = 0f;
-                            }
+                            Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.2f), hit.point);
                             villager.CommandMoveTo(targetPos);
                             moveIndex++;
-                            Debug.Log($"[RTS] Đã ra lệnh di chuyển cho {unit.gameObject.name} tới vị trí đội hình: {targetPos}");
                         }
                     }
                     else if (combatUnit != null)
@@ -876,18 +917,9 @@ public class UnitSelectionManager : MonoBehaviour
                         else
                         {
                             // Tính vị trí trong đội hình vòng tròn đồng tâm
-                            Vector3 targetPos = hit.point + GetFormationOffset(moveIndex, 1.5f);
-                            if (Terrain.activeTerrain != null)
-                            {
-                                targetPos.y = Terrain.activeTerrain.SampleHeight(targetPos) + Terrain.activeTerrain.transform.position.y;
-                            }
-                            else
-                            {
-                                targetPos.y = 0f;
-                            }
+                            Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.5f), hit.point);
                             combatUnit.CommandMove(targetPos);
                             moveIndex++;
-                            Debug.Log($"[RTS] Đã ra lệnh di chuyển {unit.gameObject.name} tới vị trí đội hình: {targetPos}");
                         }
                     }
                 }
@@ -968,7 +1000,31 @@ public class UnitSelectionManager : MonoBehaviour
         return visibilityTarget != null && !visibilityTarget.IsVisible;
     }
 
-    private Vector3 GetFormationOffset(int index, float spacing)
+    private Vector3 ResolveCommandDestination(Vector3 desiredPosition, Vector3 fallbackCenter)
+    {
+        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit desiredHit, CommandDestinationSampleRadius, WalkableNavMeshAreaMask))
+        {
+            return desiredHit.position;
+        }
+
+        if (NavMesh.SamplePosition(fallbackCenter, out NavMeshHit fallbackHit, CommandDestinationSampleRadius * 2f, WalkableNavMeshAreaMask))
+        {
+            return fallbackHit.position;
+        }
+
+        if (Terrain.activeTerrain != null)
+        {
+            desiredPosition.y = Terrain.activeTerrain.SampleHeight(desiredPosition) + Terrain.activeTerrain.transform.position.y;
+        }
+        else
+        {
+            desiredPosition.y = 0f;
+        }
+
+        return desiredPosition;
+    }
+
+    public Vector3 GetFormationOffset(int index, float spacing)
     {
         if (index == 0) return Vector3.zero;
 
@@ -1179,4 +1235,158 @@ public class UnitSelectionManager : MonoBehaviour
             }
         }
     }
+
+    private bool _touchStartedOverUI = false;
+    private Vector2 _dragCurrentScreenPos;
+
+    private bool IsPointerOverUIObject(Vector2 screenPosition)
+    {
+        if (UnityEngine.EventSystems.EventSystem.current == null) return false;
+        UnityEngine.EventSystems.PointerEventData eventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
+        eventData.position = screenPosition;
+        List<UnityEngine.EventSystems.RaycastResult> results = new List<UnityEngine.EventSystems.RaycastResult>();
+        UnityEngine.EventSystems.EventSystem.current.RaycastAll(eventData, results);
+        return results.Count > 0;
+    }
+
+    public bool IsPointerOverUI(Vector2 screenPosition)
+    {
+        bool isOverUGUI = IsPointerOverUIObject(screenPosition);
+        bool isOverIMGUI = BuildingSelectionUI.Instance != null && BuildingSelectionUI.Instance.IsMouseOverUI();
+        return isOverUGUI || isOverIMGUI;
+    }
+
+    private void TriggerTargetBounce(GameObject target)
+    {
+        if (target == null) return;
+
+        // Nếu là ResourceNode thì dùng luôn hiệu ứng của nó
+        var node = target.GetComponentInParent<ResourceNode>();
+        if (node != null)
+        {
+            node.TriggerBounceEffect();
+            return;
+        }
+
+        // Nếu là Công trình hoặc Phế tích thì dynamic attach TargetBounceEffect
+        var building = target.GetComponentInParent<ConstructibleBuilding>();
+        var ruins = target.GetComponentInParent<AncientRuins>();
+        var tower = target.GetComponentInParent<WatchTowerGarrison>();
+
+        if (building != null || ruins != null || tower != null)
+        {
+            var parent = target.transform.parent;
+            var attachTarget = parent != null ? parent.gameObject : target;
+            var bounce = attachTarget.GetComponent<CloudTerraceRealm.UI.TargetBounceEffect>();
+            if (bounce == null)
+            {
+                bounce = attachTarget.AddComponent<CloudTerraceRealm.UI.TargetBounceEffect>();
+            }
+            if (bounce != null)
+            {
+                bounce.TriggerBounce();
+            }
+        }
+    }
+
+    private GameObject GetTargetBounceObject(RaycastHit hit)
+    {
+        ResourceNode node = hit.collider.GetComponentInParent<ResourceNode>();
+        if (node == null)
+        {
+            GridSystem grid = FindAnyObjectByType<GridSystem>();
+            if (grid != null)
+            {
+                grid.GetXY(hit.point, out int gridX, out int gridZ);
+                GridCell cell = grid.GetCell(gridX, gridZ);
+                if (cell != null && cell.hasResource && cell.resourceObject != null && !IsHiddenByFog(cell.resourceObject))
+                {
+                    node = cell.resourceObject.GetComponent<ResourceNode>();
+                }
+            }
+        }
+        return node != null ? node.gameObject : hit.collider.gameObject;
+    }
+
+    private void RefreshSelectionBoxOverlay()
+    {
+        SelectionBoxOverlayUI overlay = SelectionBoxOverlayUI.Instance;
+        if (overlay == null)
+        {
+            return;
+        }
+
+        if (isDragging && Vector2.Distance(startMousePos, _dragCurrentScreenPos) > 10f)
+        {
+            overlay.Show(startMousePos, _dragCurrentScreenPos, selectionBoxColor, selectionBoxBorderColor);
+        }
+        else
+        {
+            overlay.Hide();
+        }
+    }
+
+    private bool TryHandleSelectedVillagerResourceClick(Ray ray)
+    {
+        if (selectedUnits.Count == 0)
+        {
+            return false;
+        }
+
+        bool hasVillager = false;
+        foreach (SelectableUnit unit in selectedUnits)
+        {
+            if (unit != null && unit.GetComponent<VillagerController>() != null)
+            {
+                hasVillager = true;
+                break;
+            }
+        }
+
+        if (!hasVillager || !TryGetCommandHit(ray, out RaycastHit hit))
+        {
+            return false;
+        }
+
+        ResourceNode clickedNode = hit.collider.GetComponentInParent<ResourceNode>();
+        if (clickedNode == null)
+        {
+            GridSystem grid = FindAnyObjectByType<GridSystem>();
+            if (grid != null)
+            {
+                grid.GetXY(hit.point, out int gridX, out int gridZ);
+                GridCell cell = grid.GetCell(gridX, gridZ);
+                if (cell != null && cell.hasResource && cell.resourceObject != null && !IsHiddenByFog(cell.resourceObject))
+                {
+                    clickedNode = cell.resourceObject.GetComponent<ResourceNode>();
+                }
+            }
+        }
+
+        if (clickedNode == null || IsHiddenByFog(clickedNode.gameObject) || clickedNode.GetComponentInParent<RiceField>() != null)
+        {
+            return false;
+        }
+
+        clickedNode.TriggerBounceEffect();
+        MyGame.UI.MoveIndicator.Spawn(clickedNode.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+
+        foreach (SelectableUnit unit in selectedUnits)
+        {
+            if (unit == null)
+            {
+                continue;
+            }
+
+            VillagerController villager = unit.GetComponent<VillagerController>();
+            if (villager != null)
+            {
+                villager.CommandGather(clickedNode, null);
+                Debug.Log($"[RTS] Left-click chỉ định khai thác tài nguyên: {clickedNode.ResourceType}");
+            }
+        }
+
+        return true;
+    }
+
 }

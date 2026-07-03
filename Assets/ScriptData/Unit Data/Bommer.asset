@@ -12,16 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Bommer
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: "L\xEDnh Qu\u0103ng Bom"
-  description: "\u0110\u01A1n v\u1ECB n\xE9m bom thu\u1ED1c s\xFAng g\xE2y s\xE1t
-    th\u01B0\u01A1ng di\u1EC7n r\u1ED9ng (AoE) m\u1EA1nh m\u1EBD."
+  unitName: Bomber
+  description: Gunpowder unit throwing bombs that deal high area-of-effect (AoE)
+    damage.
   unitPrefab: {fileID: 8583302773672984860, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
   portraitIcon: {fileID: 20535701, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   productionTime: 5
   productionCosts:
   - resourceType: 2
-    amount: 20
-  - resourceType: 4
     amount: 30
+  - resourceType: 0
+    amount: 10
+  - resourceType: 4
+    amount: 20
   requiredTechnologies:
   - {fileID: 11400000, guid: 046ff2c8df4662a44938502fa37c9ef0, type: 2}

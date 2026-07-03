@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: UnlockRogue
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: unlock_rogue
-  cardName: "M\u1EDF kh\xF3a S\xE1t Th\u1EE7 B\xF3ng \u0110\xEAm"
-  description: "Cho ph\xE9p nghi\xEAn c\u1EE9u v\xE0 hu\u1EA5n luy\u1EC7n S\xE1t
-    Th\u1EE7 B\xF3ng \u0110\xEAm t\u1EA1i nh\xE0 l\xEDnh."
+  cardName: Unlock Dark Rogue
+  description: Allows training Dark Rogues at the Barracks.
   icon: {fileID: -489099260, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 1
   rarity: 1

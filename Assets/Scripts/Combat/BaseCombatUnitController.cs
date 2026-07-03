@@ -799,6 +799,15 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         currentHealth -= damage;
         currentHealth = Mathf.Max(0, currentHealth);
 
+        if (faction == UnitFaction.Player && damage > 0)
+        {
+            var minimap = FindAnyObjectByType<MinimapUIController>();
+            if (minimap != null)
+            {
+                minimap.ShowPing(transform.position, Color.red, 2f);
+            }
+        }
+
         if (MyGame.Audio.AudioManager.Instance != null && attacker != null)
         {
             if (!(attacker is RangedCombatUnitController))
@@ -1012,15 +1021,50 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             SetAnimatorBoolIfExists("IsAttacking", false);
         }
 
-        if (IsNavAgentReady())
+        if (!TrySetManualMoveDestination(position, out Vector3 resolvedDestination))
         {
-            navAgent.stoppingDistance = 0.2f; // Reset về mặc định khi di chuyển thường
-            navAgent.isStopped = false;
-            navAgent.SetDestination(position);
+            isManualMoveCommand = false;
+            _manualMoveDestination = transform.position;
+            _noPathTimer = 0f;
+            _movingStuckTimer = 0f;
+            ChangeState(CombatState.Idle);
+            return;
         }
-        _manualMoveDestination = position;
+
+        _manualMoveDestination = resolvedDestination;
         _noPathTimer = 0f;
         ChangeState(CombatState.Moving);
+    }
+
+    private bool TrySetManualMoveDestination(Vector3 requestedPosition, out Vector3 resolvedDestination)
+    {
+        resolvedDestination = requestedPosition;
+        if (!IsNavAgentReady())
+        {
+            return false;
+        }
+
+        navAgent.stoppingDistance = 0.2f;
+        navAgent.isStopped = false;
+
+        NavMeshPath path = new NavMeshPath();
+        if (navAgent.CalculatePath(requestedPosition, path) && path.status == NavMeshPathStatus.PathComplete)
+        {
+            resolvedDestination = requestedPosition;
+            return navAgent.SetDestination(resolvedDestination);
+        }
+
+        if (NavMesh.SamplePosition(requestedPosition, out NavMeshHit hit, 4f, ~2)
+            && navAgent.CalculatePath(hit.position, path)
+            && path.status == NavMeshPathStatus.PathComplete)
+        {
+            resolvedDestination = hit.position;
+            return navAgent.SetDestination(resolvedDestination);
+        }
+
+        navAgent.isStopped = true;
+        navAgent.ResetPath();
+        return false;
     }
 
     public virtual void CommandStop()

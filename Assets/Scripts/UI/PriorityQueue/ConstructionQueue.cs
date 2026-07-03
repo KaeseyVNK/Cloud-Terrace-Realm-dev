@@ -64,8 +64,8 @@ public class ConstructionQueue : MonoBehaviour
     [ContextMenu("Add Test Building")]
     public void AddTestBuilding()
     {
-        AddBuilding("Nhà kho", Vector3.zero, null);
-        AddBuilding("Nhà dân", Vector3.one, null);
-        AddBuilding("Xưởng thợ", Vector3.one * 2, null);
+        AddBuilding("Warehouse", Vector3.zero, null);
+        AddBuilding("House", Vector3.one, null);
+        AddBuilding("Workshop", Vector3.one * 2, null);
     }
 }

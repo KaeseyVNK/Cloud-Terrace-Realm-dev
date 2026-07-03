@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: HarvestSeason
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: HarvestSeason
-  cardName: Mua Thu Hoach
-  description: Toc do thu hoach thuc an tang 30%. Dan lang no bung, lam viec hang
-    hon!
+  cardName: Harvest Season
+  description: Food gathering speed increased by 30%.
   icon: {fileID: 0}
   cardType: 0
   rarity: 0

@@ -38,13 +38,13 @@ public class VillagerController : MonoBehaviour
 
     [Header("Chuỗi Cung Ứng (Inventory)")]
     [Tooltip("Sức chứa tối đa của dân làng")]
-    [SerializeField] private int _maxCarryCapacity = 5;
+    [SerializeField] private int _maxCarryCapacity = 15;
 
     [Tooltip("Thời gian để hoàn thành 1 chu kỳ khai thác (giây)")]
-    [SerializeField] private float _timeToGather = 3f;
+    [SerializeField] private float _timeToGather = 2.2f;
 
     [Tooltip("Số lượng tài nguyên khai thác mỗi chu kỳ")]
-    [SerializeField] private int _gatherAmountPerTick = 1;
+    [SerializeField] private int _gatherAmountPerTick = 3;
 
     [Header("Chuỗi Cung Ứng - Nộp Tài Nguyên")]
     [Tooltip("Thời gian để nộp tài nguyên vào kho (giây)")]
@@ -139,9 +139,11 @@ public class VillagerController : MonoBehaviour
     private int _pathRetryCount = 0;
     private float _stuckTimer = 0f;
     private float _unstuckDurationTimer = 0f;
+    private float _nextUnstuckRepathTime = 0f;
     private float _defaultAgentRadius = 0.35f;
 
     private const int MaxPathRetries = 5;
+    private const float UnstuckRepathCooldown = 0.75f;
 
     private HouseShelter _assignedShelter;
     private WatchTowerGarrison _assignedGarrison;
@@ -951,13 +953,29 @@ public class VillagerController : MonoBehaviour
         }
 
         // Stuck Solver (AOE/SC2 Style)
-        if (_navAgent.hasPath && _navAgent.velocity.sqrMagnitude < 0.05f)
+        bool isBlockedOnPath = _navAgent.hasPath
+            && !_navAgent.pathPending
+            && _navAgent.velocity.sqrMagnitude < 0.05f
+            && _navAgent.remainingDistance > _navAgent.stoppingDistance + 0.35f;
+
+        if (isBlockedOnPath)
         {
             _stuckTimer += Time.deltaTime;
             if (_stuckTimer > 1.2f)
             {
+                Vector3 destination = _navAgent.destination;
                 _navAgent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
                 _unstuckDurationTimer = 2.0f; // Duy trì trạng thái không né tránh trong 2 giây để thoát hẳn đám đông
+                _navAgent.stoppingDistance = Mathf.Max(_navAgent.stoppingDistance, 0.45f);
+
+                if (Time.time >= _nextUnstuckRepathTime)
+                {
+                    _nextUnstuckRepathTime = Time.time + UnstuckRepathCooldown;
+                    _navAgent.ResetPath();
+                    _navAgent.isStopped = false;
+                    _navAgent.SetDestination(destination);
+                }
+
                 _stuckTimer = 0f;
             }
         }
@@ -2392,6 +2410,7 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(GetExplorePosition(_targetRuins)))
         {
             ChangeState(VillagerState.Moving);
+            MyGame.UI.FloatingText.Spawn(transform.position, "Khai Quật", Color.cyan);
         }
         else
         {
@@ -2427,6 +2446,7 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(destination))
         {
             ChangeState(VillagerState.Moving);
+            MyGame.UI.FloatingText.Spawn(transform.position, "Di Chuyển", Color.green);
         }
     }
 
@@ -2472,6 +2492,12 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(GetHarvestPositionAroundNode(node.transform.position)))
         {
             ChangeState(VillagerState.Moving);
+            string actionText = "Khai Thác";
+            if (node.ResourceType == ResourceType.Wood) actionText = "Chặt Gỗ";
+            else if (node.ResourceType == ResourceType.Stone) actionText = "Đào Đá";
+            else if (node.ResourceType == ResourceType.Food) actionText = "Hái Quả";
+            else if (node.ResourceType == ResourceType.Gold) actionText = "Đào Vàng";
+            MyGame.UI.FloatingText.Spawn(transform.position, actionText, new Color(1f, 0.6f, 0f));
         }
     }
 
@@ -2508,6 +2534,7 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(animal.transform.position))
         {
             ChangeState(VillagerState.Moving);
+            MyGame.UI.FloatingText.Spawn(transform.position, "Đi Săn", Color.red);
         }
         else
         {
@@ -2544,6 +2571,7 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(_buildTargetPos))
         {
             ChangeState(VillagerState.Moving);
+            MyGame.UI.FloatingText.Spawn(transform.position, "Xây Dựng", Color.yellow);
         }
         else
         {
@@ -2585,6 +2613,7 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(_repairTargetPos))
         {
             ChangeState(VillagerState.Moving);
+            MyGame.UI.FloatingText.Spawn(transform.position, "Sửa Chữa", Color.yellow);
         }
         else
         {
@@ -2624,6 +2653,7 @@ public class VillagerController : MonoBehaviour
         if (SetPathToTarget(field.transform.position))
         {
             ChangeState(VillagerState.Moving);
+            MyGame.UI.FloatingText.Spawn(transform.position, "Làm Ruộng", Color.green);
         }
         else
         {
@@ -3297,11 +3327,11 @@ public class VillagerController : MonoBehaviour
     {
         switch (type)
         {
-            case ResourceType.Wood: return "Gỗ";
-            case ResourceType.Stone: return "Đá";
-            case ResourceType.Food: return "Lương Thực";
-            case ResourceType.Gold: return "Vàng";
-            case ResourceType.Water: return "Nước";
+            case ResourceType.Wood: return "Wood";
+            case ResourceType.Stone: return "Stone";
+            case ResourceType.Food: return "Food";
+            case ResourceType.Gold: return "Gold";
+            case ResourceType.Water: return "Water";
             default: return type.ToString();
         }
     }
@@ -3383,6 +3413,7 @@ public class VillagerController : MonoBehaviour
             if (_storageDropoffTarget != Vector3.zero && SetPathToTarget(_storageDropoffTarget))
             {
                 ChangeState(VillagerState.Moving);
+                MyGame.UI.FloatingText.Spawn(transform.position, "Cất Trữ", Color.white);
                 Debug.Log($"[RTS] Dân làng {gameObject.name} bắt đầu đi cất tài nguyên {carriedType} tại: {_storageDropoffTarget}");
             }
         }

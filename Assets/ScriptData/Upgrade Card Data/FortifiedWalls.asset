@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: FortifiedWalls
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: FortifiedWalls
-  cardName: Tuong Luy Vung
-  description: Mau toi da tat ca cong trinh tang 25%.
+  cardName: Fortified Walls
+  description: Max health of all buildings increased by 25%.
   icon: {fileID: 0}
   cardType: 0
   rarity: 1

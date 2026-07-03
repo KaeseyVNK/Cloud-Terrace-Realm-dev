@@ -62,8 +62,8 @@ namespace CloudTerraceRealm.UI
                 // Cập nhật thông số cư dân liên tục
                 if (_infoText != null)
                 {
-                    _infoText.text = $"Cư Dân Trú Ngụ: {_selectedShelter.OccupantCount} / {_selectedShelter.Capacity}\n\nTrạng thái: " + 
-                                     (_selectedShelter.OccupantCount == _selectedShelter.Capacity ? "Đầy dung lượng" : "Còn chỗ trống");
+                    _infoText.text = $"Occupants: {_selectedShelter.OccupantCount} / {_selectedShelter.Capacity}\n\nStatus: " + 
+                                     (_selectedShelter.OccupantCount == _selectedShelter.Capacity ? "Full" : "Available");
                 }
             }
         }

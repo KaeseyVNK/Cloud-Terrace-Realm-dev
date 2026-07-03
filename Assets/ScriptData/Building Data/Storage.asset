@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: Storage
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Kho Ch\u1EE9a \u0110\u1ED3"
-  description: "T\u0103ng gi\u1EDBi h\u1EA1n ch\u1EE9a t\xE0i nguy\xEAn t\u1ED5ng
-    h\u1EE3p th\xEAm 1000 \u0111\u01A1n v\u1ECB."
+  buildingName: Warehouse
+  description: Increases overall resource storage limit by 1000 units.
   category: 0
   icon: {fileID: 487509259, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 3515425848924217150, guid: 63ffdc0151d16b34987314903f0f73a2, type: 3}

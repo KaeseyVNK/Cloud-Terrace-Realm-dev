@@ -22,6 +22,13 @@ public class VoidPortal : BaseCombatUnitController
             navAgent.enabled = false;
         }
 
+        // Ping alert on minimap when portal spawns
+        var minimap = FindAnyObjectByType<MinimapUIController>();
+        if (minimap != null)
+        {
+            minimap.ShowPing(transform.position, new Color(0.7f, 0f, 1f, 1f), 4f);
+        }
+
         // Play portal open sound and start portal hum loop
         if (MyGame.Audio.AudioManager.Instance != null)
         {

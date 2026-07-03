@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: Food Storage
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Kho L\u01B0\u01A1ng Th\u1EF1c"
-  description: "N\u01A1i d\xE2n l\xE0ng n\u1ED9p th\u1EE9c \u0103n thu ho\u1EA1ch
-    \u0111\u01B0\u1EE3c."
+  buildingName: Granary
+  description: Where villagers deposit gathered food.
   category: 1
   icon: {fileID: -561964831, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 4439591625897593992, guid: 295e5cdf952e1cf449860da3660a0738, type: 3}

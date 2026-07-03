@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: ClanReinforcement
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: ClanReinforcement
-  cardName: Quan Tang Vien
-  description: Trieu hoi ngay 4 dan binh tai Nha Chinh.
+  cardName: Clan Reinforcements
+  description: Summon 4 Militia instantly at the Town Center.
   icon: {fileID: 0}
   cardType: 2
   rarity: 1

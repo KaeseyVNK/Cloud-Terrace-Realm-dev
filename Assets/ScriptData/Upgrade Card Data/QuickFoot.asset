@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: QuickFoot
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: QuickFoot
-  cardName: Chan Nhanh
-  description: Toc do di chuyen dan lang +20%.
+  cardName: Fleet Footed
+  description: Villager movement speed +20%.
   icon: {fileID: 0}
   cardType: 0
   rarity: 0

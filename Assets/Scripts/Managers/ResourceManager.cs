@@ -48,10 +48,10 @@ public class ResourceManager : MonoBehaviour
             resourceInventory.Add(type, 0);
         }
 
-        AddResource(ResourceType.Wood, 350);
-        AddResource(ResourceType.Stone, 200);
-        AddResource(ResourceType.Gold, 100);        
-        AddResource(ResourceType.Food, 200);
+        AddResource(ResourceType.Wood, 550);
+        AddResource(ResourceType.Stone, 350);
+        AddResource(ResourceType.Gold, 250);        
+        AddResource(ResourceType.Food, 350);
     }
 
 

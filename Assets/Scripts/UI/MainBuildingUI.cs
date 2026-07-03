@@ -20,6 +20,8 @@ public class MainBuildingUI : MonoBehaviour
 
     #region Public Properties
 
+    public static MainBuildingUI Instance { get; private set; }
+
     /// <summary>
     /// The currently selected Main Building combat target.
     /// </summary>
@@ -28,6 +30,19 @@ public class MainBuildingUI : MonoBehaviour
     #endregion
 
     #region Unity Lifecycle
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
 
     private void Update()
     {
@@ -43,16 +58,12 @@ public class MainBuildingUI : MonoBehaviour
             HandleLeftClickDeselect();
         }
 
-        // Right-click or left-click/touch (when no units are selected) to select main building
+        // Right-click or left-click/touch to select main building
         bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
-                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !IsMouseOverPanel());
+                                 (Input.GetMouseButtonDown(0) && !IsMouseOverPanel());
 
         if (isSelectTriggered)
         {
-            if (UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count > 0)
-            {
-                return;
-            }
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit))
@@ -117,7 +128,24 @@ public class MainBuildingUI : MonoBehaviour
     /// <param name="mb">The Main Building combat target.</param>
     public void SelectMainBuilding(MainBuildingCombatTarget mb)
     {
+        Debug.Log("[MainBuildingUI] SelectMainBuilding called for: " + (mb != null ? mb.gameObject.name : "null"));
         _selectedMainBuilding = mb;
+
+        if (UnitSelectionManager.Instance != null)
+        {
+            UnitSelectionManager.Instance.DeselectAll();
+        }
+
+        // Show rally flag for Main Building
+        if (_selectedMainBuilding != null)
+        {
+            var prod = _selectedMainBuilding.GetComponent<BuildingProduction>() ?? 
+                       _selectedMainBuilding.GetComponentInChildren<BuildingProduction>();
+            if (prod != null)
+            {
+                prod.SetRallyFlagVisible(true);
+            }
+        }
 
         // Deselect other building UIs to avoid overlap
         TestProductionUI productionUI = FindAnyObjectByType<TestProductionUI>();
@@ -142,6 +170,16 @@ public class MainBuildingUI : MonoBehaviour
     /// </summary>
     public void DeselectMainBuilding()
     {
+        Debug.Log("[MainBuildingUI] DeselectMainBuilding called.");
+        if (_selectedMainBuilding != null)
+        {
+            var prod = _selectedMainBuilding.GetComponent<BuildingProduction>() ?? 
+                       _selectedMainBuilding.GetComponentInChildren<BuildingProduction>();
+            if (prod != null)
+            {
+                prod.SetRallyFlagVisible(false);
+            }
+        }
         _selectedMainBuilding = null;
     }
 

@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819b9c33069fafd4480daa7acb32b6a0, type: 3}
   m_Name: blacksmith
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  buildingName: "Nh\xE0 R\xE8n"
-  description: "C\xF4ng tr\xECnh nghi\xEAn c\u1EE9u c\xF4ng ngh\u1EC7 \u0111\u1EC3
-    m\u1EDF kh\xF3a v\xE0 n\xE2ng c\u1EA5p qu\xE2n \u0111\u1ED9i."
+  buildingName: Blacksmith
+  description: Technology research facility to unlock and upgrade military units.
   category: 0
   icon: {fileID: -1003710582, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 206308313772535697, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}

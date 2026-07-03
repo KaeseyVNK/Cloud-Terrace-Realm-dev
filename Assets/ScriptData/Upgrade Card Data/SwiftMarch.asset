@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: card_swift_march
   cardName: Swift March
-  description: "+20% T\u1ED1c \u0111\u1ED9 di chuy\u1EC3n cho t\u1EA5t c\u1EA3 Binh
-    l\xEDnh."
+  description: +20% Movement speed for all Soldiers.
   icon: {fileID: -389397255, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   cardType: 0
+  rarity: 0
   unitHealthMultiplier: 1
   unitDamageMultiplier: 1
   unitSpeedMultiplier: 1.2
@@ -31,5 +31,11 @@ MonoBehaviour:
   unitToUnlock: {fileID: 0}
   instantResourceType: 0
   instantResourceAmount: 0
+  instantWoodAmount: 0
+  instantStoneAmount: 0
+  instantFoodAmount: 0
   instantMilitiaCount: 0
   healMainBuilding: 0
+  healMainBuildingPercent: 0
+  buildingMaxHealthMultiplier: 1
+  populationCapBonus: 0

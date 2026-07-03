@@ -80,7 +80,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
     [SerializeField] private bool _excludeBuildingFootprints = true;
     [Tooltip("Extra grid cells cleared around each building footprint.")]
     [Min(0)]
-    [SerializeField] private int _buildingGrassPaddingCells = 1;
+    [SerializeField] private int _buildingGrassPaddingCells = 0;
 
     [Header("Rendering & Layer Settings")]
     [Tooltip("Maximum distance to draw grass.")]

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: WarDrum
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: WarDrum
-  cardName: Trong Chien
-  description: Toc do di chuyen linh +20% va sat thuong +15%.
+  cardName: War Drums
+  description: Soldier movement speed +20% and attack damage +15%.
   icon: {fileID: 0}
   cardType: 0
   rarity: 1

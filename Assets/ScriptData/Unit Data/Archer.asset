@@ -12,16 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a88c0e743f435c041b7b860b4f3049b6, type: 3}
   m_Name: Archer
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: "Cung Th\u1EE7"
-  description: "Binh l\xEDnh t\u1EA5n c\xF4ng t\u1EA7m xa t\u1EEB kho\u1EA3ng c\xE1ch
-    an to\xE0n."
+  unitName: Archer
+  description: Ranged unit attacking from a safe distance.
   unitPrefab: {fileID: 2983170981788088436, guid: 95bce1260ad008649954c7ce7462971d, type: 3}
   portraitIcon: {fileID: 1892394124, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   productionTime: 8
   productionCosts:
+  - resourceType: 2
+    amount: 25
   - resourceType: 0
-    amount: 40
+    amount: 30
   - resourceType: 4
-    amount: 20
+    amount: 15
   requiredTechnologies:
   - {fileID: 11400000, guid: 42c87ceea9ab20c428dd5328cf103f7a, type: 2}

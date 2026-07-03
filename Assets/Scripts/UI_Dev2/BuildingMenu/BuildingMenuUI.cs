@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class BuildingMenuUI : MonoBehaviour
 {
@@ -27,6 +28,7 @@ public class BuildingMenuUI : MonoBehaviour
 
     private RectTransform _rectTransform;
     private CanvasGroup _canvasGroup;
+    private ScrollRect _cardsScrollRect;
     private Coroutine _transitionCoroutine;
 
     private void EnsureComponents()
@@ -40,6 +42,20 @@ public class BuildingMenuUI : MonoBehaviour
             if (!TryGetComponent(out _canvasGroup))
             {
                 _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+            }
+        }
+        if (_cardsScrollRect == null && _cardsContainer != null)
+        {
+            _cardsScrollRect = _cardsContainer.GetComponentInParent<ScrollRect>(true);
+        }
+
+        // Tự động sửa lỗi Mask alpha = 0 làm ẩn toàn bộ BuildingCard
+        if (_cardsScrollRect != null)
+        {
+            var img = _cardsScrollRect.GetComponent<Image>();
+            if (img != null && img.color.a < 0.9f)
+            {
+                img.color = new Color(img.color.r, img.color.g, img.color.b, 1f);
             }
         }
     }
@@ -139,6 +155,7 @@ public class BuildingMenuUI : MonoBehaviour
 
         UpdateCategoryTabVisuals();
         UpdateHeaderTitle();
+        RefreshCardsLayout();
 
         Debug.Log(
             $"[BuildingMenuUI] Category {category}: " +
@@ -156,6 +173,49 @@ public class BuildingMenuUI : MonoBehaviour
         for (int i = _cardsContainer.childCount - 1; i >= 0; i--)
         {
             Destroy(_cardsContainer.GetChild(i).gameObject);
+        }
+    }
+
+    private void RefreshCardsLayout()
+    {
+        if (_cardsContainer == null)
+        {
+            return;
+        }
+
+        RectTransform contentRect = _cardsContainer as RectTransform;
+        if (contentRect == null)
+        {
+            return;
+        }
+
+        GridLayoutGroup grid = _cardsContainer.GetComponent<GridLayoutGroup>();
+        if (grid != null)
+        {
+            int columns = grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount
+                ? Mathf.Max(1, grid.constraintCount)
+                : 1;
+            int rows = Mathf.CeilToInt(_cardsContainer.childCount / (float)columns);
+            float height = grid.padding.vertical;
+            if (rows > 0)
+            {
+                height += rows * grid.cellSize.y + Mathf.Max(0, rows - 1) * grid.spacing.y;
+            }
+
+            if (_cardsScrollRect != null && _cardsScrollRect.viewport != null)
+            {
+                height = Mathf.Max(height, _cardsScrollRect.viewport.rect.height);
+            }
+
+            contentRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
+
+        if (_cardsScrollRect != null)
+        {
+            _cardsScrollRect.verticalNormalizedPosition = 1f;
+            _cardsScrollRect.velocity = Vector2.zero;
         }
     }
 
@@ -211,6 +271,8 @@ public class BuildingMenuUI : MonoBehaviour
                     _canvasGroup.alpha = 0f;
                 }
             }
+
+            ShowCategory(_currentCategory);
 
             // Staggered pop-in for all cards when opening the menu
             if (_cardsContainer != null)

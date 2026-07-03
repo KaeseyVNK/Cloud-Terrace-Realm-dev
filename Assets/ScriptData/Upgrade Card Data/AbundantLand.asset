@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: AbundantLand
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: AbundantLand
-  cardName: Dat Dai Mau Mo
-  description: Toc do khai thac Go, Da, Vang va Thuc An deu tang 20%.
+  cardName: Fertile Soil
+  description: Gather speed for Wood, Stone, Gold, and Food increased by 20%.
   icon: {fileID: 0}
   cardType: 0
   rarity: 2

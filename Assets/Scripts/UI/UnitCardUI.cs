@@ -71,11 +71,11 @@ public class UnitCardUI : MonoBehaviour
         if (_trainButtonText != null)
         {
             if (!techUnlocked)
-                _trainButtonText.text = "Chưa NC";
+                _trainButtonText.text = "Locked";
             else if (!canAfford)
-                _trainButtonText.text = "Thiếu TN";
+                _trainButtonText.text = "No Res";
             else
-                _trainButtonText.text = "Huấn luyện";
+                _trainButtonText.text = "Train";
         }
 
         if (_costText != null)
@@ -90,7 +90,7 @@ public class UnitCardUI : MonoBehaviour
     private string BuildCostText()
     {
         if (_unitData.productionCosts == null || _unitData.productionCosts.Count == 0)
-            return "Miễn phí";
+            return "Free";
 
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         foreach (var cost in _unitData.productionCosts)
@@ -105,10 +105,10 @@ public class UnitCardUI : MonoBehaviour
     {
         switch (type)
         {
-            case ResourceType.Wood:  return "Gỗ";
-            case ResourceType.Stone: return "Đá";
-            case ResourceType.Gold:  return "Vàng";
-            case ResourceType.Food:  return "Lúa";
+            case ResourceType.Wood:  return "Wood";
+            case ResourceType.Stone: return "Stone";
+            case ResourceType.Gold:  return "Gold";
+            case ResourceType.Food:  return "Food";
             default:                 return type.ToString();
         }
     }

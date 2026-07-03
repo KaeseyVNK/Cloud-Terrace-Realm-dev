@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: FieldMedic
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: FieldMedic
-  cardName: Quan Y Chien Truong
-  description: Hoi phuc 40% mau Nha Chinh.
+  cardName: Field Medic
+  description: Restore 40% Health of the Town Center.
   icon: {fileID: 0}
   cardType: 2
   rarity: 1

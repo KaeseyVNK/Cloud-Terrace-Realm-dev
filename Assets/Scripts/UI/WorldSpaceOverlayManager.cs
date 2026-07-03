@@ -849,7 +849,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
                 DrawBadgeUGUI(
                     villager.transform.position,
                     GetCachedHeight(villager.gameObject, 2.0f) + 0.65f,
-                    "🍽️ Đói",
+                    "🍽️ Hungry",
                     new Color(0.15f, 0.05f, 0.05f, 0.9f),
                     new Color(1.0f, 0.3f, 0.3f, 0.7f)
                 );
@@ -920,19 +920,19 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         {
             case ResourceType.Wood: 
                 resourceSprite = _woodSprite; 
-                resourceName = "Gỗ";
+                resourceName = "Wood";
                 break;
             case ResourceType.Stone: 
                 resourceSprite = _stoneSprite; 
-                resourceName = "Đá";
+                resourceName = "Stone";
                 break;
             case ResourceType.Food: 
                 resourceSprite = _foodSprite; 
-                resourceName = "Lương thực";
+                resourceName = "Food";
                 break;
             case ResourceType.Gold: 
                 resourceSprite = _goldSprite; 
-                resourceName = "Vàng";
+                resourceName = "Gold";
                 break;
         }
 

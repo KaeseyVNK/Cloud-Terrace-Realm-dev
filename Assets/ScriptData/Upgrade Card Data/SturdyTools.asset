@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: SturdyTools
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
   cardId: SturdyTools
-  cardName: Cong Cu Ben
-  description: Dan lang mang them +2 tai nguyen moi chuyen di.
+  cardName: Sturdy Tools
+  description: Villagers carry +2 more resources per trip.
   icon: {fileID: 0}
   cardType: 0
   rarity: 0
