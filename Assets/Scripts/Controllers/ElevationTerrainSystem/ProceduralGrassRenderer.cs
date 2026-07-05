@@ -151,7 +151,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("[ProceduralGrassRenderer] No Terrain found in scene to generate grass on!");
+                GameLog.LogWarning("[ProceduralGrassRenderer] No Terrain found in scene to generate grass on!");
             }
         }
 
@@ -169,13 +169,13 @@ public class ProceduralGrassRenderer : MonoBehaviour
         _fogWar = FindAnyObjectByType<csFogWar>();
         if (_fogWar == null)
         {
-            Debug.LogWarning("[ProceduralGrassRenderer] csFogWar not found. Fog culling disabled.");
+            GameLog.LogWarning("[ProceduralGrassRenderer] csFogWar not found. Fog culling disabled.");
             _fogAvailable = false;
             return;
         }
 
         _fogAvailable = true;
-        Debug.Log("[ProceduralGrassRenderer] Fog of War integration initialized successfully.");
+        GameLog.Log("[ProceduralGrassRenderer] Fog of War integration initialized successfully.");
     }
 
     private void InitializeRenderer()
@@ -204,26 +204,26 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
         if (!hasMaterials)
         {
-            Debug.LogError("[ProceduralGrassRenderer] No grass materials are assigned in the Inspector!");
+            GameLog.LogError("[ProceduralGrassRenderer] No grass materials are assigned in the Inspector!");
             return;
         }
 
         if (_computeShader == null)
         {
-            Debug.LogError("[ProceduralGrassRenderer] Compute Shader is not assigned in the Inspector!");
+            GameLog.LogError("[ProceduralGrassRenderer] Compute Shader is not assigned in the Inspector!");
             return;
         }
 
         if (!SystemInfo.supportsComputeShaders)
         {
-            Debug.LogError("[ProceduralGrassRenderer] Compute shaders are not supported on this graphics card or platform!");
+            GameLog.LogError("[ProceduralGrassRenderer] Compute shaders are not supported on this graphics card or platform!");
             return;
         }
 
         _bladeMesh = CreateGrassBladeMesh();
         _propertyBlock = new MaterialPropertyBlock();
         _isInitialized = true;
-        Debug.Log("[ProceduralGrassRenderer] Renderer successfully initialized.");
+        GameLog.Log("[ProceduralGrassRenderer] Renderer successfully initialized.");
     }
 
     public void GenerateGrass(Terrain terrain)
@@ -232,13 +232,19 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
         if (terrain == null)
         {
-            Debug.LogError("[ProceduralGrassRenderer] Cannot generate grass: Terrain argument is null!");
+            GameLog.LogError("[ProceduralGrassRenderer] Cannot generate grass: Terrain argument is null!");
+            return;
+        }
+
+        if (terrain.terrainData == null)
+        {
+            GameLog.LogWarning("[ProceduralGrassRenderer] Cannot generate grass: TerrainData is missing.");
             return;
         }
 
         if (!_isInitialized)
         {
-            Debug.LogError("[ProceduralGrassRenderer] Cannot generate grass: Initialization failed!");
+            GameLog.LogError("[ProceduralGrassRenderer] Cannot generate grass: Initialization failed!");
             return;
         }
 
@@ -269,7 +275,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
         if (activeTypes.Count == 0)
         {
-            Debug.LogError("[ProceduralGrassRenderer] Cannot generate grass: No valid materials assigned!");
+            GameLog.LogError("[ProceduralGrassRenderer] Cannot generate grass: No valid materials assigned!");
             return;
         }
 
@@ -411,7 +417,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
         if (terrain == null)
         {
-            Debug.LogWarning("[ProceduralGrassRenderer] Cannot regenerate grass: no Terrain found.");
+            GameLog.LogWarning("[ProceduralGrassRenderer] Cannot regenerate grass: no Terrain found.");
             return;
         }
 
@@ -491,7 +497,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
             _propertyBlock.SetFloat("_WindStrength", _windStrength);
             Graphics.DrawMeshInstancedIndirect(_bladeMesh, 0, typeData.material, _bounds, typeData.argsBuffer, 0, _propertyBlock, UnityEngine.Rendering.ShadowCastingMode.Off, true, _layer);
         }
-        if (logDiagnostics) Debug.Log($"[ProceduralGrassRenderer Debug] GPU rendering: {totalRenderedBlades} / {_totalSourceBlades} total blades visible.");
+        if (logDiagnostics) GameLog.Log($"[ProceduralGrassRenderer Debug] GPU rendering: {totalRenderedBlades} / {_totalSourceBlades} total blades visible.");
     }
 
     private int CollectBuildingExclusionZones()

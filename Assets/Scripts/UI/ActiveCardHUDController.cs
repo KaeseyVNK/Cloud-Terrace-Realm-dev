@@ -206,7 +206,7 @@ public class ActiveCardHUDController : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning($"[ActiveCardHUDController] Prefab '{_iconSlotPrefab.name}' thiếu component ActiveCardSlotUI!");
+                    GameLog.LogWarning($"[ActiveCardHUDController] Prefab '{_iconSlotPrefab.name}' thiếu component ActiveCardSlotUI!");
                     Destroy(slotObj);
                 }
             }

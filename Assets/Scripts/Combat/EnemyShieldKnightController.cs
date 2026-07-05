@@ -82,7 +82,7 @@ public class EnemyShieldKnightController : EnemyUnitController
         {
             TriggerBlockFeedback();
             TryKnockbackCurrentTarget();
-            Debug.Log($"[EnemyShieldKnight] {unitName} blocked all {damage} damage.");
+            GameLog.Log($"[EnemyShieldKnight] {unitName} blocked all {damage} damage.");
             return;
         }
 

@@ -143,14 +143,14 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         // Nếu Designer đã chủ động kéo WorldSpaceOverlayManager vào Scene, bỏ qua việc tự tạo mới
         if (FindAnyObjectByType<WorldSpaceOverlayManager>() != null)
         {
-            Debug.Log("[WorldSpaceOverlayManager] Tìm thấy instance có sẵn trong Scene. Dùng cấu hình tùy biến của Designer.");
+            GameLog.Log("[WorldSpaceOverlayManager] Tìm thấy instance có sẵn trong Scene. Dùng cấu hình tùy biến của Designer.");
             return;
         }
 
         GameObject go = new GameObject("WorldSpaceOverlayManager");
         go.AddComponent<WorldSpaceOverlayManager>();
         DontDestroyOnLoad(go);
-        Debug.Log("[WorldSpaceOverlayManager] Không thấy có sẵn trong Scene. Đã tự động tạo phiên bản mặc định.");
+        GameLog.Log("[WorldSpaceOverlayManager] Không thấy có sẵn trong Scene. Đã tự động tạo phiên bản mặc định.");
     }
 
 #if UNITY_EDITOR

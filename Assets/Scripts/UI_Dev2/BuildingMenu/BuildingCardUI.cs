@@ -97,7 +97,7 @@ public class BuildingCardUI : MonoBehaviour,
 
         if (_buildingData == null)
         {
-            Debug.LogWarning("[BuildingCardUI] BuildingData đang null.", this);
+            GameLog.LogWarning("[BuildingCardUI] BuildingData đang null.", this);
             gameObject.SetActive(false);
             return;
         }
@@ -212,23 +212,23 @@ public class BuildingCardUI : MonoBehaviour,
     {
         if (_buildingData == null)
         {
-            Debug.LogError("[BuildingCardUI] BuildingData is null.", this);
+            GameLog.LogError("[BuildingCardUI] BuildingData is null.", this);
             return;
         }
 
         if (!_isUnlocked)
         {
-            Debug.Log($"[BuildingCardUI] Locked building: {_buildingData.buildingName}", this);
+            GameLog.Log($"[BuildingCardUI] Locked building: {_buildingData.buildingName}", this);
             return;
         }
 
-        Debug.Log($"[BuildingCardUI] Click BUILD: {_buildingData.buildingName}", this);
+        GameLog.Log($"[BuildingCardUI] Click BUILD: {_buildingData.buildingName}", this);
 
         BuildingManager manager = BuildingManager.Instance;
 
         if (manager == null)
         {
-            Debug.LogError("[BuildingCardUI] Không tìm thấy BuildingManager.Instance.", this);
+            GameLog.LogError("[BuildingCardUI] Không tìm thấy BuildingManager.Instance.", this);
             return;
         }
 
@@ -238,7 +238,7 @@ public class BuildingCardUI : MonoBehaviour,
         manager.IsBuildMode = true;
         manager.IsDeleteMode = false;
 
-        Debug.Log($"[BuildingCardUI] Đã bật Build Mode cho: {_buildingData.buildingName}", this);
+        GameLog.Log($"[BuildingCardUI] Đã bật Build Mode cho: {_buildingData.buildingName}", this);
     }
 
     public void OnPointerEnter(PointerEventData eventData)

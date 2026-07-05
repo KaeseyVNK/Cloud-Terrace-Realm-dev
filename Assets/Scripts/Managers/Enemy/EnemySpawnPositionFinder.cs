@@ -51,7 +51,7 @@ public class EnemySpawnPositionFinder
             _gridSystem = Object.FindAnyObjectByType<GridSystem>();
             if (_gridSystem == null)
             {
-                Debug.LogError("[EnemySpawnPositionFinder] Không tìm thấy GridSystem trong cảnh!");
+                GameLog.LogError("[EnemySpawnPositionFinder] Không tìm thấy GridSystem trong cảnh!");
                 return false;
             }
         }
@@ -60,7 +60,7 @@ public class EnemySpawnPositionFinder
         int length = _gridSystem.GetLength();
         if (width <= 0 || length <= 0)
         {
-            Debug.LogError($"[EnemySpawnPositionFinder] Kích thước GridSystem không hợp lệ: {width}x{length}");
+            GameLog.LogError($"[EnemySpawnPositionFinder] Kích thước GridSystem không hợp lệ: {width}x{length}");
             return false;
         }
 

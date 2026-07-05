@@ -34,7 +34,7 @@ namespace CloudTerraceRealm.UI
         {
             if (_target == null)
             {
-                Debug.LogWarning("[MainMenuDioramaCamera] Chưa gán Target để xoay! Sẽ xoay quanh gốc tọa độ (0,0,0).");
+                GameLog.LogWarning("[MainMenuDioramaCamera] Chưa gán Target để xoay! Sẽ xoay quanh gốc tọa độ (0,0,0).");
             }
             else
             {

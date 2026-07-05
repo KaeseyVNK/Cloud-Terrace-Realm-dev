@@ -195,7 +195,7 @@ public class GameManager : MonoBehaviour
     {
         if (CurrentState != GameState.Playing) return;
         CurrentState = GameState.Victory;
-        Debug.Log("[GAME OVER] CHIEN THANG! Ban da tieu diet sach cong hu vo va song sot qua 15 ngay!");
+        GameLog.Log("[GAME OVER] CHIEN THANG! Ban da tieu diet sach cong hu vo va song sot qua 15 ngay!");
 
         Time.timeScale = 0f;
 
@@ -209,7 +209,7 @@ public class GameManager : MonoBehaviour
     {
         if (CurrentState != GameState.Playing) return;
         CurrentState = GameState.Defeat;
-        Debug.Log("[GAME OVER] THAT BAI! Nha chinh cua ban da bi tieu diet!");
+        GameLog.Log("[GAME OVER] THAT BAI! Nha chinh cua ban da bi tieu diet!");
 
         Time.timeScale = 0f;
 
@@ -258,7 +258,7 @@ public class GameManager : MonoBehaviour
             _customCursorTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ThirdAssets/StoneCursorWenrexa/PNG/01.png");
             if (_customCursorTexture != null)
             {
-                Debug.Log("[GameManager] Tu dong gan texture chuot tuy chinh tu StoneCursorWenrexa.");
+                GameLog.Log("[GameManager] Tu dong gan texture chuot tuy chinh tu StoneCursorWenrexa.");
             }
         }
 
@@ -324,9 +324,6 @@ public class GameManager : MonoBehaviour
             _gridSystem.BakeNavigationMesh(force: true);
         }
 
-        // Xây nhà chính
-        _buildingManager.SpawnMainBuildingAt(centerX, centerZ);
-
         // Đặt camera vào giữa
         CameraControls camControl = FindAnyObjectByType<CameraControls>();
         if (camControl != null && centerCell != null)
@@ -334,6 +331,16 @@ public class GameManager : MonoBehaviour
             Vector3 targetPos = _gridSystem.GetWorldPosition(centerX, centerZ, centerCell.elevation);
             camControl.transform.position = new Vector3(targetPos.x, camControl.transform.position.y, targetPos.z);
         }
+
+        // Bỏ qua việc sinh thực thể ban đầu nếu là load game
+        if (CloudTerraceRealm.SaveSystem.SaveGameSystem.ResumeRequested)
+        {
+            GameLog.Log("[GameManager] Resume requested. Skipping initial entity spawning.");
+            return;
+        }
+
+        // Xây nhà chính
+        _buildingManager.SpawnMainBuildingAt(centerX, centerZ);
 
         // Spawn dân làng
         SpawnVillagers(centerX, centerZ);
@@ -352,7 +359,7 @@ public class GameManager : MonoBehaviour
     {
         if (_gridSystem == null || _buildingManager == null || _neutralMarketData == null || _neutralMarketData.buildingPrefab == null)
         {
-            Debug.LogWarning("[GameManager] Không thể sinh chợ trung lập: Thiếu dữ liệu hoặc prefab!");
+            GameLog.LogWarning("[GameManager] Không thể sinh chợ trung lập: Thiếu dữ liệu hoặc prefab!");
             return;
         }
 
@@ -425,7 +432,7 @@ public class GameManager : MonoBehaviour
                 _buildingManager.RegisterSpawnedBuilding(marketObj, _neutralMarketData, startX, startZ);
 
                 spawnedMarkets++;
-                Debug.Log($"[GameManager] Đã tự động sinh chợ trung lập {marketObj.name} tại [{startX}, {startZ}]");
+                GameLog.Log($"[GameManager] Đã tự động sinh chợ trung lập {marketObj.name} tại [{startX}, {startZ}]");
             }
         }
     }
@@ -435,7 +442,7 @@ public class GameManager : MonoBehaviour
     {
         if (_villagerPrefab == null)
         {
-            Debug.LogWarning("Chưa gắn prefab Villager trong GameManager!");
+            GameLog.LogWarning("Chưa gắn prefab Villager trong GameManager!");
             return;
         }
 
@@ -479,13 +486,13 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[GameManager] Villager prefab is null!");
+            GameLog.LogWarning("[GameManager] Villager prefab is null!");
         }
     }
 
     public void RestartGame()
     {
-        Debug.Log("[GameManager] Dang khoi dong lai game, dang don dep cac doi tuong DontDestroyOnLoad...");
+        GameLog.Log("[GameManager] Dang khoi dong lai game, dang don dep cac doi tuong DontDestroyOnLoad...");
 
         // Reset timescale to prevent frozen game on reload
         Time.timeScale = 1f;

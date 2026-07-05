@@ -7,7 +7,7 @@ using System.Collections.Generic;
 /// Quản lý việc tự động sinh các Sự kiện ngẫu nhiên trên bản đồ (Cổng Hư Không và Hộ Tống Thương Nhân)
 /// nhằm gia tăng tính chất Roguelike cho game.
 /// </summary>
-public class MapEventManager : MonoBehaviour
+public class MapEventManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     private static MapEventManager _instance;
     public static MapEventManager Instance => _instance;
@@ -35,7 +35,7 @@ public class MapEventManager : MonoBehaviour
     private readonly List<MerchantCaravanGroup> _activeCaravans = new List<MerchantCaravanGroup>();
 
     // Trình quản lý tiến độ đoàn xe thồ
-    private class MerchantCaravanGroup
+    public class MerchantCaravanGroup
     {
         public List<MerchantCaravanUnit> units = new List<MerchantCaravanUnit>();
         public Vector3 startPos;
@@ -82,10 +82,25 @@ public class MapEventManager : MonoBehaviour
         {
             _instance = this;
             _gridSystem = FindAnyObjectByType<GridSystem>();
+            EnsureSaveableEntity("Global_MapEventManager");
         }
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    private void EnsureSaveableEntity(string saveID)
+    {
+        var saveable = GetComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+        if (saveable == null)
+        {
+            saveable = gameObject.AddComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+            var field = typeof(CloudTerraceRealm.SaveSystem.SaveableEntity).GetField("_saveID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(saveable, saveID);
+            }
         }
     }
 
@@ -111,12 +126,12 @@ public class MapEventManager : MonoBehaviour
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (Input.GetKeyDown(KeyCode.Alpha8))
         {
-            Debug.Log("[MapEventManager] Debug Trigger: Spawning Void Portal Event!");
+            GameLog.Log("[MapEventManager] Debug Trigger: Spawning Void Portal Event!");
             SpawnVoidPortalEvent();
         }
         if (Input.GetKeyDown(KeyCode.Alpha9))
         {
-            Debug.Log("[MapEventManager] Debug Trigger: Spawning Merchant Escort Event!");
+            GameLog.Log("[MapEventManager] Debug Trigger: Spawning Merchant Escort Event!");
             SpawnMerchantEscortEvent();
         }
 #endif
@@ -240,6 +255,10 @@ public class MapEventManager : MonoBehaviour
 
                 // Áp dụng hệ số nhân sức mạnh theo số đêm của game
                 var combatCtrl = enemyObj.GetComponent<BaseCombatUnitController>();
+                if (combatCtrl != null)
+                {
+                    combatCtrl.prefabName = enemyPrefab.name;
+                }
                 if (combatCtrl != null && EnemyManager.Instance != null)
                 {
                     EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
@@ -326,7 +345,7 @@ public class MapEventManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"[MapEventManager] Đoàn thương nhân bị phục kích! Đang sinh {finalCount} quái tấn công.");
+        GameLog.Log($"[MapEventManager] Đoàn thương nhân bị phục kích! Đang sinh {finalCount} quái tấn công.");
 
         if (HUDManager.Instance != null)
         {
@@ -368,6 +387,10 @@ public class MapEventManager : MonoBehaviour
 
             // Áp dụng hệ số nhân sức mạnh theo số đêm của game (+15% cho lính phục kích đặc biệt)
             var enemyController = enemyObj.GetComponent<BaseCombatUnitController>();
+            if (enemyController != null)
+            {
+                enemyController.prefabName = prefab.name;
+            }
             if (enemyController != null && EnemyManager.Instance != null)
             {
                 EnemyManager.Instance.GetEnemyStatMultipliers(currentNight, out float healthMult, out float damageMult, out float speedMult);
@@ -431,6 +454,7 @@ public class MapEventManager : MonoBehaviour
             VoidPortal portalComponent = portalObj.GetComponent<VoidPortal>();
             if (portalComponent != null)
             {
+                portalComponent.prefabName = _voidPortalPrefab.name;
                 portalComponent.SetOccupiedCells(cellsToOccupy);
                 _activePortals.Add(portalComponent);
 
@@ -557,6 +581,7 @@ public class MapEventManager : MonoBehaviour
                 caravanUnit = caravanObj.AddComponent<MerchantCaravanUnit>();
             }
 
+            caravanUnit.prefabName = _merchantCaravanPrefab.name;
             caravanUnit.SetDestination(destPos);
             group.units.Add(caravanUnit);
             _activeEvents.Add(caravanObj);
@@ -610,6 +635,7 @@ public class MapEventManager : MonoBehaviour
             var guard = enemy.GetComponent<EnemyUnitController>();
             if (guard != null)
             {
+                guard.prefabName = prefab.name;
                 guard.IsGuard = true;
             }
 
@@ -898,5 +924,30 @@ public class MapEventManager : MonoBehaviour
             }
         }
         return spawnPos;
+    }
+
+    [System.Serializable]
+    private class MapEventSaveState
+    {
+        public int daysSinceLastEvent;
+    }
+
+    public string CaptureState()
+    {
+        var state = new MapEventSaveState
+        {
+            daysSinceLastEvent = this._daysSinceLastEvent
+        };
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<MapEventSaveState>(stateJson);
+        if (state == null) return;
+
+        this._daysSinceLastEvent = state.daysSinceLastEvent;
+        GameLog.Log($"[MapEventManager] Restored daysSinceLastEvent to: {this._daysSinceLastEvent}");
     }
 }

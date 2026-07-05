@@ -5,7 +5,7 @@ using System.Collections.Generic;
 /// Quản lý Phế Tích Cổ (Ancient Ruins) cần lính canh bảo vệ.
 /// Sau khi tiêu diệt hết lính canh, dân làng có thể tới nghiên cứu/khai quật để kích hoạt quay thẻ.
 /// </summary>
-public class AncientRuins : MonoBehaviour
+public class AncientRuins : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     [System.Serializable]
     public struct GuardConfig
@@ -44,6 +44,7 @@ public class AncientRuins : MonoBehaviour
     public bool IsExplored => _isExplored;
     public float ExplorationDuration => _explorationDuration;
     public float ExplorationProgress => _explorationProgress;
+    public bool BypassSpawnGuards { get; set; }
 
     private void Start()
     {
@@ -69,7 +70,15 @@ public class AncientRuins : MonoBehaviour
             return;
         }
 
-        SpawnGuards();
+        if (CloudTerraceRealm.SaveSystem.SaveManager.Instance != null && CloudTerraceRealm.SaveSystem.SaveManager.Instance.IsLoadingSave)
+        {
+            BypassSpawnGuards = true;
+        }
+
+        if (!BypassSpawnGuards)
+        {
+            SpawnGuards();
+        }
         
         // Tự động gắn FogVisibilityTarget vào phế tích nếu chưa có
         // để đảm bảo nó được che/hiện theo sương mù chiến trận (Fog of War)
@@ -83,7 +92,7 @@ public class AncientRuins : MonoBehaviour
     {
         if (_guards == null || _guards.Count == 0)
         {
-            Debug.LogWarning($"[AncientRuins] {gameObject.name} không có danh sách lính canh! Tự động đánh dấu là Cleared.");
+            GameLog.LogWarning($"[AncientRuins] {gameObject.name} không có danh sách lính canh! Tự động đánh dấu là Cleared.");
             _isCleared = true;
             return;
         }
@@ -154,7 +163,7 @@ public class AncientRuins : MonoBehaviour
 
         if (!hasAnyPrefab)
         {
-            Debug.LogWarning($"[AncientRuins] {gameObject.name} không có lính canh hợp lệ! Tự động đánh dấu là Cleared.");
+            GameLog.LogWarning($"[AncientRuins] {gameObject.name} không có lính canh hợp lệ! Tự động đánh dấu là Cleared.");
             _isCleared = true;
         }
     }
@@ -199,7 +208,7 @@ public class AncientRuins : MonoBehaviour
 
     private void OnRuinsCleared()
     {
-        Debug.Log($"[AncientRuins] Lính canh tại {gameObject.name} đã bị tiêu diệt! Sẵn sàng khai quật.");
+        GameLog.Log($"[AncientRuins] Lính canh tại {gameObject.name} đã bị tiêu diệt! Sẵn sàng khai quật.");
         
         if (HUDManager.Instance != null)
         {
@@ -213,7 +222,7 @@ public class AncientRuins : MonoBehaviour
 
     private void OnExplorationCompleted()
     {
-        Debug.Log($"[AncientRuins] Khai quật thành công phế tích {gameObject.name}!");
+        GameLog.Log($"[AncientRuins] Khai quật thành công phế tích {gameObject.name}!");
 
         if (HUDManager.Instance != null)
         {
@@ -279,6 +288,46 @@ public class AncientRuins : MonoBehaviour
         if (villager != null)
         {
             _assignedVillagers.Remove(villager);
+        }
+    }
+
+    [System.Serializable]
+    private class RuinSaveState
+    {
+        public bool isCleared;
+        public bool isExplored;
+        public float explorationProgress;
+    }
+
+    public string CaptureState()
+    {
+        var state = new RuinSaveState
+        {
+            isCleared = this._isCleared,
+            isExplored = this._isExplored,
+            explorationProgress = this._explorationProgress
+        };
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<RuinSaveState>(stateJson);
+        if (state == null) return;
+
+        this._isCleared = state.isCleared;
+        this._isExplored = state.isExplored;
+        this._explorationProgress = state.explorationProgress;
+
+        if (_isCleared)
+        {
+            // Hủy toàn bộ lính canh hiện hữu nếu phế tích đã bị dọn
+            foreach (var guard in _spawnedGuards)
+            {
+                if (guard != null) Destroy(guard.gameObject);
+            }
+            _spawnedGuards.Clear();
         }
     }
 }

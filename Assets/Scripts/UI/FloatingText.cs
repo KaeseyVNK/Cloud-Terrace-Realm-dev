@@ -73,7 +73,7 @@ namespace MyGame.UI
                     }
                     catch (System.Exception)
                     {
-                        Debug.LogWarning("[FloatingText] Không thể tải font mặc định nào từ Resources!");
+                        GameLog.LogWarning("[FloatingText] Không thể tải font mặc định nào từ Resources!");
                     }
                 }
             }

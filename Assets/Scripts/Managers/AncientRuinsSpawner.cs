@@ -108,38 +108,41 @@ public class AncientRuinsSpawner : MonoBehaviour
 
         if (_ruinsPrefabs == null || _ruinsPrefabs.Length == 0)
         {
-            Debug.LogWarning("[AncientRuinsSpawner] Không có prefab phế tích nào để spawn khởi tạo!");
+            GameLog.LogWarning("[AncientRuinsSpawner] Không có prefab phế tích nào để spawn khởi tạo!");
             return;
         }
+
+        // Sử dụng bộ sinh ngẫu nhiên đơn định theo Seed của GridSystem (salt = 99)
+        System.Random prng = _gridSystem != null ? _gridSystem.CreateDeterministicRandom(99) : new System.Random();
 
         int spawnedCount = 0;
         int maxAttempts = 100;
 
         for (int i = 0; i < maxAttempts && spawnedCount < _initialRuinsCount; i++)
         {
-            if (TrySpawnSingleRuin())
+            if (TrySpawnSingleRuin(prng))
             {
                 spawnedCount++;
             }
         }
 
-        Debug.Log($"[AncientRuinsSpawner] Đã spawn thành công {spawnedCount}/{_initialRuinsCount} phế tích cổ khởi tạo.");
+        GameLog.Log($"[AncientRuinsSpawner] Đã spawn thành công {spawnedCount}/{_initialRuinsCount} phế tích cổ khởi tạo.");
     }
 
     /// <summary>
     /// Thử tìm vị trí và spawn 1 phế tích cổ ngẫu nhiên.
     /// </summary>
-    private bool TrySpawnSingleRuin()
+    private bool TrySpawnSingleRuin(System.Random prng = null)
     {
         if (_activeRuins.Count >= _maxActiveRuins)
         {
             return false;
         }
 
-        if (FindValidSpawnPosition(out int startX, out int startZ, out int elevation, out List<GridCell> cellsToOccupy))
+        if (FindValidSpawnPosition(out int startX, out int startZ, out int elevation, out List<GridCell> cellsToOccupy, prng))
         {
             // Chọn ngẫu nhiên một prefab phế tích
-            int prefabIdx = Random.Range(0, _ruinsPrefabs.Length);
+            int prefabIdx = prng != null ? prng.Next(0, _ruinsPrefabs.Length) : Random.Range(0, _ruinsPrefabs.Length);
             GameObject prefab = _ruinsPrefabs[prefabIdx];
             if (prefab == null) return false;
 
@@ -162,12 +165,14 @@ public class AncientRuinsSpawner : MonoBehaviour
             if (prefab.name.Contains("Sword") || prefab.name.Contains("RuinsSword"))
             {
                 // Đối với prefab kiếm khổng lồ: X = -90, Y = 0, Z = random
-                spawnRot = Quaternion.Euler(-90f, 0f, Random.Range(0f, 360f));
+                float randRot = prng != null ? (float)(prng.NextDouble() * 360f) : Random.Range(0f, 360f);
+                spawnRot = Quaternion.Euler(-90f, 0f, randRot);
             }
             else
             {
                 // Đối với các phế tích đá thông thường: X = 0, Y = random, Z = 0
-                spawnRot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                float randRot = prng != null ? (float)(prng.NextDouble() * 360f) : Random.Range(0f, 360f);
+                spawnRot = Quaternion.Euler(0f, randRot, 0f);
             }
 
             GameObject ruinObj = Instantiate(prefab, spawnPos, spawnRot);
@@ -205,7 +210,7 @@ public class AncientRuinsSpawner : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"[AncientRuinsSpawner] Prefab {prefab.name} thiếu script AncientRuins!");
+                GameLog.LogWarning($"[AncientRuinsSpawner] Prefab {prefab.name} thiếu script AncientRuins!");
             }
 
             return true;
@@ -217,7 +222,7 @@ public class AncientRuinsSpawner : MonoBehaviour
     /// <summary>
     /// Tìm vị trí ô lưới 2x2 trống, phẳng và cách xa Nhà Chính để spawn phế tích.
     /// </summary>
-    private bool FindValidSpawnPosition(out int startX, out int startZ, out int elevation, out List<GridCell> cellsToOccupy)
+    private bool FindValidSpawnPosition(out int startX, out int startZ, out int elevation, out List<GridCell> cellsToOccupy, System.Random prng = null)
     {
         startX = 0;
         startZ = 0;
@@ -235,8 +240,8 @@ public class AncientRuinsSpawner : MonoBehaviour
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            int rX = Random.Range(10, mapWidth - 10);
-            int rZ = Random.Range(10, mapLength - 10);
+            int rX = prng != null ? prng.Next(10, mapWidth - 10) : Random.Range(10, mapWidth - 10);
+            int rZ = prng != null ? prng.Next(10, mapLength - 10) : Random.Range(10, mapLength - 10);
 
             // Bỏ qua nếu thuộc vùng an toàn khởi đầu của người chơi
             if (_gridSystem.IsInsideStartingSafeZonePublic(rX, rZ) || _gridSystem.IsInsideStartingSafeZonePublic(rX + 1, rZ + 1))
@@ -349,7 +354,7 @@ public class AncientRuinsSpawner : MonoBehaviour
         if (_activeRuins.Contains(ruin))
         {
             _activeRuins.Remove(ruin);
-            Debug.Log($"[AncientRuinsSpawner] Đã xóa {ruin.gameObject.name} khỏi danh sách phế tích hoạt động.");
+            GameLog.Log($"[AncientRuinsSpawner] Đã xóa {ruin.gameObject.name} khỏi danh sách phế tích hoạt động.");
         }
     }
 }

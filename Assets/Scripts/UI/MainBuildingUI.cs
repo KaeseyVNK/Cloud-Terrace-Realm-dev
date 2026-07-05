@@ -73,13 +73,13 @@ public class MainBuildingUI : MonoBehaviour
                     ConstructibleBuilding cb = clickedBuilding.GetComponent<ConstructibleBuilding>();
                     if (cb != null && !cb.IsCompleted)
                     {
-                        Debug.LogWarning("Không thể chọn: Nhà chính đang trong quá trình xây dựng!");
+                        GameLog.LogWarning("Không thể chọn: Nhà chính đang trong quá trình xây dựng!");
                         DeselectMainBuilding();
                         return;
                     }
 
                     SelectMainBuilding(mb);
-                    Debug.Log("Đã chọn nhà chính: " + clickedBuilding.name);
+                    GameLog.Log("Đã chọn nhà chính: " + clickedBuilding.name);
                     return;
                 }
             }
@@ -128,7 +128,7 @@ public class MainBuildingUI : MonoBehaviour
     /// <param name="mb">The Main Building combat target.</param>
     public void SelectMainBuilding(MainBuildingCombatTarget mb)
     {
-        Debug.Log("[MainBuildingUI] SelectMainBuilding called for: " + (mb != null ? mb.gameObject.name : "null"));
+        GameLog.Log("[MainBuildingUI] SelectMainBuilding called for: " + (mb != null ? mb.gameObject.name : "null"));
         _selectedMainBuilding = mb;
 
         if (UnitSelectionManager.Instance != null)
@@ -170,7 +170,7 @@ public class MainBuildingUI : MonoBehaviour
     /// </summary>
     public void DeselectMainBuilding()
     {
-        Debug.Log("[MainBuildingUI] DeselectMainBuilding called.");
+        GameLog.Log("[MainBuildingUI] DeselectMainBuilding called.");
         if (_selectedMainBuilding != null)
         {
             var prod = _selectedMainBuilding.GetComponent<BuildingProduction>() ?? 

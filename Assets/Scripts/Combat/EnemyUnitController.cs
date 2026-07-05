@@ -72,7 +72,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
     [Header("Behavior Settings")]
     [Tooltip("Cho phép quái bỏ chạy về nơi xuất phát khi gần hết máu")]
-    [SerializeField] private bool _canRetreat = true;
+    [SerializeField] private bool _canRetreat = false;
 
     public bool CanRetreat
     {
@@ -659,7 +659,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                     {
                         _enemyMovingStuckTimer = 0f;
                         AttackTarget(blockingBuilding);
-                        Debug.Log($"[EnemyAI] {unitName} bi chan khi duoi bat, chuyen sang tan cong pha huy: {blockingBuilding.gameObject.name}");
+                        GameLog.Log($"[EnemyAI] {unitName} bi chan khi duoi bat, chuyen sang tan cong pha huy: {blockingBuilding.gameObject.name}");
                         return;
                     }
                 }

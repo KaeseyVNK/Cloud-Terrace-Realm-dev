@@ -13,7 +13,7 @@ public enum ResourceType
     AncientRelic
 }
 
-public class ResourceManager : MonoBehaviour
+public class ResourceManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     // Singleton pattern 
     public static ResourceManager Instance { get; private set; }
@@ -28,6 +28,7 @@ public class ResourceManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            EnsureSaveableEntity("Global_ResourceManager");
         }
         else
         {
@@ -36,6 +37,20 @@ public class ResourceManager : MonoBehaviour
         }
 
         InitInventory();
+    }
+
+    private void EnsureSaveableEntity(string saveID)
+    {
+        var saveable = GetComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+        if (saveable == null)
+        {
+            saveable = gameObject.AddComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+            var field = typeof(CloudTerraceRealm.SaveSystem.SaveableEntity).GetField("_saveID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(saveable, saveID);
+            }
+        }
     }
 
     // Khởi tạo kho mặc định
@@ -73,7 +88,7 @@ public class ResourceManager : MonoBehaviour
             OnResourceChanged?.Invoke(type, resourceInventory[type]);
             return true;
         }
-        Debug.Log($"Không đủ {type}! Bạn cần {amount} nhưng chỉ có {resourceInventory[type]}.");
+        GameLog.Log($"Không đủ {type}! Bạn cần {amount} nhưng chỉ có {resourceInventory[type]}.");
         return false;
     }
 
@@ -89,7 +104,7 @@ public class ResourceManager : MonoBehaviour
         {
             if (GetResourceAmount(cost.resourceType) < cost.amount)
             {
-                Debug.Log($"Không đủ {cost.resourceType}! Bạn cần {cost.amount} nhưng chỉ có {GetResourceAmount(cost.resourceType)}.");
+                GameLog.Log($"Không đủ {cost.resourceType}! Bạn cần {cost.amount} nhưng chỉ có {GetResourceAmount(cost.resourceType)}.");
                 return false;
             }
         }
@@ -131,9 +146,45 @@ public class ResourceManager : MonoBehaviour
         int techBonus = 0;
         if (TechnologyManager.HasInstance)
         {
-            techBonus = TechnologyManager.Instance.StorageCapacityBonus;
+            techBonus = (int)TechnologyManager.Instance.StorageCapacityBonus;
         }
 
         return baseCapacity + storageCount * 1000 + techBonus;
+    }
+
+    [Serializable]
+    private class ResourceSaveState
+    {
+        public List<ResourceEntry> resources = new List<ResourceEntry>();
+    }
+
+    [Serializable]
+    private class ResourceEntry
+    {
+        public ResourceType type;
+        public int amount;
+    }
+
+    public string CaptureState()
+    {
+        ResourceSaveState state = new ResourceSaveState();
+        foreach (var kvp in resourceInventory)
+        {
+            state.resources.Add(new ResourceEntry { type = kvp.Key, amount = kvp.Value });
+        }
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        ResourceSaveState state = JsonUtility.FromJson<ResourceSaveState>(stateJson);
+        if (state == null || state.resources == null) return;
+
+        foreach (var entry in state.resources)
+        {
+            resourceInventory[entry.type] = entry.amount;
+            OnResourceChanged?.Invoke(entry.type, entry.amount);
+        }
     }
 }

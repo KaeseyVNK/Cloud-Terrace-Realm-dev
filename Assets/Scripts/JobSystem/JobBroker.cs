@@ -100,7 +100,7 @@ public class JobBroker : MonoBehaviour
             {
                 job.isAssigned = true; // Đánh dấu đã có người làm
                 villager.AssignJob(job);
-                Debug.Log($"Phân bổ cân bằng: Dân làng được giao việc thu thập {job.targetResource} (Tỷ lệ nhân sự: {lowestRatio:F2})");
+                GameLog.Log($"Phân bổ cân bằng: Dân làng được giao việc thu thập {job.targetResource} (Tỷ lệ nhân sự: {lowestRatio:F2})");
                 
                 // Cập nhật lại số lượng thợ để tính toán chính xác cho người rảnh tiếp theo
                 if (activeWorkersCount.ContainsKey(job.targetResource))
@@ -174,7 +174,7 @@ public class JobBroker : MonoBehaviour
     public void AddJob(ZoneType type, ResourceType resource, Vector3 position)
     {
         availableJobs.Add(new Job(type, resource, position));
-        Debug.Log("Them viec moi: " + type + " - " + resource + " tai " + position);
+        GameLog.Log("Them viec moi: " + type + " - " + resource + " tai " + position);
     }
 
     // Xóa job khi xong việc

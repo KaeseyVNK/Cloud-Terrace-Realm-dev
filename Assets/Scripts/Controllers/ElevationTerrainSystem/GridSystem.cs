@@ -186,15 +186,19 @@ public class GridSystem : MonoBehaviour
 
     private void UpdateGridDimensions()
     {
-        if (Terrain.activeTerrain != null)
+        Terrain terrain = Terrain.activeTerrain;
+        TerrainData terrainData = terrain != null ? terrain.terrainData : null;
+
+        if (terrainData != null)
         {
-            _width = Mathf.RoundToInt(Terrain.activeTerrain.terrainData.size.x / _cellSize);
-            _length = Mathf.RoundToInt(Terrain.activeTerrain.terrainData.size.z / _cellSize);
+            _width = Mathf.RoundToInt(terrainData.size.x / _cellSize);
+            _length = Mathf.RoundToInt(terrainData.size.z / _cellSize);
         }
         else
         {
             _width = 50;
             _length = 50;
+            GameLog.LogWarning("[GridSystem] Active Terrain is missing TerrainData. Using fallback 50x50 grid.");
         }
     }
 
@@ -202,6 +206,8 @@ public class GridSystem : MonoBehaviour
     {
         UpdateGridDimensions();
         _gridArray = new GridCell[_width, _length];
+        Terrain terrain = Terrain.activeTerrain;
+        bool canSampleTerrain = terrain != null && terrain.terrainData != null;
         
         for (int x = 0; x < _width; x++)
         {
@@ -211,11 +217,11 @@ public class GridSystem : MonoBehaviour
                 
                 // Nếu ô đất này thấp hơn mực nước, đánh dấu là không thể xây dựng.
                 // Chỉ cấm di chuyển nếu nước sâu hơn 0.3m (độ cao đất < _waterHeight - 0.3f)
-                if (Terrain.activeTerrain != null)
+                if (canSampleTerrain)
                 {
                     float worldX = x * _cellSize;
                     float worldZ = z * _cellSize;
-                    float height = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                    float height = terrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
                     if (height < _waterHeight)
                     {
                         if (height < _waterHeight - 0.3f)
@@ -382,7 +388,7 @@ public class GridSystem : MonoBehaviour
 
         if (_navMeshSurface == null)
         {
-            Debug.LogWarning("[GridSystem] Không tìm thấy NavMeshSurface để bake.");
+            GameLog.LogWarning("[GridSystem] Không tìm thấy NavMeshSurface để bake.");
             return;
         }
 
@@ -480,7 +486,7 @@ public class GridSystem : MonoBehaviour
         }
 
         _navMeshSurface.BuildNavMesh();
-        Debug.Log("[GridSystem] Đã bake NavMesh loại trừ các khu vực sông hồ ngập nước thành công!");
+        GameLog.Log("[GridSystem] Đã bake NavMesh loại trừ các khu vực sông hồ ngập nước thành công!");
     }
 
     private void PrepareTerrainSize()
@@ -493,7 +499,7 @@ public class GridSystem : MonoBehaviour
         Terrain terrain = Terrain.activeTerrain;
         if (terrain == null)
         {
-            Debug.LogWarning("Không có Unity Terrain trong cảnh!");
+            GameLog.LogWarning("Không có Unity Terrain trong cảnh!");
             return;
         }
 
@@ -516,7 +522,7 @@ public class GridSystem : MonoBehaviour
         Terrain terrain = Terrain.activeTerrain;
         if (terrain == null)
         {
-            Debug.LogWarning("Không có Unity Terrain trong cảnh!");
+            GameLog.LogWarning("Không có Unity Terrain trong cảnh!");
             return;
         }
 
@@ -590,7 +596,7 @@ public class GridSystem : MonoBehaviour
         }
 
         tData.SetHeights(0, 0, heights);
-        Debug.Log("Đã nặn xong địa hình!");
+        GameLog.Log("Đã nặn xong địa hình!");
     }
 
     [ContextMenu("2. Generate Terrain Details")]
@@ -604,7 +610,7 @@ public class GridSystem : MonoBehaviour
         Terrain terrain = Terrain.activeTerrain;
         if (terrain == null)
         {
-            Debug.LogWarning("Khong co Unity Terrain trong canh!");
+            GameLog.LogWarning("Khong co Unity Terrain trong canh!");
             return;
         }
 
@@ -612,7 +618,7 @@ public class GridSystem : MonoBehaviour
         DetailPrototype[] prototypes = EnsureTerrainDetailPrototypes(tData);
         if (prototypes.Length == 0)
         {
-            Debug.LogWarning("[GridSystem] Khong the tao Terrain Detail vi chua co detail texture.");
+            GameLog.LogWarning("[GridSystem] Khong the tao Terrain Detail vi chua co detail texture.");
             return;
         }
 
@@ -637,7 +643,7 @@ public class GridSystem : MonoBehaviour
         int detailHeight = tData.detailHeight;
         if (detailWidth <= 0 || detailHeight <= 0)
         {
-            Debug.LogWarning("[GridSystem] Terrain Detail Resolution chua hop le.");
+            GameLog.LogWarning("[GridSystem] Terrain Detail Resolution chua hop le.");
             return;
         }
 
@@ -666,7 +672,7 @@ public class GridSystem : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(tData);
 #endif
-        Debug.Log("[GridSystem] Generated Terrain Details by code. Density = " + _detailDensity + ", Billboard = Off.");
+        GameLog.Log("[GridSystem] Generated Terrain Details by code. Density = " + _detailDensity + ", Billboard = Off.");
     }
 
     private int[,] GenerateBrushDetailLayer(
@@ -840,7 +846,7 @@ public class GridSystem : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(tData);
 #endif
-        Debug.Log("[GridSystem] Added default non-billboard grass Detail Prototype to Terrain.");
+        GameLog.Log("[GridSystem] Added default non-billboard grass Detail Prototype to Terrain.");
         return tData.detailPrototypes;
     }
 
@@ -1698,7 +1704,7 @@ public class GridSystem : MonoBehaviour
         Terrain terrain = Terrain.activeTerrain;
         if (terrain == null) 
         {
-            Debug.LogWarning("Không tìm thấy Unity Terrain trong cảnh! Vui lòng tạo 1 Terrain.");
+            GameLog.LogWarning("Không tìm thấy Unity Terrain trong cảnh! Vui lòng tạo 1 Terrain.");
             return;
         }
 
@@ -1875,7 +1881,7 @@ public class GridSystem : MonoBehaviour
 
         if (_bridgePrefab == null)
         {
-            Debug.LogWarning("[GridSystem] Không tìm thấy _bridgePrefab để sinh cầu tự động!");
+            GameLog.LogWarning("[GridSystem] Không tìm thấy _bridgePrefab để sinh cầu tự động!");
             return;
         }
 
@@ -1964,11 +1970,11 @@ public class GridSystem : MonoBehaviour
             }
         }
 
-        Debug.Log($"[GridSystem] Phát hiện thấy {componentId} vùng đất liền riêng biệt trên bản đồ.");
+        GameLog.Log($"[GridSystem] Phát hiện thấy {componentId} vùng đất liền riêng biệt trên bản đồ.");
 
         if (componentId <= 1)
         {
-            Debug.Log("[GridSystem] Bản đồ đã liên thông hoàn toàn, không cần sinh cầu tự động.");
+            GameLog.Log("[GridSystem] Bản đồ đã liên thông hoàn toàn, không cần sinh cầu tự động.");
             return;
         }
 
@@ -2165,13 +2171,13 @@ public class GridSystem : MonoBehaviour
 
                 if (allConnected)
                 {
-                    Debug.Log("[GridSystem] Tất cả các vùng đất liền đã liên thông 100%!");
+                    GameLog.Log("[GridSystem] Tất cả các vùng đất liền đã liên thông 100%!");
                     break;
                 }
             }
         }
 
-        Debug.Log($"[GridSystem] Đã tự động sinh {bridgesSpawned} cầu vượt sông dựa trên phân tích liên thông đất liền.");
+        GameLog.Log($"[GridSystem] Đã tự động sinh {bridgesSpawned} cầu vượt sông dựa trên phân tích liên thông đất liền.");
     }
 
     private bool IsProceduralBridgeAlignedWithRiver(BridgeCandidate candidate, System.Func<int, int, bool> checkIsRiver)
@@ -2275,7 +2281,7 @@ public class GridSystem : MonoBehaviour
                 }
             }
         }
-        Debug.Log("[GridSystem] Đã khởi tạo bộ đệm cản nước NavMesh chạy runtime thành công!");
+        GameLog.Log("[GridSystem] Đã khởi tạo bộ đệm cản nước NavMesh chạy runtime thành công!");
     }
 
     public void SetWaterObstaclesActive(int centerX, int centerZ, bool isVertical, bool active)

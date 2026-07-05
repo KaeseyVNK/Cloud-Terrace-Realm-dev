@@ -3,7 +3,7 @@ using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
-public abstract class BaseCombatUnitController : MonoBehaviour
+public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     public static readonly List<BaseCombatUnitController> Registry = new List<BaseCombatUnitController>();
 
@@ -13,6 +13,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     [Header("Faction & Identity")]
     public UnitFaction faction;
     public string unitName = "Combat Unit";
+    [HideInInspector] public string prefabName;
 
     [Header("Stats")]
     public int maxHealth = 100;
@@ -77,6 +78,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     private float knockupRecoveryUntil;
     private float movingAnimationHoldUntil;
     private float _nextChaseRepathTime = 0f;
+    private float _nextBetterTargetCheckTime = 0f;
     // Watchdog: đếm thời gian unit đang ở Moving state nhưng velocity ≈ 0 (bị kẹt)
     private float _movingStuckTimer = 0f;
     private const float MovingStuckTimeout = 2.0f; // Giây trước khi tự chuyển về Idle
@@ -207,6 +209,9 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         {
             _defaultAvoidanceType = navAgent.obstacleAvoidanceType;
             navAgent.avoidancePriority = Random.Range(30, 71);
+
+            // Thiết lập areaMask trùng khớp với WalkableNavMeshAreaMask (~2) để đơn vị có thể đi qua mọi địa hình đã bake (bao gồm cầu gỗ)
+            navAgent.areaMask = ~2;
 
             // Tối ưu hóa tìm đường và di chuyển chống khựng/kẹt góc đồi núi
             navAgent.radius = 0.35f; // Khớp chuẩn xác với agentRadius đã bake (0.35) để không cọ xát vách đá
@@ -410,7 +415,6 @@ public abstract class BaseCombatUnitController : MonoBehaviour
                 break;
         }
 
-        UpdateAvoidancePriority();
         UpdateAnimationState();
     }
 
@@ -517,7 +521,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     {
         if (target == null) return 0f;
         Collider col = GetActiveTargetCollider(target);
-        if (col != null && target.GetComponent<UnityEngine.AI.NavMeshAgent>() == null)
+        if (col != null && target.navAgent == null)
         {
             Vector3 closestPoint = col.ClosestPoint(transform.position);
             closestPoint.y = transform.position.y;
@@ -538,9 +542,9 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         }
 
         float targetRadius = 0f;
-        if (target.TryGetComponent(out NavMeshAgent targetAgent))
+        if (target.navAgent != null)
         {
-            targetRadius = targetAgent.radius;
+            targetRadius = target.navAgent.radius;
         }
         else if (target.TryGetComponent(out Collider targetCol))
         {
@@ -778,7 +782,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             BaseCombatUnitController attackTarget = currentTarget;
             string targetName = attackTarget.unitName;
             attackTarget.TakeDamage(attackDamage, this);
-            Debug.Log($"[Combat] {unitName} tấn công {targetName} gây {attackDamage} sát thương.");
+            GameLog.Log($"[Combat] {unitName} tấn công {targetName} gây {attackDamage} sát thương.");
         }
     }
 
@@ -816,7 +820,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             }
         }
 
-        Debug.Log($"[Combat] {unitName} nhận {damage} sát thương. Máu còn lại: {currentHealth}/{maxHealth}");
+        GameLog.Log($"[Combat] {unitName} nhận {damage} sát thương. Máu còn lại: {currentHealth}/{maxHealth}");
 
         // Kích hoạt nhấp nháy đỏ phản hồi thị giác (không làm gián đoạn hành động/animation)
         TriggerHitFlash();
@@ -963,7 +967,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             SetAnimatorBoolIfExists("IsDead", true);
         }
 
-        Debug.Log($"[Combat] {unitName} đã tử trận!");
+        GameLog.Log($"[Combat] {unitName} đã tử trận!");
         
         OnDeath();
     }
@@ -1115,7 +1119,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour
             navAgent.ResetPath();
         }
         ChangeState(CombatState.Idle);
-        Debug.Log($"[RTS] {gameObject.name} đã được ra lệnh Giữ vị trí (Hold Position).");
+        GameLog.Log($"[RTS] {gameObject.name} đã được ra lệnh Giữ vị trí (Hold Position).");
     }
 
     public virtual void CommandAttackMove(Vector3 position)
@@ -1255,6 +1259,13 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         {
             return false;
         }
+
+        if (Time.time < _nextBetterTargetCheckTime)
+        {
+            return false;
+        }
+
+        _nextBetterTargetCheckTime = Time.time + 0.5f;
 
         BaseCombatUnitController betterTarget = ScanForNearestEnemy();
         if (betterTarget == null || betterTarget == currentTarget)
@@ -1407,6 +1418,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour
         {
             ForceDeadAnimationState();
         }
+
+        UpdateAvoidancePriority();
     }
 
     protected virtual void UpdateAnimationState()
@@ -1616,5 +1629,32 @@ public abstract class BaseCombatUnitController : MonoBehaviour
     protected bool IsNavAgentReady()
     {
         return navAgent != null && navAgent.enabled && navAgent.isOnNavMesh;
+    }
+
+    [System.Serializable]
+    private class CombatUnitSaveState
+    {
+        public int currentHealth;
+        public string unitName;
+    }
+
+    public virtual string CaptureState()
+    {
+        var state = new CombatUnitSaveState
+        {
+            currentHealth = this.currentHealth,
+            unitName = this.unitName
+        };
+        return JsonUtility.ToJson(state);
+    }
+
+    public virtual void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<CombatUnitSaveState>(stateJson);
+        if (state == null) return;
+
+        this.unitName = state.unitName;
+        this.currentHealth = Mathf.Clamp(state.currentHealth, 1, this.maxHealth);
     }
 }

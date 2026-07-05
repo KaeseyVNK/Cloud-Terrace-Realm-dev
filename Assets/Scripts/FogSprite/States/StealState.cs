@@ -25,7 +25,7 @@ public class StealState : FogSpriteState
         if (_timer >= STEAL_DURATION)
         {
             int stolen = ctrl.TargetStorage.TakeResources(ctrl.stealAmount);
-            Debug.Log($"[FogSprite] Stole {stolen} resources!");
+            GameLog.Log($"[FogSprite] Stole {stolen} resources!");
             ctrl.StateMachine.ChangeState(new FleeState(ctrl));
         }
     }

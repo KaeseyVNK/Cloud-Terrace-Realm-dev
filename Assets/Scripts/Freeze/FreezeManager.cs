@@ -31,7 +31,7 @@ public class FreezeManager : MonoBehaviour
         foreach (var b in copy)
             b.Unfreeze();
 
-        Debug.Log("[FreezeManager] Trời sáng - tất cả công trình đã rã đông!");
+        GameLog.Log("[FreezeManager] Trời sáng - tất cả công trình đã rã đông!");
     }
 
     // Tìm building gần nhất để freeze

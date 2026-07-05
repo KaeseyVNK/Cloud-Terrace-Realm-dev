@@ -755,6 +755,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArcherController
   faction: 0
   unitName: Archer
+  prefabName: 
   maxHealth: 70
   currentHealth: 70
   attackDamage: 10

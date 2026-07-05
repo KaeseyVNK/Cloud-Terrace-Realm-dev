@@ -195,7 +195,7 @@ public class HouseShelter : MonoBehaviour
         villager.ChangeState(VillagerState.Sheltered);
         villager.gameObject.SetActive(false);
         
-        Debug.Log($"[HouseShelter] Villager {villager.gameObject.name} entered shelter {gameObject.name}. Occupants: {_shelteredVillagers.Count}/{_capacity}");
+        GameLog.Log($"[HouseShelter] Villager {villager.gameObject.name} entered shelter {gameObject.name}. Occupants: {_shelteredVillagers.Count}/{_capacity}");
     }
 
     /// <summary>
@@ -283,7 +283,7 @@ public class HouseShelter : MonoBehaviour
 
         villager.ResumePostShelterState();
 
-        Debug.Log($"[HouseShelter] Ejected villager {villager.gameObject.name} from {gameObject.name}.");
+        GameLog.Log($"[HouseShelter] Ejected villager {villager.gameObject.name} from {gameObject.name}.");
     }
 
     #endregion

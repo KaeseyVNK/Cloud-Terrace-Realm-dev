@@ -249,7 +249,29 @@ public class BuildingManager : MonoBehaviour
             Destroy(gameObject);
         } 
         _gridSystem = FindAnyObjectByType<GridSystem>();
-     
+    }
+
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        _gridSystem = FindAnyObjectByType<GridSystem>();
+        _builtStructures.Clear();
+        _buildingDataMap.Clear();
+        _builtBuildingCounts.Clear();
+        _mainBuildingInstance = null;
+        _ghostBuilding = null;
+        _isBuildMode = false;
+        _isDeleteMode = false;
+        GameLog.Log($"[BuildingManager] Scene loaded: {scene.name}. Refreshed references and cleared dictionaries.");
     }
 
     void Start()
@@ -263,7 +285,7 @@ public class BuildingManager : MonoBehaviour
             _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Building/mongsnhaf.prefab");
             if (_constructionFencePrefab != null)
             {
-                Debug.Log($"[BuildingManager] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
+                GameLog.Log($"[BuildingManager] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
             }
         }
 #endif
@@ -413,12 +435,12 @@ public class BuildingManager : MonoBehaviour
                     SelectBuilding(CurrentSelectedBuilding);
                 }
                 SetBuildingMenuVisible(true);
-                Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT");
+                GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT");
             }
             else
             {
                 CancelBuildMode();
-                Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT");
+                GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT");
             }
         }    
 
@@ -436,11 +458,11 @@ public class BuildingManager : MonoBehaviour
                 }
                 _currentSelectedBuilding = null;
                 SetBuildingMenuVisible(false);
-                Debug.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT");
+                GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT");
             }
             else
             {
-                Debug.Log("CHẾ ĐỘ PHÁ HỦY: Đã TẮT");
+                GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã TẮT");
             }
         }
 
@@ -451,28 +473,28 @@ public class BuildingManager : MonoBehaviour
             if (Keyboard.current.rKey.wasPressedThisFrame)
             {
                 _currentRotationIndex = (_currentRotationIndex + 1) % 4;
-                Debug.Log($"Xoay công trình: {_currentRotationIndex * 90} độ");
+                GameLog.Log($"Xoay công trình: {_currentRotationIndex * 90} độ");
             }
 
             if (Keyboard.current.digit1Key.wasPressedThisFrame && AvailableBuildings.Count > 0)
             {
                 SelectBuilding(AvailableBuildings[0]);
-                Debug.Log($"Đã chọn: {AvailableBuildings[0].buildingName}");
+                GameLog.Log($"Đã chọn: {AvailableBuildings[0].buildingName}");
             }
             if (Keyboard.current.digit2Key.wasPressedThisFrame && AvailableBuildings.Count > 1)
             {
                 SelectBuilding(AvailableBuildings[1]);
-                Debug.Log($"Đã chọn: {AvailableBuildings[1].buildingName}");
+                GameLog.Log($"Đã chọn: {AvailableBuildings[1].buildingName}");
             }
             if (Keyboard.current.digit3Key.wasPressedThisFrame && AvailableBuildings.Count > 2)
             {
                 SelectBuilding(AvailableBuildings[2]);
-                Debug.Log($"Đã chọn: {AvailableBuildings[2].buildingName}");
+                GameLog.Log($"Đã chọn: {AvailableBuildings[2].buildingName}");
             }
             if (Keyboard.current.digit4Key.wasPressedThisFrame && AvailableBuildings.Count > 3)
             {
                 SelectBuilding(AvailableBuildings[3]);
-                Debug.Log($"Đã chọn: {AvailableBuildings[3].buildingName}");
+                GameLog.Log($"Đã chọn: {AvailableBuildings[3].buildingName}");
             }
         }
     }
@@ -583,7 +605,7 @@ public class BuildingManager : MonoBehaviour
                                 _lastPreviewX = gridX;
                                 _lastPreviewZ = gridZ;
                                 _lastPreviewRotation = _currentRotationIndex;
-                                Debug.Log($"[BuildingManager] Touch preview placed at ({gridX}, {gridZ}). Tap again on same tile to construct.");
+                                GameLog.Log($"[BuildingManager] Touch preview placed at ({gridX}, {gridZ}). Tap again on same tile to construct.");
                             }
                         }
                         else
@@ -917,7 +939,7 @@ public class BuildingManager : MonoBehaviour
     {
         if (!canBuild || data == null || data.buildingPrefab == null)
         {
-            Debug.LogWarning("Không thể xây ở đây: Không đủ chỗ, vướng vật cản, hoặc địa hình không bằng phẳng!");
+            GameLog.LogWarning("Không thể xây ở đây: Không đủ chỗ, vướng vật cản, hoặc địa hình không bằng phẳng!");
             return;
         }
 
@@ -934,7 +956,7 @@ public class BuildingManager : MonoBehaviour
             {
                 if (!_builtBuildingCounts.ContainsKey(reqBuilding) || _builtBuildingCounts[reqBuilding] <= 0)
                 {
-                    Debug.LogWarning($"Không thể xây! Bạn cần phải xây '{reqBuilding.buildingName}' trước.");
+                    GameLog.LogWarning($"Không thể xây! Bạn cần phải xây '{reqBuilding.buildingName}' trước.");
                     return; // Bắt buộc phải có công trình yêu cầu
                 }
             }
@@ -943,7 +965,7 @@ public class BuildingManager : MonoBehaviour
         // KIỂM TRA VÀ TRỪ TÀI NGUYÊN
         if (!ResourceManager.Instance.CanAfford(data.buildCosts))
         {
-            Debug.LogWarning("Không thể xây ở đây: Không đủ tài nguyên!");
+            GameLog.LogWarning("Không thể xây ở đây: Không đủ tài nguyên!");
             return;
         }
 
@@ -1054,12 +1076,12 @@ public class BuildingManager : MonoBehaviour
         if (isInstant)
         {
             OnBuildingCompleted(cb);
-            Debug.Log($"[BuildingManager] Xây dựng xong ngay lập tức công trình {data.buildingName} tại [{startX}, {startZ}]!");
+            GameLog.Log($"[BuildingManager] Xây dựng xong ngay lập tức công trình {data.buildingName} tại [{startX}, {startZ}]!");
         }
         else
         {
             // Ghi nhận nhà đã bắt đầu đặt móng (chưa tăng builtBuildingCounts vì chưa hoàn thành)
-            Debug.Log($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
+            GameLog.Log($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
         }
 
         // Sau khi đặt thành công, dọn dẹp ghost và lựa chọn hiện tại để tránh lưu công trình cũ
@@ -1160,11 +1182,11 @@ public class BuildingManager : MonoBehaviour
         if (buildingObj == _mainBuildingInstance)
         {
             _mainBuildingInstance = null;
-            Debug.LogWarning("NHÀ CHÍNH ĐÃ BỊ TIÊU DIỆT! GAME OVER!");
+            GameLog.LogWarning("NHÀ CHÍNH ĐÃ BỊ TIÊU DIỆT! GAME OVER!");
         }
 
         Destroy(buildingObj);
-        Debug.Log($"[BuildingManager] Đã phá hủy công trình {buildingObj.name} chiếm {cellsToClear.Count} ô!");
+        GameLog.Log($"[BuildingManager] Đã phá hủy công trình {buildingObj.name} chiếm {cellsToClear.Count} ô!");
     }
 
     private void DeleteBuilding(GridCell hitCell)
@@ -1175,7 +1197,7 @@ public class BuildingManager : MonoBehaviour
         }
         else
         {
-             Debug.Log("Không có công trình nào trên ô này để xóa!");
+             GameLog.Log("Không có công trình nào trên ô này để xóa!");
         }
     }   
 
@@ -1254,7 +1276,7 @@ public class BuildingManager : MonoBehaviour
         }
         _builtBuildingCounts[_mainBuildingData]++;
         
-        Debug.Log($"Đã tự động xây {_mainBuildingData.buildingName} tại [{centerGridX}, {centerGridZ}]");
+        GameLog.Log($"Đã tự động xây {_mainBuildingData.buildingName} tại [{centerGridX}, {centerGridZ}]");
     }
 
     public Vector3 FindNearestDropoff(Vector3 position, ResourceType resourceType)
@@ -1383,7 +1405,7 @@ public class BuildingManager : MonoBehaviour
             }
             _builtBuildingCounts[data]++;
 
-            Debug.Log($"[BuildingManager] '{data.buildingName}' đã hoàn thành xây dựng! Tổng số lượng: {_builtBuildingCounts[data]}. Kích hoạt yêu cầu công nghệ!");
+            GameLog.Log($"[BuildingManager] '{data.buildingName}' đã hoàn thành xây dựng! Tổng số lượng: {_builtBuildingCounts[data]}. Kích hoạt yêu cầu công nghệ!");
         }
     }
 
@@ -1403,7 +1425,7 @@ public class BuildingManager : MonoBehaviour
                     capacity = 10;
                 }
                 shelter.SetCapacity(capacity);
-                Debug.Log($"[BuildingManager] Đã gắn HouseShelter cho {building.name} với sức chứa {capacity} dân.");
+                GameLog.Log($"[BuildingManager] Đã gắn HouseShelter cho {building.name} với sức chứa {capacity} dân.");
             }
         }
     }
@@ -1446,7 +1468,7 @@ public class BuildingManager : MonoBehaviour
         }
         _currentSelectedBuilding = null;
 
-        Debug.Log("[BuildingManager] Cancelled build mode.");
+        GameLog.Log("[BuildingManager] Cancelled build mode.");
         SetBuildingMenuVisible(false);
     }
 
@@ -1470,12 +1492,12 @@ public class BuildingManager : MonoBehaviour
                 SelectBuilding(CurrentSelectedBuilding);
             }
             SetBuildingMenuVisible(true);
-            Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT (từ UI)");
+            GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT (từ UI)");
         }
         else
         {
             CancelBuildMode();
-            Debug.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT (từ UI)");
+            GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT (từ UI)");
         }
     }
 
@@ -1492,11 +1514,11 @@ public class BuildingManager : MonoBehaviour
             }
             _currentSelectedBuilding = null;
             SetBuildingMenuVisible(false);
-            Debug.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT (từ UI)");
+            GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT (từ UI)");
         }
         else
         {
-            Debug.Log("CHẾ ĐỘ PHÁ HỦY: Đã TẮT (từ UI)");
+            GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã TẮT (từ UI)");
         }
     }
 
@@ -1505,7 +1527,7 @@ public class BuildingManager : MonoBehaviour
         if (IsBuildMode)
         {
             _currentRotationIndex = (_currentRotationIndex + 1) % 4;
-            Debug.Log($"Xoay công trình: {_currentRotationIndex * 90} độ (từ UI)");
+            GameLog.Log($"Xoay công trình: {_currentRotationIndex * 90} độ (từ UI)");
         }
     }
 

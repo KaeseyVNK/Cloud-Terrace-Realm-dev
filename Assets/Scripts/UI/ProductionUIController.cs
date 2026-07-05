@@ -448,7 +448,7 @@ public class ProductionUIController : MonoBehaviour
     private void OnRallyPointButtonClicked()
     {
         // Thông báo cho TestProductionUI kích hoạt chế độ đặt rally point
-        Debug.Log("[ProductionUI] Nhấn nút Rally Point");
+        GameLog.Log("[ProductionUI] Nhấn nút Rally Point");
         // Hiện tại TestProductionUI quản lý trạng thái _isRallyTargetingMode nội bộ.
         // Tìm field qua reflection để toggle
         if (TestProductionUI.Instance != null)

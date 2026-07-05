@@ -1114,6 +1114,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyUnitController
   faction: 1
   unitName: Combat Unit
+  prefabName: 
   maxHealth: 100
   currentHealth: 0
   attackDamage: 10

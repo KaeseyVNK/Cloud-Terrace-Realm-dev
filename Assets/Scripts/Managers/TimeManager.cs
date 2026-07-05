@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-public class TimeManager : MonoBehaviour
+public class TimeManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     public static TimeManager Instance { get; private set; }
 
@@ -26,10 +26,25 @@ public class TimeManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            EnsureSaveableEntity("Global_TimeManager");
         }
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    private void EnsureSaveableEntity(string saveID)
+    {
+        var saveable = GetComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+        if (saveable == null)
+        {
+            saveable = gameObject.AddComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+            var field = typeof(CloudTerraceRealm.SaveSystem.SaveableEntity).GetField("_saveID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(saveable, saveID);
+            }
         }
     }
 
@@ -57,5 +72,38 @@ public class TimeManager : MonoBehaviour
     public float GetTimeRatio()
     {
         return currentTime / dayDuration;
+    }
+
+    [Serializable]
+    private class TimeSaveState
+    {
+        public float currentTime;
+        public int dayCount;
+        public bool isNight;
+    }
+
+    public string CaptureState()
+    {
+        TimeSaveState state = new TimeSaveState
+        {
+            currentTime = this.currentTime,
+            dayCount = this.dayCount,
+            isNight = this.IsNight
+        };
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        TimeSaveState state = JsonUtility.FromJson<TimeSaveState>(stateJson);
+        if (state == null) return;
+
+        this.currentTime = state.currentTime;
+        this.dayCount = state.dayCount;
+        this.IsNight = state.isNight;
+        
+        OnDayChanged?.Invoke(dayCount);
+        OnDayNightChanged?.Invoke(IsNight);
     }
 }

@@ -100,6 +100,9 @@ namespace UnityMcpPro.Tests
                 @params = new Dictionary<string, object>()
             };
 
+            // Kỳ vọng LogError được ghi nhận từ handler ném exception
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error, new System.Text.RegularExpressions.Regex(".*kaboom.*"));
+
             _router.Dispatch(request, r => response = r);
 
             Assert.IsNotNull(response);

@@ -30,7 +30,7 @@ public class PriorityQueueUI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[PriorityQueueUI] ConstructionQueue.Instance is null!");
+            GameLog.LogError("[PriorityQueueUI] ConstructionQueue.Instance is null!");
         }
     }
 
@@ -42,7 +42,7 @@ public class PriorityQueueUI : MonoBehaviour
 
     public void TogglePanel()
     {
-        Debug.Log("[PriorityQueueUI] TogglePanel called!");
+        GameLog.Log("[PriorityQueueUI] TogglePanel called!");
         _isOpen = !_isOpen;
         queuePanel.SetActive(_isOpen);
         if (!_isOpen) detailPanel.Hide();
@@ -50,7 +50,7 @@ public class PriorityQueueUI : MonoBehaviour
 
     private void RefreshList()
     {
-        Debug.Log($"[PriorityQueueUI] RefreshList called. Slots: {ConstructionQueue.Instance.Slots.Count}");
+        GameLog.Log($"[PriorityQueueUI] RefreshList called. Slots: {ConstructionQueue.Instance.Slots.Count}");
 
         foreach (var item in _items)
             Destroy(item.gameObject);

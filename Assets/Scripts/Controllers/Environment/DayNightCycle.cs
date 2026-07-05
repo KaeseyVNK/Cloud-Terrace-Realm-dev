@@ -63,7 +63,7 @@ public class DayNightCycle : MonoBehaviour
         sun = GetComponent<Light>();
         if (sun == null)
         {
-            Debug.LogError("DayNightCycle must be attached to a Directional Light!");
+            GameLog.LogError("DayNightCycle must be attached to a Directional Light!");
             return;
         }
 

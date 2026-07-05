@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class TechnologyManager : MonoBehaviour
+public class TechnologyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     private static TechnologyManager _instance;
     private readonly HashSet<string> _unlockedTechnologyIds = new HashSet<string>();
@@ -48,7 +48,7 @@ public class TechnologyManager : MonoBehaviour
         }
     }
 
-    public int StorageCapacityBonus
+    public float StorageCapacityBonus
     {
         get
         {
@@ -61,6 +61,7 @@ public class TechnologyManager : MonoBehaviour
                     bonus += technology.storageCapacityBonus;
                 }
             }
+
             return bonus;
         }
     }
@@ -73,12 +74,27 @@ public class TechnologyManager : MonoBehaviour
         {
             _instance = this;
             DontDestroyOnLoad(gameObject);
+            EnsureSaveableEntity("Global_TechnologyManager");
             return;
         }
 
         if (_instance != this)
         {
             Destroy(gameObject);
+        }
+    }
+
+    private void EnsureSaveableEntity(string saveID)
+    {
+        var saveable = GetComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+        if (saveable == null)
+        {
+            saveable = gameObject.AddComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+            var field = typeof(CloudTerraceRealm.SaveSystem.SaveableEntity).GetField("_saveID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(saveable, saveID);
+            }
         }
     }
 
@@ -106,7 +122,7 @@ public class TechnologyManager : MonoBehaviour
 
         _unlockedTechnologies.Add(technology);
         OnTechnologyUnlocked?.Invoke(technology);
-        Debug.Log("[Tech] Unlocked: " + technology.technologyName);
+        GameLog.Log("[Tech] Unlocked: " + technology.technologyName);
         return true;
     }
 
@@ -140,5 +156,72 @@ public class TechnologyManager : MonoBehaviour
         }
 
         return multiplier;
+    }
+
+    [Serializable]
+    private class TechnologySaveState
+    {
+        public List<string> unlockedTechnologyIds = new List<string>();
+    }
+
+    public string CaptureState()
+    {
+        TechnologySaveState state = new TechnologySaveState();
+        foreach (string id in _unlockedTechnologyIds)
+        {
+            if (!string.IsNullOrEmpty(id))
+            {
+                state.unlockedTechnologyIds.Add(id);
+            }
+        }
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        TechnologySaveState state = JsonUtility.FromJson<TechnologySaveState>(stateJson);
+        if (state == null || state.unlockedTechnologyIds == null) return;
+
+        _unlockedTechnologyIds.Clear();
+        _unlockedTechnologies.Clear();
+
+        foreach (string id in state.unlockedTechnologyIds)
+        {
+            TechnologyData tech = FindTechnologyDataByID(id);
+            if (tech != null)
+            {
+                _unlockedTechnologyIds.Add(id);
+                _unlockedTechnologies.Add(tech);
+                OnTechnologyUnlocked?.Invoke(tech);
+            }
+        }
+    }
+
+    private TechnologyData FindTechnologyDataByID(string technologyId)
+    {
+        if (string.IsNullOrEmpty(technologyId)) return null;
+
+        foreach (BlacksmithResearch research in BlacksmithResearch.ActiveBlacksmiths)
+        {
+            if (research == null) continue;
+            foreach (TechnologyData tech in research.AvailableTechnologies)
+            {
+                if (tech != null && tech.technologyId == technologyId)
+                {
+                    return tech;
+                }
+            }
+        }
+
+        foreach (TechnologyData tech in BlacksmithResearch.GlobalCardTechnologies)
+        {
+            if (tech != null && tech.technologyId == technologyId)
+            {
+                return tech;
+            }
+        }
+
+        return null;
     }
 }

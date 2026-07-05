@@ -58,7 +58,7 @@ public class BuildingCategoryTab : MonoBehaviour
     {
         if (_menuUI == null)
         {
-            Debug.LogError("[BuildingCategoryTab] Chưa gán BuildingMenuUI.", this);
+            GameLog.LogError("[BuildingCategoryTab] Chưa gán BuildingMenuUI.", this);
             return;
         }
 

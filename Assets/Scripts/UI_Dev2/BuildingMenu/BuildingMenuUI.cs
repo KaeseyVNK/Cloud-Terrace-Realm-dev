@@ -101,7 +101,7 @@ public class BuildingMenuUI : MonoBehaviour
 
         if (manager == null)
         {
-            Debug.LogError(
+            GameLog.LogError(
                 "[BuildingMenuUI] Không tìm thấy BuildingManager.Instance.",
                 this
             );
@@ -110,7 +110,7 @@ public class BuildingMenuUI : MonoBehaviour
 
         if (_cardPrefab == null)
         {
-            Debug.LogError(
+            GameLog.LogError(
                 "[BuildingMenuUI] Card Prefab chưa được gán.",
                 this
             );
@@ -119,7 +119,7 @@ public class BuildingMenuUI : MonoBehaviour
 
         if (_cardsContainer == null)
         {
-            Debug.LogError(
+            GameLog.LogError(
                 "[BuildingMenuUI] Cards Container chưa được gán.",
                 this
             );
@@ -157,7 +157,7 @@ public class BuildingMenuUI : MonoBehaviour
         UpdateHeaderTitle();
         RefreshCardsLayout();
 
-        Debug.Log(
+        GameLog.Log(
             $"[BuildingMenuUI] Category {category}: " +
             $"hiển thị {displayedCardCount} công trình."
         );

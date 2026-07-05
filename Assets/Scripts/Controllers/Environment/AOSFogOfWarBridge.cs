@@ -96,27 +96,42 @@ public class AOSFogOfWarBridge : MonoBehaviour
 
     private void ConfigureFogWar()
     {
+        if (fogWar == null)
+        {
+            GameLog.LogWarning("[AOSFogOfWarBridge] csFogWar component is missing. Fog configuration skipped.");
+            return;
+        }
+
         if (autoUseActiveTerrainBounds && Terrain.activeTerrain != null)
         {
             Terrain terrain = Terrain.activeTerrain;
-            Vector3 terrainPosition = terrain.transform.position;
-            Vector3 terrainSize = terrain.terrainData.size;
+            TerrainData terrainData = terrain.terrainData;
 
-            transform.position = new Vector3(
-                terrainPosition.x + terrainSize.x * 0.5f,
-                terrainPosition.y,
-                terrainPosition.z + terrainSize.z * 0.5f);
-
-            if (autoFitUnitScaleToTerrain)
+            if (terrainData != null)
             {
-                float minScaleX = terrainSize.x / 128f;
-                float minScaleZ = terrainSize.z / 128f;
-                unitScale = Mathf.Max(0.1f, unitScale, minScaleX, minScaleZ);
-            }
+                Vector3 terrainPosition = terrain.transform.position;
+                Vector3 terrainSize = terrainData.size;
 
-            levelDimensions = new Vector2Int(
-                Mathf.Clamp(Mathf.CeilToInt(terrainSize.x / unitScale), 1, 128),
-                Mathf.Clamp(Mathf.CeilToInt(terrainSize.z / unitScale), 1, 128));
+                transform.position = new Vector3(
+                    terrainPosition.x + terrainSize.x * 0.5f,
+                    terrainPosition.y,
+                    terrainPosition.z + terrainSize.z * 0.5f);
+
+                if (autoFitUnitScaleToTerrain)
+                {
+                    float minScaleX = terrainSize.x / 128f;
+                    float minScaleZ = terrainSize.z / 128f;
+                    unitScale = Mathf.Max(0.1f, unitScale, minScaleX, minScaleZ);
+                }
+
+                levelDimensions = new Vector2Int(
+                    Mathf.Clamp(Mathf.CeilToInt(terrainSize.x / unitScale), 1, 128),
+                    Mathf.Clamp(Mathf.CeilToInt(terrainSize.z / unitScale), 1, 128));
+            }
+            else
+            {
+                GameLog.LogWarning("[AOSFogOfWarBridge] Active Terrain is missing TerrainData. Fog uses serialized map settings.");
+            }
         }
 
         if (fogPlaneMaterial == null)
@@ -358,7 +373,7 @@ public class AOSFogOfWarBridge : MonoBehaviour
             field = typeof(csFogWar).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             if (field == null)
             {
-                Debug.LogWarning("AOS FogWar field not found: " + fieldName);
+                GameLog.LogWarning("AOS FogWar field not found: " + fieldName);
                 return;
             }
             _cachedFields[fieldName] = field;

@@ -112,7 +112,7 @@ namespace CloudTerraceRealm.UI
                         }
                     }
                     
-                    Debug.Log($"[IdleVillagerUI] Đã focus và chọn dân làng rảnh rỗi: {targetVillager.name}");
+                    GameLog.Log($"[IdleVillagerUI] Đã focus và chọn dân làng rảnh rỗi: {targetVillager.name}");
                 }
             }
 

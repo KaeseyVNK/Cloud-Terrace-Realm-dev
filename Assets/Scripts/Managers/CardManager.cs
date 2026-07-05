@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class CardManager : MonoBehaviour
+public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     public static CardManager Instance { get; private set; }
 
@@ -158,6 +158,7 @@ public class CardManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            EnsureSaveableEntity("Global_CardManager");
         }
         else
         {
@@ -167,6 +168,20 @@ public class CardManager : MonoBehaviour
 
         InitializeCardUnlockableUnits();
         InitializeDefaultDecrees();
+    }
+
+    private void EnsureSaveableEntity(string saveID)
+    {
+        var saveable = GetComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+        if (saveable == null)
+        {
+            saveable = gameObject.AddComponent<CloudTerraceRealm.SaveSystem.SaveableEntity>();
+            var field = typeof(CloudTerraceRealm.SaveSystem.SaveableEntity).GetField("_saveID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(saveable, saveID);
+            }
+        }
     }
 
     private void Start()
@@ -311,14 +326,14 @@ public class CardManager : MonoBehaviour
 
         if (_draftUIController == null)
         {
-            Debug.LogError("[CardManager] Cannot trigger card draft: CardDraftUIController is missing!");
+            GameLog.LogError("[CardManager] Cannot trigger card draft: CardDraftUIController is missing!");
             return;
         }
 
         List<UpgradeCardData> choices = GetWeightedCardChoices(3, minimumRarity);
         if (choices.Count == 0)
         {
-            Debug.LogWarning("[CardManager] No cards available to draft.");
+            GameLog.LogWarning("[CardManager] No cards available to draft.");
             return;
         }
 
@@ -390,7 +405,7 @@ public class CardManager : MonoBehaviour
     {
         if (card == null) return;
 
-        Debug.Log($"[CardManager] Applying Card: {card.cardName}");
+        GameLog.Log($"[CardManager] Applying Card: {card.cardName}");
         ApplyCardEffects(card, true);
 
         Time.timeScale = 1f; // Resume the game
@@ -437,7 +452,7 @@ public class CardManager : MonoBehaviour
                     blacksmith.AddCardTechnology(cardTech);
                 }
 
-                Debug.Log($"[CardManager] Dang ky nghien cuu mo khoa cho: {card.cardName} tai Lo Ren.");
+                GameLog.Log($"[CardManager] Dang ky nghien cuu mo khoa cho: {card.cardName} tai Lo Ren.");
                 return;
             }
 
@@ -449,7 +464,7 @@ public class CardManager : MonoBehaviour
                 if (!BuildingManager.Instance.AvailableBuildings.Contains(card.buildingToUnlock))
                 {
                     BuildingManager.Instance.AvailableBuildings.Add(card.buildingToUnlock);
-                    Debug.Log($"[CardManager] Unlocked Building: {card.buildingToUnlock.buildingName}");
+                    GameLog.Log($"[CardManager] Unlocked Building: {card.buildingToUnlock.buildingName}");
                 }
             }
 
@@ -460,7 +475,7 @@ public class CardManager : MonoBehaviour
                     _unlockedUnitIds.Add(card.unitToUnlock.name);
                 if (!string.IsNullOrEmpty(card.unitToUnlock.unitName))
                     _unlockedUnitIds.Add(card.unitToUnlock.unitName);
-                Debug.Log($"[CardManager] Unlocked Unit: {card.unitToUnlock.unitName}");
+                GameLog.Log($"[CardManager] Unlocked Unit: {card.unitToUnlock.unitName}");
             }
         }
         else if (card.cardType == UpgradeCardType.StatBuff)
@@ -484,7 +499,7 @@ public class CardManager : MonoBehaviour
         else if (card.cardType == UpgradeCardType.Decree)
         {
             _activeDecreeCard = card;
-            Debug.Log($"[CardManager] Active Decree: {card.cardName}");
+            GameLog.Log($"[CardManager] Active Decree: {card.cardName}");
             RecalculateAllUnitStats();
         }
         else if (card.cardType == UpgradeCardType.Instant)
@@ -526,13 +541,13 @@ public class CardManager : MonoBehaviour
             if (card.buildingMaxHealthMultiplier != 1f)
             {
                 _buildingMaxHealthMultiplier *= card.buildingMaxHealthMultiplier;
-                Debug.Log($"[CardManager] Building HP multiplier now: {BuildingMaxHealthMultiplier:F2}x");
+                GameLog.Log($"[CardManager] Building HP multiplier now: {BuildingMaxHealthMultiplier:F2}x");
             }
 
             if (card.populationCapBonus != 0)
             {
                 _populationCapBonus += card.populationCapBonus;
-                Debug.Log($"[CardManager] Population cap bonus: +{card.populationCapBonus} (total: {PopulationCapBonus})");
+                GameLog.Log($"[CardManager] Population cap bonus: +{card.populationCapBonus} (total: {PopulationCapBonus})");
             }
         }
     }
@@ -542,7 +557,7 @@ public class CardManager : MonoBehaviour
         MainBuildingCombatTarget mainBuilding = FindAnyObjectByType<MainBuildingCombatTarget>();
         if (mainBuilding == null)
         {
-            Debug.LogWarning("[CardManager] Cannot spawn instant militia: Main Building is missing!");
+            GameLog.LogWarning("[CardManager] Cannot spawn instant militia: Main Building is missing!");
             return;
         }
 
@@ -571,7 +586,7 @@ public class CardManager : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("[CardManager] Militia Prefab is not assigned in CardManager!");
+                GameLog.LogWarning("[CardManager] Militia Prefab is not assigned in CardManager!");
                 break;
             }
         }
@@ -583,7 +598,7 @@ public class CardManager : MonoBehaviour
         if (mainBuilding != null)
         {
             mainBuilding.currentHealth = mainBuilding.maxHealth;
-            Debug.Log("[CardManager] Main Building fully healed!");
+            GameLog.Log("[CardManager] Main Building fully healed!");
         }
     }
 
@@ -594,7 +609,7 @@ public class CardManager : MonoBehaviour
         {
             float healAmount = mainBuilding.maxHealth * percent;
             mainBuilding.currentHealth = (int)Mathf.Min(mainBuilding.currentHealth + healAmount, mainBuilding.maxHealth);
-            Debug.Log($"[CardManager] Main Building healed by {percent * 100f:F0}% ({healAmount:F0} HP).");
+            GameLog.Log($"[CardManager] Main Building healed by {percent * 100f:F0}% ({healAmount:F0} HP).");
         }
     }
 
@@ -625,7 +640,7 @@ public class CardManager : MonoBehaviour
 
         if (_draftUIController == null)
         {
-            Debug.LogError("[CardManager] Cannot trigger decree draft: CardDraftUIController is missing!");
+            GameLog.LogError("[CardManager] Cannot trigger decree draft: CardDraftUIController is missing!");
             return;
         }
 
@@ -641,7 +656,7 @@ public class CardManager : MonoBehaviour
 
         if (decreeChoices.Count == 0)
         {
-            Debug.LogWarning("[CardManager] No decree cards available in database. Initializing defaults...");
+            GameLog.LogWarning("[CardManager] No decree cards available in database. Initializing defaults...");
             InitializeDefaultDecrees();
             foreach (var card in _allCards)
             {
@@ -726,4 +741,68 @@ public class CardManager : MonoBehaviour
     }
 
     #endregion
+
+    private string GetCardSaveId(UpgradeCardData card)
+    {
+        if (card == null) return "";
+        return !string.IsNullOrEmpty(card.cardId) ? card.cardId : card.name;
+    }
+
+    private UpgradeCardData FindCardDataByID(string cardId)
+    {
+        if (string.IsNullOrEmpty(cardId)) return null;
+        foreach (UpgradeCardData card in _allCards)
+        {
+            if (GetCardSaveId(card) == cardId) return card;
+        }
+        return null;
+    }
+
+    [Serializable]
+    private class CardSaveState
+    {
+        public List<string> unlockedCardIds = new List<string>();
+        public string activeDecreeCardId = "";
+    }
+
+    public string CaptureState()
+    {
+        CardSaveState state = new CardSaveState();
+        foreach (var card in _unlockedCards)
+        {
+            string id = GetCardSaveId(card);
+            if (!string.IsNullOrEmpty(id))
+            {
+                state.unlockedCardIds.Add(id);
+            }
+        }
+        state.activeDecreeCardId = GetCardSaveId(_activeDecreeCard);
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        CardSaveState state = JsonUtility.FromJson<CardSaveState>(stateJson);
+        if (state == null) return;
+
+        _unlockedCards.Clear();
+
+        if (state.unlockedCardIds != null)
+        {
+            foreach (var id in state.unlockedCardIds)
+            {
+                UpgradeCardData card = FindCardDataByID(id);
+                if (card != null && !_unlockedCards.Contains(card))
+                {
+                    ApplyCardEffects(card, false);
+                }
+            }
+        }
+
+        UpgradeCardData decree = FindCardDataByID(state.activeDecreeCardId);
+        _activeDecreeCard = decree;
+
+        RecalculateAllUnitStats();
+    }
 }

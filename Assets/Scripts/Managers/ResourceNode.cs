@@ -206,7 +206,7 @@ public class ResourceNode : MonoBehaviour
         OnDepleted?.Invoke(this);
 
         // 3. Xóa Cây
-        Debug.Log($"Tài nguyên {ResourceType} đã cạn kiệt, đang biến mất...");
+        GameLog.Log($"Tài nguyên {ResourceType} đã cạn kiệt, đang biến mất...");
         Destroy(gameObject);
     }
 

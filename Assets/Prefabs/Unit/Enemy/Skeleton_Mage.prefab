@@ -910,6 +910,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkeletonMageController
   faction: 1
   unitName: Skeleton Mage
+  prefabName: 
   maxHealth: 90
   currentHealth: 0
   attackDamage: 14

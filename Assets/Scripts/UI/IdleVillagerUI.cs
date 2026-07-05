@@ -22,7 +22,7 @@ public class IdleVillagerUI : MonoBehaviour
         GameObject go = new GameObject("IdleVillagerUI");
         go.AddComponent<IdleVillagerUI>();
         DontDestroyOnLoad(go);
-        Debug.Log("[IdleVillagerUI] Đã tự động khởi chạy Hệ thống chỉ báo Dân Rảnh Rỗi.");
+        GameLog.Log("[IdleVillagerUI] Đã tự động khởi chạy Hệ thống chỉ báo Dân Rảnh Rỗi.");
     }
 
     private void Update()
@@ -143,7 +143,7 @@ public class IdleVillagerUI : MonoBehaviour
         {
             // Cinemachine Camera theo dõi pivot của transform camControls
             camControls.FocusOnPosition(nextIdle.transform.position, true);
-            Debug.Log($"[IdleVillagerUI] Đã dịch chuyển Camera tới Cư dân rảnh rỗi: {nextIdle.gameObject.name}");
+            GameLog.Log($"[IdleVillagerUI] Đã dịch chuyển Camera tới Cư dân rảnh rỗi: {nextIdle.gameObject.name}");
         }
     }
 
@@ -152,7 +152,7 @@ public class IdleVillagerUI : MonoBehaviour
         CameraControls camControls = FindAnyObjectByType<CameraControls>();
         if (camControls != null && camControls.ReturnToStoredView())
         {
-            Debug.Log("[IdleVillagerUI] Da dua camera ve vi tri truoc khi focus dan ranh.");
+            GameLog.Log("[IdleVillagerUI] Da dua camera ve vi tri truoc khi focus dan ranh.");
         }
     }
 

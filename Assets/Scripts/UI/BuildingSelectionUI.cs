@@ -356,7 +356,7 @@ public class BuildingSelectionUI : MonoBehaviour
                 {
                     // TAP / CLICK: Chọn đặt móng xây công trình
                     BuildingManager.Instance.SelectBuilding(buildings[_heldCardIndex]);
-                    Debug.Log($"[UI] Tap/Click: Select building {buildings[_heldCardIndex].buildingName}");
+                    GameLog.Log($"[UI] Tap/Click: Select building {buildings[_heldCardIndex].buildingName}");
                 }
                 _heldCardIndex = -1;
                 _isTooltipShown = false;

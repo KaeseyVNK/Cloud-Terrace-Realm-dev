@@ -26,7 +26,7 @@ namespace CloudTerraceRealm.UI
             if (UnitSelectionManager.Instance != null)
             {
                 UnitSelectionManager.Instance.DeselectAll();
-                Debug.Log("[DeselectButtonUI] Đã bỏ chọn tất cả đơn vị thành công.");
+                GameLog.Log("[DeselectButtonUI] Đã bỏ chọn tất cả đơn vị thành công.");
             }
         }
     }

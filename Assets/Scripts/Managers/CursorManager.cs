@@ -126,7 +126,7 @@ public class CursorManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F12))
         {
             _debugMode = !_debugMode;
-            Debug.Log($"[CursorManager] Debug mode: {_debugMode}. Dùng phím 1-9 để test trực quan các cursor.");
+            GameLog.Log($"[CursorManager] Debug mode: {_debugMode}. Dùng phím 1-9 để test trực quan các cursor.");
         }
 
         if (_debugMode)
@@ -143,7 +143,7 @@ public class CursorManager : MonoBehaviour
                     if (tex != null)
                     {
                         Cursor.SetCursor(tex, _cursorHotspot, CursorMode.Auto);
-                        Debug.Log($"[CursorManager] Đã đổi cursor sang ảnh: {path}");
+                        GameLog.Log($"[CursorManager] Đã đổi cursor sang ảnh: {path}");
                     }
                 }
             }

@@ -24,7 +24,7 @@ public class HungerSystem : MonoBehaviour
         GameObject go = new GameObject("HungerSystem");
         go.AddComponent<HungerSystem>();
         DontDestroyOnLoad(go);
-        Debug.Log("[HungerSystem] Đã tự động khởi chạy hệ thống đói lương thực.");
+        GameLog.Log("[HungerSystem] Đã tự động khởi chạy hệ thống đói lương thực.");
     }
 
     private void Awake()
@@ -48,7 +48,7 @@ public class HungerSystem : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[HungerSystem] Không tìm thấy TimeManager.Instance để đăng ký sự kiện!");
+            GameLog.LogError("[HungerSystem] Không tìm thấy TimeManager.Instance để đăng ký sự kiện!");
         }
     }
 
@@ -97,7 +97,7 @@ public class HungerSystem : MonoBehaviour
             }
 
             IsFoodShortage = false;
-            Debug.Log($"[HungerSystem] Ngày {dayCount}: Đã tiêu thụ {foodNeeded} lương thực cho {villagers.Count} cư dân. Mọi người đều no bụng.");
+            GameLog.Log($"[HungerSystem] Ngày {dayCount}: Đã tiêu thụ {foodNeeded} lương thực cho {villagers.Count} cư dân. Mọi người đều no bụng.");
         }
         else
         {
@@ -121,7 +121,7 @@ public class HungerSystem : MonoBehaviour
             }
 
             IsFoodShortage = true;
-            Debug.LogWarning($"[HungerSystem] Ngày {dayCount}: THIẾU LƯƠNG THỰC! Chỉ cung cấp được {foodAvailable}/{foodNeeded} phần ăn. {foodNeeded - foodAvailable} cư dân bị đói!");
+            GameLog.LogWarning($"[HungerSystem] Ngày {dayCount}: THIẾU LƯƠNG THỰC! Chỉ cung cấp được {foodAvailable}/{foodNeeded} phần ăn. {foodNeeded - foodAvailable} cư dân bị đói!");
         }
     }
 }

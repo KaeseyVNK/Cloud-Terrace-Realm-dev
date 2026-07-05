@@ -33,7 +33,7 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
         if (currentState == CombatState.Dead) return;
 
         HouseShelter.IsEmergencyShelterActive = true;
-        Debug.Log("[MainBuilding] Yêu cầu toàn bộ dân làng trú ẩn khẩn cấp!");
+        GameLog.Log("[MainBuilding] Yêu cầu toàn bộ dân làng trú ẩn khẩn cấp!");
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
         if (currentState == CombatState.Dead) return;
 
         HouseShelter.IsEmergencyShelterActive = false;
-        Debug.Log("[MainBuilding] Yêu cầu toàn bộ dân làng ra ngoài khẩn cấp!");
+        GameLog.Log("[MainBuilding] Yêu cầu toàn bộ dân làng ra ngoài khẩn cấp!");
 
         // Set cờ override cho tất cả dân làng để họ không chạy ngay vào nhà nếu trời đang mưa/đêm
         var villagers = VillagerController.AllVillagers;
@@ -82,7 +82,7 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
     protected override void Die()
     {
         currentState = CombatState.Dead;
-        Debug.Log("[GAME OVER] Nhà chính đã bị tiêu diệt! Bạn đã thất bại!");
+        GameLog.Log("[GAME OVER] Nhà chính đã bị tiêu diệt! Bạn đã thất bại!");
         
         if (GameManager.Instance != null)
         {

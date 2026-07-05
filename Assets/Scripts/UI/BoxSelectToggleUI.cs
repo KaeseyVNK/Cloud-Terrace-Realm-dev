@@ -42,7 +42,7 @@ namespace CloudTerraceRealm.UI
         {
             UnitSelectionManager.IsBoxSelectMode = !UnitSelectionManager.IsBoxSelectMode;
             UpdateVisuals();
-            Debug.Log($"[BoxSelectToggleUI] Chuyển đổi BoxSelectMode: {UnitSelectionManager.IsBoxSelectMode}");
+            GameLog.Log($"[BoxSelectToggleUI] Chuyển đổi BoxSelectMode: {UnitSelectionManager.IsBoxSelectMode}");
         }
 
         private void HandleBoxSelectModeChanged(bool isOn)

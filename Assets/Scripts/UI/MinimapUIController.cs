@@ -197,7 +197,7 @@ public class MinimapUIController : MonoBehaviour, IPointerDownHandler, IDragHand
             }
         }
 
-        Debug.Log($"[MinimapUI] Đã ra lệnh di chuyển cho {moveIndex} đơn vị tới {targetWorldPos}");
+        GameLog.Log($"[MinimapUI] Đã ra lệnh di chuyển cho {moveIndex} đơn vị tới {targetWorldPos}");
     }
 
     // --- PUBLIC FILTERS INTERFACE ---

@@ -390,7 +390,7 @@ public class MarketResourceColumnUI : MonoBehaviour, IPointerEnterHandler, IPoin
             // Execute trade: Gold -> Resource
             if (_market.ExecuteTrade(ResourceType.Gold, _resourceType, requiredGold))
             {
-                Debug.Log($"[MarketResourceColumnUI] Successfully bought {tradeAmountCached} {_resourceType} for {requiredGold} Gold.");
+                GameLog.Log($"[MarketResourceColumnUI] Successfully bought {tradeAmountCached} {_resourceType} for {requiredGold} Gold.");
                 _currentTradeAmount = 0;
 
                 TriggerIconBounce();
@@ -413,7 +413,7 @@ public class MarketResourceColumnUI : MonoBehaviour, IPointerEnterHandler, IPoin
             // Execute trade: Resource -> Gold
             if (_market.ExecuteTrade(_resourceType, ResourceType.Gold, tradeAmountCached))
             {
-                Debug.Log($"[MarketResourceColumnUI] Successfully sold {tradeAmountCached} {_resourceType} for Gold.");
+                GameLog.Log($"[MarketResourceColumnUI] Successfully sold {tradeAmountCached} {_resourceType} for Gold.");
                 _currentTradeAmount = 0;
 
                 TriggerIconBounce();

@@ -3,7 +3,7 @@ using UnityEngine.AI;
 using System.Collections.Generic;
 using System.Collections;
 
-public class BuildingProduction : MonoBehaviour
+public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     public static readonly List<BuildingProduction> Registry = new List<BuildingProduction>();
 
@@ -159,7 +159,7 @@ public class BuildingProduction : MonoBehaviour
                     _currentProductionTimer = 0.1f;
                     if (!_populationBlockedLogged)
                     {
-                        Debug.LogWarning("Dân làng đã chạm giới hạn nhà dân. Sản xuất sẽ tiếp tục khi có thêm chỗ ở.");
+                        GameLog.LogWarning("Dân làng đã chạm giới hạn nhà dân. Sản xuất sẽ tiếp tục khi có thêm chỗ ở.");
                         _populationBlockedLogged = true;
                     }
                     return;
@@ -198,33 +198,33 @@ public class BuildingProduction : MonoBehaviour
         ConstructibleBuilding cb = GetComponent<ConstructibleBuilding>();
         if (cb != null && !cb.IsCompleted)
         {
-            Debug.LogWarning("Không thể sản xuất: Công trình này đang được xây dựng!");
+            GameLog.LogWarning("Không thể sản xuất: Công trình này đang được xây dựng!");
             return;
         }
 
         // 1. Kiểm tra xem công trình này có quyền sản xuất loại Unit này không
         if (_buildingData == null || !_buildingData.producibleUnits.Contains(unit))
         {
-            Debug.LogWarning("Công trình này không thể sản xuất " + unit.unitName);
+            GameLog.LogWarning("Công trình này không thể sản xuất " + unit.unitName);
             return;
         }
 
         // 2. Kiểm tra tài nguyên
         if (!unit.AreTechnologyRequirementsMet())
         {
-            Debug.LogWarning("Chưa mở khóa công nghệ để sản xuất " + unit.unitName + ": " + unit.GetMissingTechnologyNames());
+            GameLog.LogWarning("Chưa mở khóa công nghệ để sản xuất " + unit.unitName + ": " + unit.GetMissingTechnologyNames());
             return;
         }
 
         if (!ResourceManager.Instance.CanAfford(unit.productionCosts))
         {
-            Debug.LogWarning("Không đủ tài nguyên để sản xuất " + unit.unitName);
+            GameLog.LogWarning("Không đủ tài nguyên để sản xuất " + unit.unitName);
             return;
         }
 
         if (PopulationManager.IsVillagerUnit(unit) && !PopulationManager.CanQueueVillager(out string populationReason))
         {
-            Debug.LogWarning(populationReason);
+            GameLog.LogWarning(populationReason);
             return;
         }
 
@@ -239,7 +239,7 @@ public class BuildingProduction : MonoBehaviour
             MyGame.Audio.AudioManager.Instance.PlayTrainingStart();
         }
 
-        Debug.Log("Đã thêm " + unit.unitName + " vào hàng đợi sản xuất.");
+        GameLog.Log("Đã thêm " + unit.unitName + " vào hàng đợi sản xuất.");
 
         // 5. Nếu đang không bận rộn thì bắt đầu sản xuất ngay
         if (!_isProducing)
@@ -275,7 +275,7 @@ public class BuildingProduction : MonoBehaviour
             _productionQueue.Enqueue(unit);
         }
 
-        Debug.Log($"Đã hủy {unitToCancel.unitName} ở vị trí hàng đợi {index} và hoàn trả tài nguyên.");
+        GameLog.Log($"Đã hủy {unitToCancel.unitName} ở vị trí hàng đợi {index} và hoàn trả tài nguyên.");
         return true;
     }
 
@@ -287,7 +287,7 @@ public class BuildingProduction : MonoBehaviour
             _currentProductionTimer = _currentProducingUnit.productionTime;
             _isProducing = true;
             _populationBlockedLogged = false;
-            Debug.Log("Đang sản xuất: " + _currentProducingUnit.unitName + "...");
+            GameLog.Log("Đang sản xuất: " + _currentProducingUnit.unitName + "...");
         }
         else
         {
@@ -326,7 +326,7 @@ public class BuildingProduction : MonoBehaviour
 
     private void FinishProduction()
     {
-        Debug.Log("Sản xuất hoàn tất: " + _currentProducingUnit.unitName);
+        GameLog.Log("Sản xuất hoàn tất: " + _currentProducingUnit.unitName);
         
         // Sinh ra lính / dân
         if (_currentProducingUnit.unitPrefab != null)
@@ -373,7 +373,7 @@ public class BuildingProduction : MonoBehaviour
         _rallyResource = null;
         _rallyAttackTarget = null;
         MoveRallyFlag(rallyPoint);
-        Debug.Log($"[Rally] {gameObject.name} đã đặt điểm tập kết tại {rallyPoint}.");
+        GameLog.Log($"[Rally] {gameObject.name} đã đặt điểm tập kết tại {rallyPoint}.");
     }
 
     public void SetRallyResource(ResourceNode resource)
@@ -389,7 +389,7 @@ public class BuildingProduction : MonoBehaviour
         _rallyAttackTarget = null;
         MoveRallyFlag(resource.transform.position);
         resource.TriggerBounceEffect();
-        Debug.Log($"[Rally] {gameObject.name} đã đặt việc khai thác {resource.ResourceType}.");
+        GameLog.Log($"[Rally] {gameObject.name} đã đặt việc khai thác {resource.ResourceType}.");
     }
 
     public void SetRallyAttackTarget(BaseCombatUnitController target)
@@ -403,7 +403,7 @@ public class BuildingProduction : MonoBehaviour
         _rallyResource = null;
         _rallyAttackTarget = target;
         MoveRallyFlag(target.transform.position);
-        Debug.Log($"[Rally] {gameObject.name} đã đặt mục tiêu tấn công {target.unitName}.");
+        GameLog.Log($"[Rally] {gameObject.name} đã đặt mục tiêu tấn công {target.unitName}.");
     }
 
     public void SetRallyFromHit(RaycastHit hit)
@@ -575,5 +575,107 @@ public class BuildingProduction : MonoBehaviour
             _rallyFlagInstance.transform.position = markerPosition;
             _rallyFlagInstance.SetActive(true);
         }
+    }
+
+    [System.Serializable]
+    private class ProductionSaveState
+    {
+        public string currentProducingUnitName = "";
+        public float currentProductionTimer = 0f;
+        public List<string> queuedUnitNames = new List<string>();
+        public bool hasRallyPoint = false;
+        public Vector3 rallyPoint = Vector3.zero;
+    }
+
+    public string CaptureState()
+    {
+        var state = new ProductionSaveState
+        {
+            currentProducingUnitName = _currentProducingUnit != null ? (_currentProducingUnit.unitName ?? _currentProducingUnit.name) : "",
+            currentProductionTimer = _currentProductionTimer,
+            hasRallyPoint = _rallyPoint.HasValue,
+            rallyPoint = _rallyPoint ?? Vector3.zero
+        };
+
+        foreach (var unit in _productionQueue)
+        {
+            if (unit != null)
+            {
+                state.queuedUnitNames.Add(unit.unitName ?? unit.name);
+            }
+        }
+
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<ProductionSaveState>(stateJson);
+        if (state == null) return;
+
+        _currentProducingUnit = FindUnitData(state.currentProducingUnitName);
+        _currentProductionTimer = state.currentProductionTimer;
+        _isProducing = _currentProducingUnit != null;
+
+        _productionQueue.Clear();
+        if (state.queuedUnitNames != null)
+        {
+            foreach (var name in state.queuedUnitNames)
+            {
+                var unit = FindUnitData(name);
+                if (unit != null)
+                {
+                    _productionQueue.Enqueue(unit);
+                }
+            }
+        }
+
+        if (state.hasRallyPoint)
+        {
+            SetRallyPoint(state.rallyPoint);
+        }
+        else
+        {
+            _rallyPoint = null;
+            _rallyResource = null;
+            _rallyAttackTarget = null;
+            if (_rallyFlagInstance != null)
+            {
+                _rallyFlagInstance.SetActive(false);
+            }
+        }
+    }
+
+    private UnitData FindUnitData(string unitName)
+    {
+        if (string.IsNullOrEmpty(unitName) || BuildingManager.Instance == null) return null;
+
+        // Tìm trong Main Building
+        var result = FindUnitDataInBuilding(BuildingManager.Instance.MainBuildingData, unitName);
+        if (result != null) return result;
+
+        // Tìm trong các building khác
+        foreach (var building in BuildingManager.Instance.AvailableBuildings)
+        {
+            result = FindUnitDataInBuilding(building, unitName);
+            if (result != null) return result;
+        }
+
+        return null;
+    }
+
+    private UnitData FindUnitDataInBuilding(BuildingData building, string unitName)
+    {
+        if (building == null || building.producibleUnits == null) return null;
+        foreach (var unit in building.producibleUnits)
+        {
+            if (unit == null) continue;
+            if (unit.unitName == unitName || unit.name == unitName)
+            {
+                return unit;
+            }
+        }
+        return null;
     }
 }

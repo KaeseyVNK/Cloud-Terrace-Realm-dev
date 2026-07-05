@@ -605,7 +605,7 @@ namespace FischlWorks_FogWar
 
         private void ScanLevel()
         {
-            Debug.LogFormat("There is no level data file assigned, scanning level...");
+            // Debug log disabled to keep runtime console clean.
 
             // These operations have no real computational meaning, but it will bring consistency to the data
             levelData.levelDimensionX = levelDimensionX;
@@ -642,7 +642,7 @@ namespace FischlWorks_FogWar
                 }
             }
 
-            Debug.LogFormat("Successfully scanned level with a scale of {0} x {1}", levelDimensionX, levelDimensionY);
+            // Debug log disabled to keep runtime console clean.
         }
 
 
@@ -657,19 +657,19 @@ namespace FischlWorks_FogWar
             {
                 Directory.CreateDirectory(Application.dataPath + levelScanDataPath);
 
-                Debug.LogFormat("level scan data folder at \"{0}\" is missing, creating...", levelScanDataPath);
+                // Debug log disabled to keep runtime console clean.
             }
 
             if (File.Exists(fullPath) == true)
             {
-                Debug.LogFormat("level scan data already exists, overwriting...");
+                // Debug log disabled to keep runtime console clean.
             }
 
             string levelJson = JsonUtility.ToJson(levelData);
 
             File.WriteAllText(fullPath, levelJson);
 
-            Debug.LogFormat("Successfully saved level scan data at \"{0}\"", fullPath);
+            // Debug log disabled to keep runtime console clean.
         }
 #endif
 
@@ -677,7 +677,7 @@ namespace FischlWorks_FogWar
 
         private void LoadLevelData()
         {
-            Debug.LogFormat("Level scan data with a name of \"{0}\" is assigned, loading...", LevelDataToLoad.name);
+            // Debug log disabled to keep runtime console clean.
 
             // Exception check is indirectly performed through branching on the upper part of the code
             string levelJson = LevelDataToLoad.ToString();
@@ -689,7 +689,7 @@ namespace FischlWorks_FogWar
             unitScale = levelData.unitScale;
             scanSpacingPerUnit = levelData.scanSpacingPerUnit;
 
-            Debug.LogFormat("Successfully loaded level scan data with the name of \"{0}\"", LevelDataToLoad.name);
+            // Debug log disabled to keep runtime console clean.
         }
 
 
@@ -713,7 +713,7 @@ namespace FischlWorks_FogWar
             }
             else
             {
-                Debug.LogFormat("Given index of {0} exceeds the revealers' container range", revealerIndex);
+                // Debug log disabled to keep runtime console clean.
             }
         }
 
@@ -738,7 +738,7 @@ namespace FischlWorks_FogWar
 
             if (result == false && LogOutOfRange == true)
             {
-                Debug.LogFormat("Level coordinates \"{0}\" is out of grid range", levelCoordinates);
+                // Debug log disabled to keep runtime console clean.
             }
 
             return result;

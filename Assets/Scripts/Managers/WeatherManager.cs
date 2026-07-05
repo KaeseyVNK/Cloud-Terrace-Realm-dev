@@ -54,7 +54,7 @@ public class WeatherManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[WeatherManager] Không tìm thấy TimeManager.Instance!");
+            GameLog.LogError("[WeatherManager] Không tìm thấy TimeManager.Instance!");
         }
     }
 
@@ -128,7 +128,7 @@ public class WeatherManager : MonoBehaviour
 
     private void AwardBloodMoonSurvivalReward()
     {
-        Debug.Log("[WeatherManager] Đã sống sót qua Trăng Máu! Kích hoạt chọn thẻ nâng cấp.");
+        GameLog.Log("[WeatherManager] Đã sống sót qua Trăng Máu! Kích hoạt chọn thẻ nâng cấp.");
         
         if (CardManager.Instance != null)
         {
@@ -150,7 +150,7 @@ public class WeatherManager : MonoBehaviour
         if (_currentWeather == newWeather) return;
 
         _currentWeather = newWeather;
-        Debug.Log($"[WeatherManager] Thời tiết chuyển sang: {_currentWeather}");
+        GameLog.Log($"[WeatherManager] Thời tiết chuyển sang: {_currentWeather}");
         OnWeatherChanged?.Invoke(_currentWeather);
     }
 

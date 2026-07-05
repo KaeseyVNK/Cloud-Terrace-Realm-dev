@@ -489,6 +489,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WildAnimalController
   faction: 2
   unitName: Chicken_001
+  prefabName: 
   maxHealth: 20
   currentHealth: 100
   attackDamage: 15

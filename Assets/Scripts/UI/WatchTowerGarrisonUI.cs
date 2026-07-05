@@ -22,6 +22,7 @@ public class WatchTowerGarrisonUI : MonoBehaviour
     [SerializeField] private TMP_Text _titleTMP;
     [SerializeField] private TMP_Text _occupancyTMP;
 
+    private CanvasGroup _panelCanvasGroup;
     private WatchTowerGarrison selectedWatchTower;
 
     public WatchTowerGarrison SelectedWatchTower => selectedWatchTower;
@@ -49,8 +50,19 @@ public class WatchTowerGarrisonUI : MonoBehaviour
     {
         RefreshPanel();
 
-        if (UnityEngine.EventSystems.EventSystem.current != null && 
-            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        // Kiểm tra xem chuột có đang đè lên bất kỳ phần tử UI UGUI nào không (sử dụng cả EventSystem và UnitSelectionManager để có độ chính xác cao nhất ở mọi độ phân giải)
+        bool isMouseOverUI = false;
+        if (UnityEngine.EventSystems.EventSystem.current != null)
+        {
+            isMouseOverUI = UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+        }
+        if (!isMouseOverUI && UnitSelectionManager.Instance != null)
+        {
+            isMouseOverUI = UnitSelectionManager.Instance.IsPointerOverUI(Input.mousePosition);
+        }
+
+        // Nếu chuột đang trỏ vào UI, bỏ qua mọi logic click/chọn/bỏ chọn thế giới 3D dưới nền để tránh lỗi chớp chớp
+        if (isMouseOverUI)
         {
             return;
         }
@@ -62,7 +74,7 @@ public class WatchTowerGarrisonUI : MonoBehaviour
 
         // Chọn tháp canh bằng chuột phải, hoặc bằng chuột trái/chạm khi không có unit nào đang được chọn.
         bool isSelectTriggered = Input.GetMouseButtonDown(1) || 
-                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0 && !IsMouseOverPanel());
+                                 (Input.GetMouseButtonDown(0) && UnitSelectionManager.Instance != null && UnitSelectionManager.Instance.selectedUnits.Count == 0);
 
         if (isSelectTriggered)
         {
@@ -205,6 +217,15 @@ public class WatchTowerGarrisonUI : MonoBehaviour
             return;
         }
 
+        if (_panelCanvasGroup == null)
+        {
+            _panelCanvasGroup = _panelRoot.GetComponent<CanvasGroup>();
+            if (_panelCanvasGroup == null && _panelRoot == gameObject)
+            {
+                _panelCanvasGroup = _panelRoot.AddComponent<CanvasGroup>();
+            }
+        }
+
         if (_titleTMP == null)
         {
             Transform title = _panelRoot.transform.Find(TitleName);
@@ -290,6 +311,23 @@ public class WatchTowerGarrisonUI : MonoBehaviour
 
     private void SetPanelVisible(bool visible)
     {
+        if (_panelRoot == gameObject)
+        {
+            if (_panelCanvasGroup == null)
+            {
+                _panelCanvasGroup = _panelRoot.GetComponent<CanvasGroup>();
+                if (_panelCanvasGroup == null)
+                {
+                    _panelCanvasGroup = _panelRoot.AddComponent<CanvasGroup>();
+                }
+            }
+
+            _panelCanvasGroup.alpha = visible ? 1f : 0f;
+            _panelCanvasGroup.interactable = visible;
+            _panelCanvasGroup.blocksRaycasts = visible;
+            return;
+        }
+
         if (_panelRoot != null && _panelRoot.activeSelf != visible)
         {
             _panelRoot.SetActive(visible);

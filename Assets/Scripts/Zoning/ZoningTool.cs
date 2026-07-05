@@ -12,7 +12,6 @@ public class ZoningTool : MonoBehaviour
     public Color farmingColor = new Color(0.9f, 0.8f, 0.2f, 0.4f);
 
     private GridSystem gridSystem;
-    private bool isDragging = false;
     public bool toolActive = false;
 
     // UI Box
@@ -87,7 +86,7 @@ public class ZoningTool : MonoBehaviour
             }
         }
 
-        Debug.Log($"[Zoning] Đã khoanh vùng được {addedJobs} công việc.");
+        GameLog.Log($"[Zoning] Đã khoanh vùng được {addedJobs} công việc.");
     }
 
     void HighlightResource(GameObject resourceObj)

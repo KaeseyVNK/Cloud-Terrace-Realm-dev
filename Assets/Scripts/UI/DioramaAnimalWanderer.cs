@@ -16,6 +16,8 @@ namespace CloudTerraceRealm.UI
         private Animator _animator;
         private Vector3 _startPos;
         private float _timer;
+        private bool _hasIsMoving;
+        private bool _hasIsIdle;
 
         private void Start()
         {
@@ -23,6 +25,8 @@ namespace CloudTerraceRealm.UI
             _animator = GetComponentInChildren<Animator>();
             _startPos = transform.position;
             _timer = Random.Range(1f, waitTime);
+
+            CacheAnimatorParameters();
 
             if (_agent != null)
             {
@@ -46,19 +50,11 @@ namespace CloudTerraceRealm.UI
 
             if (isMoving)
             {
-                if (_animator != null)
-                {
-                    _animator.SetBool("IsMoving", true);
-                    _animator.SetBool("IsIdle", false);
-                }
+                UpdateAnimator(true);
             }
             else
             {
-                if (_animator != null)
-                {
-                    _animator.SetBool("IsMoving", false);
-                    _animator.SetBool("IsIdle", true);
-                }
+                UpdateAnimator(false);
 
                 _timer -= Time.deltaTime;
                 if (_timer <= 0f)
@@ -66,6 +62,44 @@ namespace CloudTerraceRealm.UI
                     PickNewDestination();
                     _timer = waitTime + Random.Range(-2f, 3f);
                 }
+            }
+        }
+
+        private void CacheAnimatorParameters()
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+
+            foreach (AnimatorControllerParameter param in _animator.parameters)
+            {
+                if (param.name == "IsMoving" && param.type == AnimatorControllerParameterType.Bool)
+                {
+                    _hasIsMoving = true;
+                }
+                else if (param.name == "IsIdle" && param.type == AnimatorControllerParameterType.Bool)
+                {
+                    _hasIsIdle = true;
+                }
+            }
+        }
+
+        private void UpdateAnimator(bool isMoving)
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+
+            if (_hasIsMoving)
+            {
+                _animator.SetBool("IsMoving", isMoving);
+            }
+
+            if (_hasIsIdle)
+            {
+                _animator.SetBool("IsIdle", !isMoving);
             }
         }
 

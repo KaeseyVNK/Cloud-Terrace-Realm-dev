@@ -50,7 +50,7 @@ public class WoodGateController : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"[WoodGateController] Gate door child 'fence_wood_straight_gate' not found on {gameObject.name}!");
+            GameLog.LogWarning($"[WoodGateController] Gate door child 'fence_wood_straight_gate' not found on {gameObject.name}!");
         }
     }
 
@@ -154,7 +154,7 @@ public class WoodGateController : MonoBehaviour
             _boxCollider.enabled = false;
         }
 
-        Debug.Log($"[WoodGateController] Opening gate: {gameObject.name}");
+        GameLog.Log($"[WoodGateController] Opening gate: {gameObject.name}");
     }
 
     private void CloseGate()
@@ -171,6 +171,6 @@ public class WoodGateController : MonoBehaviour
             _boxCollider.enabled = true;
         }
 
-        Debug.Log($"[WoodGateController] Closing gate: {gameObject.name}");
+        GameLog.Log($"[WoodGateController] Closing gate: {gameObject.name}");
     }
 }

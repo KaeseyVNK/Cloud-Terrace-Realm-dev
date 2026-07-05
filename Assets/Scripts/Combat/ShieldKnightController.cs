@@ -82,7 +82,7 @@ public class ShieldKnightController : MilitiaController
         {
             TriggerBlockFeedback();
             TryKnockbackCurrentTarget();
-            Debug.Log($"[ShieldKnight] {unitName} blocked all {damage} damage.");
+            GameLog.Log($"[ShieldKnight] {unitName} blocked all {damage} damage.");
             return;
         }
 

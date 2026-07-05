@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
 
 /// <summary>
 /// Đại diện cho một đơn vị Ngựa thồ Thương nhân (Merchant Caravan Unit) trong sự kiện hộ tống.
@@ -139,11 +140,119 @@ public class MerchantCaravanUnit : BaseCombatUnitController
 
     protected override void OnDeath()
     {
-        Debug.Log("[MerchantCaravanUnit] Một ngựa thồ thương nhân đã bị tiêu diệt!");
+        GameLog.Log("[MerchantCaravanUnit] Một ngựa thồ thương nhân đã bị tiêu diệt!");
         if (MapEventManager.Instance != null)
         {
             MapEventManager.Instance.OnCaravanFailed(this);
         }
         base.OnDeath();
+    }
+
+    [Header("Caravan Group Fields (Saved)")]
+    [HideInInspector] public Vector3 startPos;
+    [HideInInspector] public Vector3 destPos;
+    [HideInInspector] public int caravanSize;
+    [HideInInspector] public bool isFinished;
+    [HideInInspector] public bool ambush30Triggered;
+    [HideInInspector] public bool ambush60Triggered;
+    [HideInInspector] public bool ambush90Triggered;
+
+    [System.Serializable]
+    private class CaravanUnitSaveState
+    {
+        public int currentHealth;
+        public string unitName;
+        public Vector3 destination;
+        public bool hasDest;
+        public Vector3 startPos;
+        public Vector3 destPos;
+        public int caravanSize;
+        public bool isFinished;
+        public bool ambush30Triggered;
+        public bool ambush60Triggered;
+        public bool ambush90Triggered;
+    }
+
+    public override string CaptureState()
+    {
+        var state = new CaravanUnitSaveState
+        {
+            currentHealth = this.currentHealth,
+            unitName = this.unitName,
+            destination = this._destination,
+            hasDest = this._hasDest,
+            startPos = this.startPos,
+            destPos = this.destPos,
+            caravanSize = this.caravanSize,
+            isFinished = this.isFinished,
+            ambush30Triggered = this.ambush30Triggered,
+            ambush60Triggered = this.ambush60Triggered,
+            ambush90Triggered = this.ambush90Triggered
+        };
+
+        if (MapEventManager.Instance != null)
+        {
+            var group = FindMyGroup();
+            if (group != null)
+            {
+                state.startPos = group.startPos;
+                state.destPos = group.destPos;
+                state.caravanSize = group.size;
+                state.isFinished = group.isFinished;
+                state.ambush30Triggered = group.ambush30Triggered;
+                state.ambush60Triggered = group.ambush60Triggered;
+                state.ambush90Triggered = group.ambush90Triggered;
+            }
+        }
+
+        return JsonUtility.ToJson(state);
+    }
+
+    public override void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<CaravanUnitSaveState>(stateJson);
+        if (state == null) return;
+
+        this.unitName = state.unitName;
+        this.currentHealth = Mathf.Clamp(state.currentHealth, 1, this.maxHealth);
+        this._destination = state.destination;
+        this._hasDest = state.hasDest;
+
+        this.startPos = state.startPos;
+        this.destPos = state.destPos;
+        this.caravanSize = state.caravanSize;
+        this.isFinished = state.isFinished;
+        this.ambush30Triggered = state.ambush30Triggered;
+        this.ambush60Triggered = state.ambush60Triggered;
+        this.ambush90Triggered = state.ambush90Triggered;
+
+        // Apply path destination to NavMeshAgent if destination is set
+        if (_hasDest && navAgent != null)
+        {
+            navAgent.enabled = true;
+            navAgent.SetDestination(_destination);
+        }
+    }
+
+    private MapEventManager.MerchantCaravanGroup FindMyGroup()
+    {
+        // Sử dụng reflection để lấy _activeCaravans từ MapEventManager
+        var field = typeof(MapEventManager).GetField("_activeCaravans", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (field != null)
+        {
+            var caravans = field.GetValue(MapEventManager.Instance) as List<MapEventManager.MerchantCaravanGroup>;
+            if (caravans != null)
+            {
+                foreach (var group in caravans)
+                {
+                    if (group != null && group.units.Contains(this))
+                    {
+                        return group;
+                    }
+                }
+            }
+        }
+        return null;
     }
 }

@@ -215,6 +215,17 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
     private bool CanStartSummon()
     {
+        if (currentTarget == null || currentTarget.currentState == CombatState.Dead)
+        {
+            return false;
+        }
+
+        float distance = GetDistanceToTarget(currentTarget);
+        if (distance > scanRange)
+        {
+            return false;
+        }
+
         return (normalEnemyPrefab != null || shieldEnemyPrefab != null) && GetRemainingSummonSlots() > 0;
     }
 
@@ -315,7 +326,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
         int remainingSlots = GetRemainingSummonSlots();
         if (remainingSlots <= 0)
         {
-            Debug.Log("[SkeletonMage] Bỏ qua triệu hồi vì đã đạt giới hạn summoned enemies.");
+            GameLog.Log("[SkeletonMage] Bỏ qua triệu hồi vì đã đạt giới hạn summoned enemies.");
             return;
         }
 

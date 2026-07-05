@@ -12,7 +12,7 @@ namespace CloudTerraceRealm.UI
         private RectTransform _rectTransform;
         private Rect _lastSafeArea = new Rect(0, 0, 0, 0);
         private Vector2Int _lastScreenSize = new Vector2Int(0, 0);
-        private ScreenOrientation _lastOrientation = ScreenOrientation.Unknown;
+        private ScreenOrientation _lastOrientation = ScreenOrientation.AutoRotation;
 
         private void Awake()
         {
@@ -47,13 +47,16 @@ namespace CloudTerraceRealm.UI
             Vector2 anchorMin = r.position;
             Vector2 anchorMax = r.position + r.size;
 
-            anchorMin.x /= Screen.width;
-            anchorMin.y /= Screen.height;
-            anchorMax.x /= Screen.width;
-            anchorMax.y /= Screen.height;
+            if (Screen.width > 0 && Screen.height > 0)
+            {
+                anchorMin.x /= Screen.width;
+                anchorMin.y /= Screen.height;
+                anchorMax.x /= Screen.width;
+                anchorMax.y /= Screen.height;
 
-            _rectTransform.anchorMin = anchorMin;
-            _rectTransform.anchorMax = anchorMax;
+                _rectTransform.anchorMin = anchorMin;
+                _rectTransform.anchorMax = anchorMax;
+            }
         }
     }
 }

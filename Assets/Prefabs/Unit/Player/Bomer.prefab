@@ -1612,6 +1612,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BomberController
   faction: 0
   unitName: Bomer
+  prefabName: 
   maxHealth: 1000
   currentHealth: 0
   attackDamage: 24

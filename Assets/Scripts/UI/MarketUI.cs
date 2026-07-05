@@ -65,7 +65,7 @@ public class MarketUI : MonoBehaviour
                     ConstructibleBuilding cb = clickedBuilding.GetComponent<ConstructibleBuilding>();
                     if (cb != null && !cb.IsCompleted)
                     {
-                        Debug.LogWarning("Không thể chọn: Chợ đang trong quá trình xây dựng!");
+                        GameLog.LogWarning("Không thể chọn: Chợ đang trong quá trình xây dựng!");
                         DeselectMarket();
                         return;
                     }
@@ -73,7 +73,7 @@ public class MarketUI : MonoBehaviour
                     if (mc.isNeutral)
                     {
                         SelectMarket(mc);
-                        Debug.Log("Đã chọn chợ trung lập: " + clickedBuilding.name);
+                        GameLog.Log("Đã chọn chợ trung lập: " + clickedBuilding.name);
                         return;
                     }
                 }

@@ -1,6 +1,7 @@
 using FischlWorks_FogWar;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Reflection;
 
 public class FogVisibilityTarget : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class FogVisibilityTarget : MonoBehaviour
     private readonly List<Renderer> renderers = new List<Renderer>();
     private float updateTimer;
     private bool currentVisible = true;
+    private static FieldInfo levelMidPointField;
 
     public bool IsVisible => currentVisible;
 
@@ -54,7 +56,7 @@ public class FogVisibilityTarget : MonoBehaviour
             fogWar = FindAnyObjectByType<csFogWar>(FindObjectsInactive.Include);
         }
 
-        if (fogWar == null || !fogWar.enabled)
+        if (fogWar == null || !fogWar.enabled || !IsFogWarReady(fogWar))
         {
             SetVisible(visibleWhenFogDisabled, force);
             return;
@@ -94,6 +96,21 @@ public class FogVisibilityTarget : MonoBehaviour
         }
 
         SetVisible(isVisible, force);
+    }
+
+    private static bool IsFogWarReady(csFogWar candidate)
+    {
+        if (candidate == null)
+        {
+            return false;
+        }
+
+        if (levelMidPointField == null)
+        {
+            levelMidPointField = typeof(csFogWar).GetField("levelMidPoint", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        }
+
+        return levelMidPointField == null || levelMidPointField.GetValue(candidate) != null;
     }
 
     private void SetVisible(bool visible, bool force)

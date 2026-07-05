@@ -384,11 +384,11 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
             }
 
             node.Initialize(ResourceType.Food, _foodAmount, cell);
-            Debug.Log($"[Wildlife] {unitName} chết, sinh ra mỏ Food trữ lượng {_foodAmount} tại {transform.position}");
+            GameLog.Log($"[Wildlife] {unitName} chết, sinh ra mỏ Food trữ lượng {_foodAmount} tại {transform.position}");
         }
         else
         {
-            Debug.LogWarning("[Wildlife] Không thể sinh mỏ Food vì thiếu WildlifeManager hoặc FoodPrefab.");
+            GameLog.LogWarning("[Wildlife] Không thể sinh mỏ Food vì thiếu WildlifeManager hoặc FoodPrefab.");
         }
 
         // Hủy đăng ký khỏi manager

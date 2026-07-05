@@ -54,7 +54,7 @@ public class VoidPortal : BaseCombatUnitController
 
     protected override void OnDeath()
     {
-        Debug.Log("[VoidPortal] Cổng Hư Vô đã bị tiêu diệt! Kích hoạt chọn thẻ nâng cấp.");
+        GameLog.Log("[VoidPortal] Cổng Hư Vô đã bị tiêu diệt! Kích hoạt chọn thẻ nâng cấp.");
         
         // Giải phóng các ô lưới đã bị chiếm dụng trên bản đồ để có thể xây dựng lại
         if (_occupiedCells != null && _occupiedCells.Count > 0)

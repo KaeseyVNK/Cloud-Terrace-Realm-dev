@@ -39,14 +39,14 @@ public class MarketController : MonoBehaviour
     {
         if (_hiredGuardCount >= _maxMercenaries)
         {
-            Debug.LogWarning("[Market] Đã đạt giới hạn thuê lính hộ tống tối đa!");
+            GameLog.LogWarning("[Market] Đã đạt giới hạn thuê lính hộ tống tối đa!");
             return false;
         }
 
         if (ResourceManager.Instance != null && ResourceManager.Instance.TryConsumeResource(ResourceType.Gold, _mercenaryCost))
         {
             _hiredGuardCount++;
-            Debug.Log($"[Market] Thuê thành công 1 Lính Hộ Tống! Số lượng hiện tại: {_hiredGuardCount}/{_maxMercenaries}");
+            GameLog.Log($"[Market] Thuê thành công 1 Lính Hộ Tống! Số lượng hiện tại: {_hiredGuardCount}/{_maxMercenaries}");
             return true;
         }
 
@@ -193,7 +193,7 @@ public class MarketController : MonoBehaviour
         if (ResourceManager.Instance == null || amount <= 0 || fromType == toType) return false;
         if (ResourceManager.Instance.GetResourceAmount(fromType) < amount)
         {
-            Debug.LogWarning("[Market] Không đủ tài nguyên đem bán!");
+            GameLog.LogWarning("[Market] Không đủ tài nguyên đem bán!");
             return false;
         }
 
@@ -225,7 +225,7 @@ public class MarketController : MonoBehaviour
             _currentPrices[toType] = Mathf.Min(basePrice * 5.0f, _currentPrices[toType] + priceRise);
         }
 
-        Debug.Log($"[Market] Giao dịch thành công: Bán {amount} {fromType} lấy {receiveAmount} {toType}. Tỉ lệ: {averageRate:F2}. Hàng sẽ được giao vào đêm nay!");
+        GameLog.Log($"[Market] Giao dịch thành công: Bán {amount} {fromType} lấy {receiveAmount} {toType}. Tỉ lệ: {averageRate:F2}. Hàng sẽ được giao vào đêm nay!");
         return true;
     }
 
@@ -266,7 +266,7 @@ public class MarketController : MonoBehaviour
         Transform targetDestination = FindPlayerMarketOrMainBuilding();
         if (targetDestination == null)
         {
-            Debug.LogWarning("[Market] Không tìm thấy điểm nhận hàng (Market người chơi hoặc Nhà chính)!");
+            GameLog.LogWarning("[Market] Không tìm thấy điểm nhận hàng (Market người chơi hoặc Nhà chính)!");
             return;
         }
 
@@ -340,7 +340,7 @@ public class MarketController : MonoBehaviour
 
         if (prefab == null)
         {
-            Debug.LogError("[Market] Không tìm thấy Prefab để tạo Caravan giao thương!");
+            GameLog.LogError("[Market] Không tìm thấy Prefab để tạo Caravan giao thương!");
             return;
         }
 
@@ -397,7 +397,7 @@ public class MarketController : MonoBehaviour
         combatTarget.unitName = "Xe Giao Thương";
 
         // Tải vật liệu nổi bật hoặc làm nổi caravan (tùy chọn trong tương lai)
-        Debug.Log($"[Market] Đêm xuống! Xe Giao Thương đã xuất phát: Mang {amount} {type} về {destination.name}.");
+        GameLog.Log($"[Market] Đêm xuống! Xe Giao Thương đã xuất phát: Mang {amount} {type} về {destination.name}.");
     }
 
     public void SetCaravanPrefab(GameObject prefab)

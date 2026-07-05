@@ -450,11 +450,11 @@ public class BlacksmithCardUI : MonoBehaviour, IPointerEnterHandler, IPointerExi
     {
         if (_technologyData == null || _researchSystem == null)
         {
-            Debug.LogError("[BlacksmithCardUI] OnCardClicked: tech or research system is null");
+            GameLog.LogError("[BlacksmithCardUI] OnCardClicked: tech or research system is null");
             return;
         }
 
-        Debug.Log($"[BlacksmithCardUI] OnCardClicked: Requesting research for {_technologyData.technologyName}");
+        GameLog.Log($"[BlacksmithCardUI] OnCardClicked: Requesting research for {_technologyData.technologyName}");
         _researchSystem.RequestResearch(_technologyData);
         UpdateStatus();
     }
@@ -650,7 +650,7 @@ public class BlacksmithCardUI : MonoBehaviour, IPointerEnterHandler, IPointerExi
     public void OnPointerClick(PointerEventData eventData)
     {
         bool interactable = IsInteractable();
-        Debug.Log($"[BlacksmithCardUI] OnPointerClick: LeftClick={eventData.button == PointerEventData.InputButton.Left}, IsInteractable={interactable}, Tech={_technologyData?.technologyName}");
+        GameLog.Log($"[BlacksmithCardUI] OnPointerClick: LeftClick={eventData.button == PointerEventData.InputButton.Left}, IsInteractable={interactable}, Tech={_technologyData?.technologyName}");
         
         if (eventData.button == PointerEventData.InputButton.Left)
         {
@@ -662,11 +662,11 @@ public class BlacksmithCardUI : MonoBehaviour, IPointerEnterHandler, IPointerExi
             {
                 if (_technologyData == null)
                 {
-                    Debug.LogWarning("[BlacksmithCardUI] Click blocked: _technologyData is null");
+                    GameLog.LogWarning("[BlacksmithCardUI] Click blocked: _technologyData is null");
                 }
                 else if (_researchSystem == null)
                 {
-                    Debug.LogWarning("[BlacksmithCardUI] Click blocked: _researchSystem is null");
+                    GameLog.LogWarning("[BlacksmithCardUI] Click blocked: _researchSystem is null");
                 }
                 else
                 {
@@ -674,7 +674,7 @@ public class BlacksmithCardUI : MonoBehaviour, IPointerEnterHandler, IPointerExi
                     bool isResearchingThis = _researchSystem.CurrentResearch == _technologyData;
                     bool isResearchingOther = _researchSystem.IsResearching && !isResearchingThis;
                     bool canAfford = ResourceManager.Instance != null && ResourceManager.Instance.CanAfford(_technologyData.researchCosts);
-                    Debug.LogWarning($"[BlacksmithCardUI] Click blocked for {_technologyData.technologyName}: Unlocked={unlocked}, ResearchingThis={isResearchingThis}, ResearchingOther={isResearchingOther}, CanAfford={canAfford}");
+                    GameLog.LogWarning($"[BlacksmithCardUI] Click blocked for {_technologyData.technologyName}: Unlocked={unlocked}, ResearchingThis={isResearchingThis}, ResearchingOther={isResearchingOther}, CanAfford={canAfford}");
                 }
             }
         }

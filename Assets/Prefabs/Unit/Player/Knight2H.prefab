@@ -1227,6 +1227,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShieldKnightController
   faction: 0
   unitName: Combat Unit
+  prefabName: 
   maxHealth: 100000
   currentHealth: 0
   attackDamage: 15

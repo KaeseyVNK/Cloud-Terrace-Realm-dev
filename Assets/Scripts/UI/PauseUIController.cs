@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using CloudTerraceRealm.SaveSystem;
 
 /// <summary>
 /// Controller for the Pause Menu UGUI panel.
@@ -177,11 +178,17 @@ public class PauseUIController : MonoBehaviour
         {
             MyGame.Audio.AudioManager.Instance.PlayUiClick();
         }
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+
+        // Lưu game trước khi về Main Menu
+        SaveGameSystem.SaveCurrentGame();
+
+        // Đảm bảo TimeScale trở về bình thường trước khi chuyển scene
+        // (game đang bị pause, nếu không reset sẽ gây MainMenuScene bị đóng băng)
+        Time.timeScale = 1f;
+        _isPaused = false;
+
+        GameLog.Log("[PauseUI] Returning to Main Menu...");
+        SceneManager.LoadScene("MainMenuScene");
     }
 
     #endregion

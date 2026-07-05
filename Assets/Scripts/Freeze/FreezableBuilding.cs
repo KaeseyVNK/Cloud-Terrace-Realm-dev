@@ -27,7 +27,7 @@ public class FreezableBuilding : MonoBehaviour, IFreezable
             _renderer.sharedMaterial = frozenMaterial;
 
         FreezeManager.Instance.RegisterFrozen(this);
-        Debug.Log($"[Freeze] {gameObject.name} bị đóng băng!");
+        GameLog.Log($"[Freeze] {gameObject.name} bị đóng băng!");
     }
 
     public void Unfreeze()
@@ -39,7 +39,7 @@ public class FreezableBuilding : MonoBehaviour, IFreezable
             _renderer.sharedMaterial = normalMaterial;
 
         FreezeManager.Instance.UnregisterFrozen(this);
-        Debug.Log($"[Freeze] {gameObject.name} đã rã đông!");
+        GameLog.Log($"[Freeze] {gameObject.name} đã rã đông!");
     }
 
     public Vector3 GetPosition() => transform.position;

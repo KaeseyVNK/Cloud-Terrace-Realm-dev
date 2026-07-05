@@ -69,7 +69,7 @@ public class BlacksmithResearch : MonoBehaviour
         };
         
         availableTechnologies.Add(ancientTech);
-        Debug.Log("[Tech] Da dang ky dong cong nghe Ancient Weaponry thanh cong.");
+        GameLog.Log("[Tech] Da dang ky dong cong nghe Ancient Weaponry thanh cong.");
     }
 
     private void Update()
@@ -95,32 +95,32 @@ public class BlacksmithResearch : MonoBehaviour
 
         if (!availableTechnologies.Contains(technology))
         {
-            Debug.LogWarning("[Tech] Blacksmith cannot research " + technology.technologyName);
+            GameLog.LogWarning("[Tech] Blacksmith cannot research " + technology.technologyName);
             return;
         }
 
         if (TechnologyManager.Instance.IsUnlocked(technology))
         {
-            Debug.Log("[Tech] Already unlocked: " + technology.technologyName);
+            GameLog.Log("[Tech] Already unlocked: " + technology.technologyName);
             return;
         }
 
         if (currentResearch != null)
         {
-            Debug.LogWarning("[Tech] Blacksmith is already researching " + currentResearch.technologyName);
+            GameLog.LogWarning("[Tech] Blacksmith is already researching " + currentResearch.technologyName);
             return;
         }
 
         if (ResourceManager.Instance == null || !ResourceManager.Instance.CanAfford(technology.researchCosts))
         {
-            Debug.LogWarning("[Tech] Not enough resources to research " + technology.technologyName);
+            GameLog.LogWarning("[Tech] Not enough resources to research " + technology.technologyName);
             return;
         }
 
         ResourceManager.Instance.ConsumeCosts(technology.researchCosts);
         currentResearch = technology;
         currentResearchTimer = Mathf.Max(0.1f, technology.researchTime);
-        Debug.Log("[Tech] Research started: " + currentResearch.technologyName);
+        GameLog.Log("[Tech] Research started: " + currentResearch.technologyName);
     }
 
     private void FinishResearch()

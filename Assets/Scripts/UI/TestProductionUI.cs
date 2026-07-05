@@ -61,13 +61,13 @@ public class TestProductionUI : MonoBehaviour
 
                     if (targetProd != null)
                     {
-                        Debug.Log("[TestProductionUI] Setting Rally Point for: " + targetProd.gameObject.name + " at position " + hit.point);
+                        GameLog.Log("[TestProductionUI] Setting Rally Point for: " + targetProd.gameObject.name + " at position " + hit.point);
                         targetProd.SetRallyFromHit(hit);
                         targetProd.SetRallyFlagVisible(true);
                     }
                     else
                     {
-                        Debug.LogWarning("[TestProductionUI] Cannot set Rally Point: targetProd is null!");
+                        GameLog.LogWarning("[TestProductionUI] Cannot set Rally Point: targetProd is null!");
                     }
                     }
                     _isRallyTargetingMode = false;
@@ -97,13 +97,13 @@ public class TestProductionUI : MonoBehaviour
                     ConstructibleBuilding cb = clickedBuilding.GetComponent<ConstructibleBuilding>();
                     if (cb != null && !cb.IsCompleted)
                     {
-                        Debug.LogWarning("Không thể chọn: Công trình này đang được xây dựng chưa hoàn thành!");
+                        GameLog.LogWarning("Không thể chọn: Công trình này đang được xây dựng chưa hoàn thành!");
                         DeselectProduction();
                         return;
                     }
 
                     SelectProduction(prod);
-                    Debug.Log("Đã chọn công trình để sản xuất: " + clickedBuilding.name);
+                    GameLog.Log("Đã chọn công trình để sản xuất: " + clickedBuilding.name);
                     return;
                 }
 
@@ -112,13 +112,13 @@ public class TestProductionUI : MonoBehaviour
                     ConstructibleBuilding cb = clickedResearchBuilding.GetComponent<ConstructibleBuilding>();
                     if (cb != null && !cb.IsCompleted)
                     {
-                        Debug.LogWarning("Không thể chọn: Công trình này đang được xây dựng chưa hoàn thành!");
+                        GameLog.LogWarning("Không thể chọn: Công trình này đang được xây dựng chưa hoàn thành!");
                         DeselectResearch();
                         return;
                     }
 
                     SelectResearch(research);
-                    Debug.Log("Đã chọn lò rèn để nghiên cứu: " + clickedResearchBuilding.name);
+                    GameLog.Log("Đã chọn lò rèn để nghiên cứu: " + clickedResearchBuilding.name);
                     return;
                 }
 
@@ -132,14 +132,14 @@ public class TestProductionUI : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(1))
                 {
-                    Debug.Log("Không có công trình sản xuất nào đang được chọn để đặt rally point.");
+                    GameLog.Log("Không có công trình sản xuất nào đang được chọn để đặt rally point.");
                 }
             }
             else
             {
                 if (Input.GetMouseButtonDown(1))
                 {
-                    Debug.Log("Chuột phải không trúng bất kỳ Collider nào!");
+                    GameLog.Log("Chuột phải không trúng bất kỳ Collider nào!");
                 }
             }
         }
@@ -185,7 +185,7 @@ public class TestProductionUI : MonoBehaviour
 
     private void SelectProduction(BuildingProduction production)
     {
-        Debug.Log("[TestProductionUI] SelectProduction called for: " + (production != null ? production.gameObject.name : "null"));
+        GameLog.Log("[TestProductionUI] SelectProduction called for: " + (production != null ? production.gameObject.name : "null"));
 
         if (selectedProduction != null && selectedProduction != production)
         {

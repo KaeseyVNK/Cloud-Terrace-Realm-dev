@@ -8,7 +8,7 @@ using System.Collections.Generic;
 /// Tuân thủ nghiêm ngặt các quy tắc Unity 6.2 của dự án.
 /// </summary>
 [RequireComponent(typeof(NavMeshAgent))]
-public class VillagerController : MonoBehaviour
+public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 {
     #region Serialized Fields
 
@@ -343,6 +343,9 @@ public class VillagerController : MonoBehaviour
             _navAgent.autoBraking = true;
             _baseAgentSpeed = _navAgent.speed;
 
+            // Thiết lập areaMask trùng khớp với WalkableNavMeshAreaMask (~2) để dân làng có thể đi qua mọi địa hình đã bake (bao gồm cầu gỗ)
+            _navAgent.areaMask = ~2;
+
             // Tối ưu hóa chống khựng giật và trượt mép khi leo dốc
             _navAgent.angularSpeed = 720f; // Quay đầu tức thì
             _navAgent.acceleration = 32f; // Tăng tốc phản hồi nhanh
@@ -397,7 +400,7 @@ public class VillagerController : MonoBehaviour
             else
             {
                 _navAgent.enabled = false;
-                Debug.LogWarning($"[NavMesh] Dân làng {_navAgent.gameObject.name} ở quá xa vùng NavMesh đã bake. Tạm thời vô hiệu hóa NavMeshAgent để tránh lỗi Console.");
+                GameLog.LogWarning($"[NavMesh] Dân làng {_navAgent.gameObject.name} ở quá xa vùng NavMesh đã bake. Tạm thời vô hiệu hóa NavMeshAgent để tránh lỗi Console.");
             }
         }
 
@@ -479,17 +482,17 @@ public class VillagerController : MonoBehaviour
 
         if (_preShelterRiceField != null)
         {
-            Debug.Log($"[Villager] Khôi phục chăm sóc ruộng lúa: {_preShelterRiceField.name}");
+            GameLog.Log($"[Villager] Khôi phục chăm sóc ruộng lúa: {_preShelterRiceField.name}");
             CommandFarm(_preShelterRiceField);
         }
         else if (_preShelterBuilding != null && !_preShelterBuilding.IsCompleted)
         {
-            Debug.Log($"[Villager] Khôi phục xây dựng công trình: {_preShelterBuilding.name}");
+            GameLog.Log($"[Villager] Khôi phục xây dựng công trình: {_preShelterBuilding.name}");
             CommandBuild(_preShelterBuilding);
         }
         else if (_preShelterJob != null)
         {
-            Debug.Log($"[Villager] Khôi phục khai thác tài nguyên: {_preShelterResource}");
+            GameLog.Log($"[Villager] Khôi phục khai thác tài nguyên: {_preShelterResource}");
             AssignJob(_preShelterJob);
         }
         else if (GetTotalCarryAmount() > 0)
@@ -1072,7 +1075,7 @@ public class VillagerController : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"[NavMesh] {gameObject.name} rời NavMesh và không thể Warp!");
+                GameLog.LogWarning($"[NavMesh] {gameObject.name} rời NavMesh và không thể Warp!");
                 return false;
             }
         }
@@ -1102,7 +1105,7 @@ public class VillagerController : MonoBehaviour
             return true;
         }
 
-        Debug.LogWarning($"[NavMesh] Không tìm được đường đi đến {targetPos}!");
+        GameLog.LogWarning($"[NavMesh] Không tìm được đường đi đến {targetPos}!");
         return false;
     }
 
@@ -1157,14 +1160,14 @@ public class VillagerController : MonoBehaviour
             {
                 if (_pathRetryCount >= MaxPathRetries)
                 {
-                    Debug.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận mỏ tài nguyên tại {_currentJob.position}. Thêm vào danh sách mỏ kẹt và tìm mỏ thay thế...");
+                    GameLog.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận mỏ tài nguyên tại {_currentJob.position}. Thêm vào danh sách mỏ kẹt và tìm mỏ thay thế...");
                     _pathRetryCount = 0;
                     _failedResourcePositions.Add(_currentJob.position);
 
                     ResourceNode nextNode = FindNearbyResource(_currentJob.position, _targetResource, 50.0f, _failedResourcePositions);
                     if (nextNode != null)
                     {
-                        Debug.Log($"[Logistics] {gameObject.name} tìm thấy mỏ tài nguyên thay thế tại {nextNode.transform.position}. Di chuyển...");
+                        GameLog.Log($"[Logistics] {gameObject.name} tìm thấy mỏ tài nguyên thay thế tại {nextNode.transform.position}. Di chuyển...");
                         _currentJob.position = nextNode.transform.position;
                         if (SetPathToTarget(GetHarvestPositionAroundNode(_currentJob.position)))
                         {
@@ -1173,7 +1176,7 @@ public class VillagerController : MonoBehaviour
                         }
                     }
 
-                    Debug.LogWarning($"[Logistics] {gameObject.name} không tìm thấy mỏ tài nguyên thay thế nào khác. Huỷ.");
+                    GameLog.LogWarning($"[Logistics] {gameObject.name} không tìm thấy mỏ tài nguyên thay thế nào khác. Huỷ.");
                     if (JobBroker.Instance != null && _currentJob != null) JobBroker.Instance.RemoveJob(_currentJob);
                     _currentJob = null;
                     ChangeState(VillagerState.Idle);
@@ -1222,7 +1225,7 @@ public class VillagerController : MonoBehaviour
             {
                 if (_pathRetryCount >= MaxPathRetries)
                 {
-                    Debug.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận nhà kho. Huỷ.");
+                    GameLog.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận nhà kho. Huỷ.");
                     _pathRetryCount = 0;
                     ChangeState(VillagerState.Idle);
                     return;
@@ -1280,7 +1283,7 @@ public class VillagerController : MonoBehaviour
                 {
                     if (_pathRetryCount >= MaxPathRetries)
                     {
-                        Debug.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận công trình. Huỷ.");
+                        GameLog.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận công trình. Huỷ.");
                         _pathRetryCount = 0;
                         TargetBuilding = null;
                         ChangeState(VillagerState.Idle);
@@ -1317,7 +1320,7 @@ public class VillagerController : MonoBehaviour
                 {
                     if (_pathRetryCount >= MaxPathRetries)
                     {
-                        Debug.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận công trình để sửa chữa. Huỷ.");
+                        GameLog.LogWarning($"[Logistics] {gameObject.name} không thể tiếp cận công trình để sửa chữa. Huỷ.");
                         _pathRetryCount = 0;
                         _repairTarget = null;
                         ChangeState(VillagerState.Idle);
@@ -1670,7 +1673,7 @@ public class VillagerController : MonoBehaviour
 
                             _totalCarryAmount += secondaryAmount;
                             UpdateCarryVisuals();
-                            Debug.Log($"[Logistics] Thu hoạch thêm {secondaryAmount} {node.SecondaryResourceType} (Tài nguyên phụ từ {node.ResourceType}).");
+                            GameLog.Log($"[Logistics] Thu hoạch thêm {secondaryAmount} {node.SecondaryResourceType} (Tài nguyên phụ từ {node.ResourceType}).");
 
                             // Hiển thị số nổi tài nguyên phụ vừa thu hoạch
                             MyGame.UI.FloatingText.Spawn(transform.position + Vector3.right * 0.5f, $"+{secondaryAmount} {GetResourceName(node.SecondaryResourceType)}", GetResourceColor(node.SecondaryResourceType));
@@ -1678,12 +1681,12 @@ public class VillagerController : MonoBehaviour
                     }
                 }
 
-                Debug.Log($"[Logistics] Chặt/khai thác {extracted} {node.ResourceType}. Giỏ đồ: {_totalCarryAmount}/{MaxCarryCapacity}.");
+                GameLog.Log($"[Logistics] Chặt/khai thác {extracted} {node.ResourceType}. Giỏ đồ: {_totalCarryAmount}/{MaxCarryCapacity}.");
                 node.TriggerBounceEffect();
             }
             else
             {
-                Debug.LogWarning("[Logistics] Tài nguyên đã biến mất!");
+                GameLog.LogWarning("[Logistics] Tài nguyên đã biến mất!");
             }
 
             _gridSystem.GetXY(_currentJob.position, out int cx, out int cz);
@@ -1906,7 +1909,7 @@ public class VillagerController : MonoBehaviour
         WildAnimalController nextAnimal = FindNearbyWildAnimal(transform.position, _autoGatherAfterBuildRadius);
         if (nextAnimal != null)
         {
-            Debug.Log($"[Villager] {name} tự động đi săn con thú tiếp theo: {nextAnimal.unitName}");
+            GameLog.Log($"[Villager] {name} tự động đi săn con thú tiếp theo: {nextAnimal.unitName}");
             CommandHunt(nextAnimal);
         }
         else
@@ -2017,7 +2020,7 @@ public class VillagerController : MonoBehaviour
         if (bestNode == null || bestCell == null) return;
 
         CommandGather(bestNode, bestCell);
-        Debug.Log($"[Villager] {name} auto-gathering {bestNode.ResourceType} sau khi hoàn thành {data.buildingName}.");
+        GameLog.Log($"[Villager] {name} auto-gathering {bestNode.ResourceType} sau khi hoàn thành {data.buildingName}.");
     }
 
     private static void CollectBuildersAssignedTo(ConstructibleBuilding building, List<VillagerController> builders)
@@ -2130,7 +2133,7 @@ public class VillagerController : MonoBehaviour
                 {
                     HUDManager.Instance.TriggerStorageFullWarning();
                 }
-                Debug.LogWarning($"[Logistics] Kho chứa đầy ({currentTotal}/{maxCapacity}). Dân làng không thể nộp thêm {depositAmount} tài nguyên!");
+                GameLog.LogWarning($"[Logistics] Kho chứa đầy ({currentTotal}/{maxCapacity}). Dân làng không thể nộp thêm {depositAmount} tài nguyên!");
                 ChangeState(VillagerState.Idle);
                 return;
             }
@@ -2140,7 +2143,7 @@ public class VillagerController : MonoBehaviour
                 if (kvp.Value > 0)
                 {
                     ResourceManager.Instance.AddResource(kvp.Key, kvp.Value);
-                    Debug.Log($"[Logistics] Villager đã nộp {kvp.Value} {kvp.Key} vào kho lúc {Time.time}");
+                    GameLog.Log($"[Logistics] Villager đã nộp {kvp.Value} {kvp.Key} vào kho lúc {Time.time}");
 
                     // Hiển thị số nổi tài nguyên khi nộp vào kho
                     MyGame.UI.FloatingText.Spawn(transform.position, $"+{kvp.Value} {GetResourceName(kvp.Key)}", GetResourceColor(kvp.Key));
@@ -2304,7 +2307,7 @@ public class VillagerController : MonoBehaviour
                 // Kiểm tra xem đã đầy máu chưa sau khi hồi phục
                 if (_repairTarget.currentHealth >= _repairTarget.maxHealth)
                 {
-                    Debug.Log($"[Repair] {gameObject.name} hoàn thành sửa chữa công trình {_repairTarget.unitName}!");
+                    GameLog.Log($"[Repair] {gameObject.name} hoàn thành sửa chữa công trình {_repairTarget.unitName}!");
                     _repairTarget = null;
                     _repairResourceTimer = 0f;
                     _assignedRepairSlotIndex = -1;
@@ -2315,7 +2318,7 @@ public class VillagerController : MonoBehaviour
             else
             {
                 // Không đủ gỗ
-                Debug.LogWarning($"[Repair] {gameObject.name} dừng sửa chữa do thiếu Gỗ!");
+                GameLog.LogWarning($"[Repair] {gameObject.name} dừng sửa chữa do thiếu Gỗ!");
                 _repairTarget = null;
                 _repairResourceTimer = 0f;
                 ChangeState(VillagerState.Idle);
@@ -3414,10 +3417,63 @@ public class VillagerController : MonoBehaviour
             {
                 ChangeState(VillagerState.Moving);
                 MyGame.UI.FloatingText.Spawn(transform.position, "Cất Trữ", Color.white);
-                Debug.Log($"[RTS] Dân làng {gameObject.name} bắt đầu đi cất tài nguyên {carriedType} tại: {_storageDropoffTarget}");
+                GameLog.Log($"[RTS] Dân làng {gameObject.name} bắt đầu đi cất tài nguyên {carriedType} tại: {_storageDropoffTarget}");
             }
         }
     }
 
     #endregion
+
+    [System.Serializable]
+    private class VillagerSaveState
+    {
+        public string currentState;
+        public List<ResourceSaveEntry> inventory = new List<ResourceSaveEntry>();
+    }
+
+    [System.Serializable]
+    private struct ResourceSaveEntry
+    {
+        public ResourceType type;
+        public int amount;
+    }
+
+    public string CaptureState()
+    {
+        var state = new VillagerSaveState
+        {
+            currentState = _currentState.ToString()
+        };
+        foreach (var kvp in _inventory)
+        {
+            if (kvp.Value > 0)
+            {
+                state.inventory.Add(new ResourceSaveEntry { type = kvp.Key, amount = kvp.Value });
+            }
+        }
+        return JsonUtility.ToJson(state);
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<VillagerSaveState>(stateJson);
+        if (state == null) return;
+
+        if (System.Enum.TryParse<VillagerState>(state.currentState, out var parsedState))
+        {
+            _currentState = parsedState;
+        }
+
+        _inventory.Clear();
+        _totalCarryAmount = 0;
+        if (state.inventory != null)
+        {
+            foreach (var entry in state.inventory)
+            {
+                _inventory[entry.type] = entry.amount;
+                _totalCarryAmount += entry.amount;
+            }
+        }
+    }
 }

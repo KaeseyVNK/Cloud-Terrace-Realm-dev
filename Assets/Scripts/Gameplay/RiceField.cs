@@ -126,7 +126,7 @@ public class RiceField : MonoBehaviour
 
         if (_harvestNodePrefab == null)
         {
-            Debug.LogError($"[RiceField] Chưa gán _harvestNodePrefab trên {gameObject.name}");
+            GameLog.LogError($"[RiceField] Chưa gán _harvestNodePrefab trên {gameObject.name}");
             return;
         }
 
@@ -144,7 +144,7 @@ public class RiceField : MonoBehaviour
             if (_isDroughtAffected)
             {
                 finalYield = Mathf.RoundToInt(_riceYield * 0.7f);
-                Debug.Log($"[RiceField] Thu hoạch bị giảm 30% do nắng hạn trên {gameObject.name}. Sản lượng thực tế: {finalYield}");
+                GameLog.Log($"[RiceField] Thu hoạch bị giảm 30% do nắng hạn trên {gameObject.name}. Sản lượng thực tế: {finalYield}");
             }
             node.CurrentQuantity = finalYield;
             // Đăng ký sự kiện khi thu hoạch xong
@@ -159,7 +159,7 @@ public class RiceField : MonoBehaviour
             node.OnDepleted -= HandleHarvestCompleted;
         }
         _activeHarvestNode = null;
-        Debug.Log($"[RiceField] Thu hoạch xong ruộng lúa {gameObject.name}. Bắt đầu vụ mùa mới!");
+        GameLog.Log($"[RiceField] Thu hoạch xong ruộng lúa {gameObject.name}. Bắt đầu vụ mùa mới!");
         SetState(RiceFieldState.Empty);
     }
 
