@@ -58,6 +58,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Market Settings")]
     [SerializeField] private BuildingData _neutralMarketData;
+    public BuildingData NeutralMarketData => _neutralMarketData;
 
     [Header("Cursor Settings")]
     [SerializeField] private Texture2D _customCursorTexture;

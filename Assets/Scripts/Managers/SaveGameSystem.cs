@@ -16,6 +16,7 @@ public static class SaveGameSystem
 
     private static bool _resumeRequested;
     private static bool _isQuitting = false;
+    public static bool IsLoading { get; private set; }
 
     public static bool ResumeRequested => _resumeRequested;
     public static bool IsQuitting => _isQuitting;
@@ -142,42 +143,50 @@ public static class SaveGameSystem
             return;
         }
 
-        // 1. Tải thẻ bài, tài nguyên, thời gian, camera và công nghệ
-        ApplyCards(data);
-        ApplyResources(data.resources);
-        ApplyTime(data);
-        ApplyCamera(data);
-        ApplyResourceNodes(data.resourceNodes);
-        
-        // 2. Dựng lại công trình và hàng đợi sản xuất
-        ApplyBuildings(data.buildings);
-        ApplyTechnologies(data);
-        ApplyProductionQueues(data.productionQueues);
-        
-        // 3. Tải các sự kiện và quái vật trên bản đồ
-        // Hủy sạch quái vật, sự kiện và phế tích cũ để tránh trùng lặp
-        ClearSceneEnemiesAndEventsForLoad();
-        ClearSceneRuinsForLoad();
-
-        // Spawn phế tích cổ, cổng hư không, đoàn thương nhân, và quái vật
-        ApplyRuins(data.activeRuins);
-        ApplyPortals(data.voidPortals);
-        ApplyCaravans(data.caravans);
-        ApplyActiveEnemies(data.activeEnemies);
-
-        // Thiết lập lại số đêm
-        if (EnemyManager.Instance != null)
+        IsLoading = true;
+        try
         {
-            SetPrivateField(EnemyManager.Instance, "_currentNightNumber", data.enemyNightNumber);
-        }
+            // 1. Tải thẻ bài, tài nguyên, thời gian, camera và công nghệ
+            ApplyCards(data);
+            ApplyResources(data.resources);
+            ApplyTime(data);
+            ApplyCamera(data);
+            ApplyResourceNodes(data.resourceNodes);
+            
+            // 2. Dựng lại công trình và hàng đợi sản xuất
+            ApplyBuildings(data.buildings);
+            ApplyTechnologies(data);
+            ApplyProductionQueues(data.productionQueues);
+            
+            // 3. Tải các sự kiện và quái vật trên bản đồ
+            // Hủy sạch quái vật, sự kiện và phế tích cũ để tránh trùng lặp
+            ClearSceneEnemiesAndEventsForLoad();
+            ClearSceneRuinsForLoad();
 
-        // 4. Khôi phục các đơn vị thuộc phe Player (Dân làng, lính gác)
-        ApplyVillagers(data.villagers);
-        ApplyCombatUnits(data.combatUnits);
-        
-        RecalculateCardStats();
-        
-        GameLog.Log($"[SaveGame] Resume data applied | resources={data.resources?.Count ?? 0}, resourceNodes={data.resourceNodes?.Count ?? 0}, buildings={data.buildings?.Count ?? 0}, villagers={data.villagers?.Count ?? 0}, combatUnits={data.combatUnits?.Count ?? 0}, productionQueues={data.productionQueues?.Count ?? 0}, ruins={data.activeRuins?.Count ?? 0}, portals={data.voidPortals?.Count ?? 0}, caravans={data.caravans?.Count ?? 0}, enemies={data.activeEnemies?.Count ?? 0}");
+            // Spawn phế tích cổ, cổng hư không, đoàn thương nhân, và quái vật
+            ApplyRuins(data.activeRuins);
+            ApplyPortals(data.voidPortals);
+            ApplyCaravans(data.caravans);
+            ApplyActiveEnemies(data.activeEnemies);
+
+            // Thiết lập lại số đêm
+            if (EnemyManager.Instance != null)
+            {
+                SetPrivateField(EnemyManager.Instance, "_currentNightNumber", data.enemyNightNumber);
+            }
+
+            // 4. Khôi phục các đơn vị thuộc phe Player (Dân làng, lính gác)
+            ApplyVillagers(data.villagers);
+            ApplyCombatUnits(data.combatUnits);
+            
+            RecalculateCardStats();
+            
+            GameLog.Log($"[SaveGame] Resume data applied | resources={data.resources?.Count ?? 0}, resourceNodes={data.resourceNodes?.Count ?? 0}, buildings={data.buildings?.Count ?? 0}, villagers={data.villagers?.Count ?? 0}, combatUnits={data.combatUnits?.Count ?? 0}, productionQueues={data.productionQueues?.Count ?? 0}, ruins={data.activeRuins?.Count ?? 0}, portals={data.voidPortals?.Count ?? 0}, caravans={data.caravans?.Count ?? 0}, enemies={data.activeEnemies?.Count ?? 0}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private static void ClearSceneEnemiesAndEventsForLoad()
@@ -585,13 +594,50 @@ public static class SaveGameSystem
                 continue;
             }
 
+            var targetBuilding = GetPrivateField<ConstructibleBuilding>(villager, "_targetBuilding");
+            var currentJob = GetPrivateField<Job>(villager, "_currentJob");
+            var targetRuins = GetPrivateField<AncientRuins>(villager, "_targetRuins");
+            var targetRiceField = GetPrivateField<RiceField>(villager, "_targetRiceField");
+            var navAgent = villager.GetComponent<UnityEngine.AI.NavMeshAgent>();
+
+            string tType = "None";
+            Vector3 tPos = Vector3.zero;
+
+            if (targetBuilding != null)
+            {
+                tType = "Building";
+                tPos = targetBuilding.transform.position;
+            }
+            else if (targetRuins != null)
+            {
+                tType = "Ruins";
+                tPos = targetRuins.transform.position;
+            }
+            else if (targetRiceField != null)
+            {
+                tType = "RiceField";
+                tPos = targetRiceField.transform.position;
+            }
+            else if (currentJob != null)
+            {
+                tType = "Resource";
+                tPos = currentJob.position;
+            }
+            else if (navAgent != null && navAgent.enabled && navAgent.hasPath)
+            {
+                tType = "Move";
+                tPos = navAgent.destination;
+            }
+
             data.villagers.Add(new UnitEntry
             {
                 unitName = villager.name,
                 position = villager.transform.position,
                 rotation = villager.transform.eulerAngles,
                 villagerState = GetPrivateField<VillagerState>(villager, "_currentState").ToString(),
-                inventory = CaptureVillagerInventory(villager)
+                inventory = CaptureVillagerInventory(villager),
+                targetType = tType,
+                targetPosition = tPos
             });
         }
 
@@ -1056,16 +1102,32 @@ public static class SaveGameSystem
             return;
         }
 
-        // Tiêu diệt sạch sẽ công trình cũ (bao gồm Chợ trung lập, Nhà chính ban đầu) để tránh trùng lặp hoặc hồi sinh công trình cũ
-        var existingBuildings = new List<GameObject>(buildingManager.BuildingDataMap.Keys);
-        GameLog.Log($"[SaveGame] Destroying {existingBuildings.Count} existing buildings from BuildingDataMap");
-        foreach (GameObject building in existingBuildings)
+        // Tiêu diệt sạch sẽ toàn bộ công trình cũ trong scene (cả pre-placed và đã đăng ký) để tránh trùng lặp
+        var allBuildings = UnityEngine.Object.FindObjectsByType<ConstructibleBuilding>(FindObjectsInactive.Include);
+        GameLog.Log($"[SaveGame] Destroying {allBuildings.Length} existing buildings in scene");
+        foreach (ConstructibleBuilding cb in allBuildings)
         {
-            if (building != null)
+            if (cb != null && cb.gameObject != null)
             {
-                buildingManager.DestroyBuilding(building);
+                if (buildingManager.BuildingDataMap.ContainsKey(cb.gameObject))
+                {
+                    buildingManager.DestroyBuilding(cb.gameObject);
+                }
+                else
+                {
+                    UnityEngine.Object.Destroy(cb.gameObject);
+                }
             }
         }
+
+        // Đảm bảo xóa sạch các dictionary trong BuildingManager
+        var dataMap = GetPrivateField<Dictionary<GameObject, BuildingData>>(buildingManager, "_buildingDataMap");
+        dataMap?.Clear();
+        var structures = GetPrivateField<Dictionary<GridCell, GameObject>>(buildingManager, "_builtStructures");
+        structures?.Clear();
+        var counts = GetPrivateField<Dictionary<BuildingData, int>>(buildingManager, "_builtBuildingCounts");
+        counts?.Clear();
+        SetPrivateField(buildingManager, "_mainBuildingInstance", null);
 
         GameLog.Log($"[SaveGame] Re-instantiating {buildings.Count} buildings from save data");
         foreach (BuildingEntry entry in buildings)
@@ -1144,6 +1206,7 @@ public static class SaveGameSystem
         {
             constructible.CurrentProgress = 1f;
         }
+        constructible.RefreshVisualPosition();
     }
 
     private static GameObject FindBuildingNear(BuildingEntry entry)
@@ -1370,7 +1433,108 @@ public static class SaveGameSystem
 
             existing[i].transform.eulerAngles = villagers[i].rotation;
             ApplyVillagerInventory(existing[i], villagers[i].inventory);
+
+            if (System.Enum.TryParse<VillagerState>(villagers[i].villagerState, true, out var parsedState))
+            {
+                // Tạm đặt tất cả thành Idle trước, RestoreVillagerCommand sẽ đặt lại state đúng sau delay
+                SetPrivateField(existing[i], "_currentState", VillagerState.Idle);
+            }
+            else
+            {
+                SetPrivateField(existing[i], "_currentState", VillagerState.Idle);
+            }
+
+            // Delay restore commands to next frame so NavMeshAgent is stable after Warp
+            if (!string.IsNullOrEmpty(villagers[i].targetType) && villagers[i].targetType != "None")
+            {
+                var villagerRef = existing[i];
+                var entryRef = villagers[i];
+                villagerRef.StartCoroutine(DelayedRestoreVillagerCommand(villagerRef, entryRef));
+            }
         }
+    }
+
+    private static System.Collections.IEnumerator DelayedRestoreVillagerCommand(VillagerController villager, UnitEntry entry)
+    {
+        // Wait 2 frames for NavMeshAgent to properly initialize after Warp
+        yield return null;
+        yield return null;
+
+        if (villager == null || !villager.gameObject.activeInHierarchy)
+        {
+            yield break;
+        }
+
+        RestoreVillagerCommand(villager, entry);
+    }
+
+    private static void RestoreVillagerCommand(VillagerController villager, UnitEntry entry)
+    {
+        if (villager == null || entry == null || string.IsNullOrEmpty(entry.targetType) || entry.targetType == "None")
+        {
+            return;
+        }
+
+        Debug.Log($"[SaveGame] RestoreVillagerCommand: {villager.name} | type={entry.targetType} | pos={entry.targetPosition}");
+
+        if (entry.targetType == "Building")
+        {
+            var targetObj = FindClosestObjectOfType<ConstructibleBuilding>(entry.targetPosition);
+            Debug.Log($"[SaveGame]   -> Building found: {(targetObj != null ? targetObj.name : "NULL")}");
+            if (targetObj != null)
+            {
+                villager.CommandBuild(targetObj);
+            }
+        }
+        else if (entry.targetType == "Resource")
+        {
+            var targetObj = FindClosestObjectOfType<ResourceNode>(entry.targetPosition);
+            Debug.Log($"[SaveGame]   -> ResourceNode found: {(targetObj != null ? targetObj.name + " (" + targetObj.ResourceType + ")" : "NULL")}");
+            if (targetObj != null)
+            {
+                villager.CommandGather(targetObj, null);
+            }
+        }
+        else if (entry.targetType == "Ruins")
+        {
+            var targetObj = FindClosestObjectOfType<AncientRuins>(entry.targetPosition);
+            Debug.Log($"[SaveGame]   -> Ruins found: {(targetObj != null ? targetObj.name : "NULL")}");
+            if (targetObj != null)
+            {
+                villager.CommandExplore(targetObj);
+            }
+        }
+        else if (entry.targetType == "RiceField")
+        {
+            var targetObj = FindClosestObjectOfType<RiceField>(entry.targetPosition);
+            Debug.Log($"[SaveGame]   -> RiceField found: {(targetObj != null ? targetObj.name : "NULL")}");
+            if (targetObj != null)
+            {
+                villager.CommandFarm(targetObj);
+            }
+        }
+        else if (entry.targetType == "Move")
+        {
+            Debug.Log($"[SaveGame]   -> Moving to {entry.targetPosition}");
+            villager.CommandMoveTo(entry.targetPosition);
+        }
+    }
+
+    private static T FindClosestObjectOfType<T>(Vector3 position, float maxDistance = 50f) where T : MonoBehaviour
+    {
+        T[] objects = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Exclude);
+        T closest = null;
+        float minDistance = maxDistance * maxDistance;
+        foreach (var obj in objects)
+        {
+            float dist = (obj.transform.position - position).sqrMagnitude;
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                closest = obj;
+            }
+        }
+        return closest;
     }
 
     private static List<VillagerController> GetActiveVillagers()
@@ -1798,6 +1962,8 @@ public class UnitEntry
     public Vector3 rotation;
     public string villagerState;
     public List<ResourceEntry> inventory = new List<ResourceEntry>();
+    public string targetType;
+    public Vector3 targetPosition;
 }
 
 [Serializable]

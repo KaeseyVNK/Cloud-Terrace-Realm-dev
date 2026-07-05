@@ -391,15 +391,8 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
         return JsonUtility.ToJson(state);
     }
 
-    public void RestoreState(string stateJson)
+    public void RefreshVisualPosition()
     {
-        if (string.IsNullOrEmpty(stateJson)) return;
-        var state = JsonUtility.FromJson<BuildingSaveState>(stateJson);
-        if (state == null) return;
-
-        this._currentProgress = state.currentProgress;
-        this._isCompleted = state.isCompleted;
-
         if (_visualContainer != null)
         {
             if (_isCompleted)
@@ -425,5 +418,17 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
                 }
             }
         }
+    }
+
+    public void RestoreState(string stateJson)
+    {
+        if (string.IsNullOrEmpty(stateJson)) return;
+        var state = JsonUtility.FromJson<BuildingSaveState>(stateJson);
+        if (state == null) return;
+
+        this._currentProgress = state.currentProgress;
+        this._isCompleted = state.isCompleted;
+
+        RefreshVisualPosition();
     }
 }

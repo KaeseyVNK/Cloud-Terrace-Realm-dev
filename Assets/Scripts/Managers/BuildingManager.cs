@@ -370,6 +370,7 @@ public class BuildingManager : MonoBehaviour
         cb.IsInstantBuild = true;
         cb.IsCompleted = true;
         cb.CurrentProgress = 1f;
+        cb.RefreshVisualPosition();
 
         OnBuildingCompleted(cb);
     }
@@ -1182,7 +1183,10 @@ public class BuildingManager : MonoBehaviour
         if (buildingObj == _mainBuildingInstance)
         {
             _mainBuildingInstance = null;
-            GameLog.LogWarning("NHÀ CHÍNH ĐÃ BỊ TIÊU DIỆT! GAME OVER!");
+            if (!CloudTerraceRealm.SaveSystem.SaveGameSystem.IsLoading)
+            {
+                GameLog.LogWarning("NHÀ CHÍNH ĐÃ BỊ TIÊU DIỆT! GAME OVER!");
+            }
         }
 
         Destroy(buildingObj);
@@ -1242,8 +1246,9 @@ public class BuildingManager : MonoBehaviour
         Vector3 centerPos = CalculateBuildingCenter(startX, startZ, targetElevation, size);
         
         GameObject newBuilding = Instantiate(_mainBuildingData.buildingPrefab, centerPos, Quaternion.identity);
-        _buildingDataMap[newBuilding] = _mainBuildingData;
         _mainBuildingInstance = newBuilding;
+
+        RegisterSpawnedBuilding(newBuilding, _mainBuildingData, startX, startZ);
 
         // Áp dụng BuildingData trực tiếp cho BuildingProduction nếu có trên nhà chính
         BuildingProduction prod = newBuilding.GetComponent<BuildingProduction>();
@@ -1261,21 +1266,6 @@ public class BuildingManager : MonoBehaviour
         }
         combatTarget.SetMaxHealth(_mainBuildingData != null ? _mainBuildingData.maxHealth : 500);
 
-
-        foreach (var cell in cellsToOccupy)
-        {
-            _builtStructures[cell] = newBuilding;     
-            cell.isBuildable = false;
-            cell.isWalkable = false;                 
-        }
-        
-        // Ghi nhận nhà chính đã được tự động xây dựng
-        if (!_builtBuildingCounts.ContainsKey(_mainBuildingData))
-        {
-            _builtBuildingCounts[_mainBuildingData] = 0;
-        }
-        _builtBuildingCounts[_mainBuildingData]++;
-        
         GameLog.Log($"Đã tự động xây {_mainBuildingData.buildingName} tại [{centerGridX}, {centerGridZ}]");
     }
 
