@@ -23,6 +23,10 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
     public float attackCooldown = 1.5f;
     public float scanRange = 15f; // Tầm tự động phát hiện kẻ địch
 
+    [Header("Combat Scan Filtering")]
+    [SerializeField] protected LayerMask _combatTargetLayerMask;
+    protected LayerMask _effectiveCombatTargetLayerMask;
+
     [Header("Scan Optimization")]
     [SerializeField] protected float idleScanInterval = 0.25f;
     [SerializeField] protected float movingScanInterval = 0.35f;
@@ -41,6 +45,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
     [SerializeField] private float movingAnimationHoldTime = 0.18f;
 
     protected NavMeshAgent navAgent;
+    public NavMeshAgent NavAgent => navAgent;
     protected Animator animator;
     protected BaseCombatUnitController currentTarget;
     protected float lastAttackTime = 0f;
@@ -90,10 +95,23 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
     private float _noPathTimer = 0f;
     private const float NoPathTimeout = 1.0f; // Cho phép 1 giây mất path tạm thời trước khi về Idle
 
+    private TechnologyManager _subscribedTechnologyManager;
+    private bool _isRegisteredInRegistry = false;
+
     // Cache tĩnh dùng chung cho các hàm Physics.OverlapSphereNonAlloc
-    protected static readonly Collider[] s_overlapCache = new Collider[256];
-    // Cache Avoidance mặc định của NavMeshAgent
+    protected static readonly Collider[] s_combatOverlapCache = new Collider[256];
+    protected static readonly Unity.Profiling.ProfilerMarker s_combatScanMarker = new Unity.Profiling.ProfilerMarker("RTS.Combat.Scan");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    private static float _lastOverflowWarningTime = 0f;
+#endif
     private ObstacleAvoidanceType _defaultAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+    private bool _isHungry = false;
+    public bool IsHungry => _isHungry;
+    public void SetHungry(bool hungry)
+    {
+        _isHungry = hungry;
+        ApplyPlayerTechnologyStats();
+    }
 
     // Base stats caching to avoid accumulated multipliers on pool recycle
     protected int baseMaxHealth = -1;
@@ -174,8 +192,31 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
         attackDamage = newDamage;
     }
 
+    private void ResolveCombatTargetLayerMask()
+    {
+        if (_combatTargetLayerMask.value != 0)
+        {
+            _effectiveCombatTargetLayerMask = _combatTargetLayerMask;
+        }
+        else
+        {
+            _effectiveCombatTargetLayerMask = LayerMask.GetMask("Unit", "Unit Enemy", "Buiding");
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_effectiveCombatTargetLayerMask.value == 0)
+            {
+                Debug.LogWarning($"[Combat] Failed to retrieve layers 'Unit', 'Unit Enemy', 'Buiding' for fallback on {gameObject.name}.");
+            }
+            else
+            {
+                Debug.LogWarning($"[Combat] _combatTargetLayerMask is unassigned (0) on {gameObject.name}. Falling back to default Unit/Enemy/Building layers.");
+            }
+            #endif
+        }
+    }
+
     protected virtual void Start()
     {
+        ResolveCombatTargetLayerMask();
         InitializeBaseStatsIfNeeded();
         currentHealth = maxHealth;
         navAgent = GetComponent<NavMeshAgent>();
@@ -191,7 +232,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
         // Tự động kéo khớp (warp) unit về vị trí NavMesh gần nhất nếu bị thả lệch hoặc lơ lửng ngoài vùng đi lại
         if (navAgent != null && !navAgent.isOnNavMesh)
         {
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 10f, ~2))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 25f, NavMesh.AllAreas))
             {
                 navAgent.Warp(hit.position);
             }
@@ -248,6 +289,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             }
         }
 
+        SubscribeToTechnologyEvent();
         ApplyPlayerTechnologyStats();
     }
 
@@ -276,6 +318,11 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             speedMult *= CardManager.Instance.CombatUnitMoveSpeedMultiplier;
         }
 
+        if (_isHungry)
+        {
+            speedMult *= 0.7f;
+        }
+
         int prevMaxHealth = maxHealth;
         maxHealth = Mathf.RoundToInt(baseMaxHealth * healthMult);
         attackDamage = Mathf.RoundToInt(baseAttackDamage * damageMult);
@@ -286,7 +333,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
         }
         if (navAgent != null && baseSpeed > 0)
         {
-            navAgent.speed = baseSpeed * speedMult;
+            _currentBaseSpeed = baseSpeed * speedMult;
+            navAgent.speed = _currentBaseSpeed;
         }
 
         if (maxHealth != prevMaxHealth)
@@ -296,23 +344,46 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
         }
     }
 
+    private void SubscribeToTechnologyEvent()
+    {
+        if (_subscribedTechnologyManager != null) return;
+        if (faction != UnitFaction.Player) return;
+
+        if (TechnologyManager.HasInstance)
+        {
+            _subscribedTechnologyManager = TechnologyManager.Instance;
+            _subscribedTechnologyManager.OnTechnologyUnlocked += HandleTechnologyUnlocked;
+        }
+    }
+
+    private void UnsubscribeFromTechnologyEvent()
+    {
+        if (_subscribedTechnologyManager != null)
+        {
+            _subscribedTechnologyManager.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+            _subscribedTechnologyManager = null;
+        }
+    }
+
     protected virtual void OnEnable()
     {
-        Registry.Add(this);
-        if (faction == UnitFaction.Player && TechnologyManager.HasInstance)
+        if (!_isRegisteredInRegistry)
         {
-            TechnologyManager.Instance.OnTechnologyUnlocked += HandleTechnologyUnlocked;
+            Registry.Add(this);
+            _isRegisteredInRegistry = true;
         }
+        SubscribeToTechnologyEvent();
         ApplyPlayerTechnologyStats();
     }
 
     protected virtual void OnDisable()
     {
-        Registry.Remove(this);
-        if (faction == UnitFaction.Player && TechnologyManager.HasInstance)
+        if (_isRegisteredInRegistry)
         {
-            TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+            Registry.Remove(this);
+            _isRegisteredInRegistry = false;
         }
+        UnsubscribeFromTechnologyEvent();
 
         if (flashCoroutine != null)
         {
@@ -352,10 +423,14 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
                     _isUphill = true;
                 }
             }
-        }
 
-        float speedMult = _isUphill ? 0.7f : 1.0f;
-        navAgent.speed = _currentBaseSpeed * speedMult;
+            float speedMult = _isUphill ? 0.7f : 1.0f;
+            float targetSpeed = _currentBaseSpeed * speedMult;
+            if (Mathf.Abs(navAgent.speed - targetSpeed) > 0.01f)
+            {
+                navAgent.speed = targetSpeed;
+            }
+        }
     }
 
     protected virtual void Update()
@@ -450,19 +525,25 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             }
         }
 
-        // Xử lý mất đường đi tạm thời (xảy ra khi NavMesh được rebuild bất đồng bộ)
-        // Cho phép 1 giây ân hạn để thử đặt lại đích trước khi bỏ cuộc về Idle
+        // 1. Điều kiện kết thúc di chuyển khi đã đến đích (Ưu tiên kiểm tra đầu tiên để chuyển trạng thái tức thì)
+        if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
+        {
+            if (!navAgent.hasPath || navAgent.velocity.sqrMagnitude < 0.25f)
+            {
+                isManualMoveCommand = false;
+                _movingStuckTimer = 0f;
+                _noPathTimer = 0f;
+                navAgent.isStopped = true;
+                navAgent.ResetPath();
+                ChangeState(CombatState.Idle);
+                return;
+            }
+        }
+
+        // 2. Xử lý khi mất đường đi ở khoảng cách xa (khi NavMesh được rebuild hoặc không tìm được đường)
         if (!navAgent.pathPending && !navAgent.hasPath)
         {
             _noPathTimer += Time.deltaTime;
-            // Thử đặt lại đích nếu vẫn còn đích di chuyển hợp lệ
-            if (isManualMoveCommand && _noPathTimer < NoPathTimeout)
-            {
-                navAgent.isStopped = false;
-                navAgent.SetDestination(_manualMoveDestination);
-                return; // Chờ frame tiếp theo kiểm tra lại
-            }
-            // Hết thời gian ân hạn → thật sự mất đường đi, về Idle
             if (_noPathTimer >= NoPathTimeout)
             {
                 isManualMoveCommand = false;
@@ -479,20 +560,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             _noPathTimer = 0f; // Có path rồi, reset bộ đếm
         }
 
-        // Điều kiện kết thúc di chuyển bình thường
-        if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
-        {
-            if (navAgent.velocity.sqrMagnitude == 0f)
-            {
-                isManualMoveCommand = false;
-                _movingStuckTimer = 0f;
-                ChangeState(CombatState.Idle);
-                return;
-            }
-        }
-
-        // Watchdog: phát hiện unit bị kẹt (có path nhưng velocity ≈ 0 quá lâu)
-        // Xảy ra khi path bị cắt (PathPartial), NavMesh obstacle chắn hoàn toàn, v.v.
+        // 3. Watchdog: phát hiện unit bị kẹt (có path nhưng velocity ≈ 0 quá lâu)
         bool agentIsStuck = navAgent.hasPath
             && !navAgent.pathPending
             && navAgent.velocity.sqrMagnitude < 0.01f
@@ -521,16 +589,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
     {
         if (target == null) return 0f;
         Collider col = GetActiveTargetCollider(target);
-        if (col != null && target.navAgent == null)
-        {
-            Vector3 closestPoint = col.ClosestPoint(transform.position);
-            closestPoint.y = transform.position.y;
-            return Vector3.Distance(transform.position, closestPoint);
-        }
         
-        float dist = Vector3.Distance(transform.position, target.transform.position);
-        
-        // Trừ đi bán kính của bản thân và mục tiêu để tính khoảng cách thực tế giữa 2 vỏ vật lý
         float selfRadius = 0f;
         if (navAgent != null)
         {
@@ -541,6 +600,17 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             selfRadius = c.bounds.extents.x;
         }
 
+        if (col != null && target.navAgent == null)
+        {
+            Vector3 closestPoint = col.ClosestPoint(transform.position);
+            closestPoint.y = transform.position.y;
+            float distToEdge = Vector3.Distance(transform.position, closestPoint);
+            return Mathf.Max(0f, distToEdge - selfRadius);
+        }
+        
+        float dist = Vector3.Distance(transform.position, target.transform.position);
+        
+        // Trừ đi bán kính của bản thân và mục tiêu để tính khoảng cách thực tế giữa 2 vỏ vật lý
         float targetRadius = 0f;
         if (target.navAgent != null)
         {
@@ -553,6 +623,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
 
         return Mathf.Max(0f, dist - selfRadius - targetRadius);
     }
+
 
     public bool IsRangedUnit()
     {
@@ -1051,19 +1122,20 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
         navAgent.stoppingDistance = 0.2f;
         navAgent.isStopped = false;
 
-        NavMeshPath path = new NavMeshPath();
-        if (navAgent.CalculatePath(requestedPosition, path) && path.status == NavMeshPathStatus.PathComplete)
+        // Thử thiết lập điểm đến trực tiếp (bất đồng bộ)
+        if (navAgent.SetDestination(requestedPosition))
         {
-            resolvedDestination = requestedPosition;
-            return navAgent.SetDestination(resolvedDestination);
+            return true;
         }
 
-        if (NavMesh.SamplePosition(requestedPosition, out NavMeshHit hit, 4f, ~2)
-            && navAgent.CalculatePath(hit.position, path)
-            && path.status == NavMeshPathStatus.PathComplete)
+        // Dự phòng: Lấy điểm gần nhất có thể đi được trên NavMesh trong phạm vi 4 mét
+        if (NavMesh.SamplePosition(requestedPosition, out NavMeshHit hit, 4f, ~2))
         {
             resolvedDestination = hit.position;
-            return navAgent.SetDestination(resolvedDestination);
+            if (navAgent.SetDestination(resolvedDestination))
+            {
+                return true;
+            }
         }
 
         navAgent.isStopped = true;
@@ -1211,46 +1283,65 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
 
     protected virtual BaseCombatUnitController ScanForNearestEnemy()
     {
-        // Quét tất cả các Collider trong bán kính scanRange dùng NonAlloc để tránh rác GC
-        int count = Physics.OverlapSphereNonAlloc(transform.position, scanRange, s_overlapCache);
-        BaseCombatUnitController nearest = null;
-        float minDistance = float.MaxValue;
-        int bestPenalty = int.MaxValue;
-
-        for (int i = 0; i < count; i++)
+        using (s_combatScanMarker.Auto())
         {
-            Collider col = s_overlapCache[i];
-            if (col == null) continue;
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnitPerformanceMetrics.CombatScanCount++;
+            #endif
 
-            BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit != null && unit.currentState != CombatState.Dead)
+            // Quét tất cả các Collider trong bán kính scanRange dùng NonAlloc để tránh rác GC
+            int count = Physics.OverlapSphereNonAlloc(transform.position, scanRange, s_combatOverlapCache, _effectiveCombatTargetLayerMask, QueryTriggerInteraction.Collide);
+
+            if (count >= s_combatOverlapCache.Length)
             {
-                bool isHostile = false;
-                if (this.faction == UnitFaction.Player)
+                #if UNITY_EDITOR || DEVELOPMENT_BUILD
+                UnitPerformanceMetrics.BufferOverflowCount++;
+                if (Time.time >= _lastOverflowWarningTime + 3.0f)
                 {
-                    isHostile = (unit.faction == UnitFaction.Enemy);
+                    Debug.LogWarning($"[Combat] s_combatOverlapCache (capacity {s_combatOverlapCache.Length}) is full on {gameObject.name}. Some targets might have been missed!");
+                    _lastOverflowWarningTime = Time.time;
                 }
-                else if (this.faction == UnitFaction.Enemy)
-                {
-                    isHostile = (unit.faction == UnitFaction.Player);
-                }
+                #endif
+            }
 
-                if (isHostile)
+            BaseCombatUnitController nearest = null;
+            float minDistance = float.MaxValue;
+            int bestPenalty = int.MaxValue;
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider col = s_combatOverlapCache[i];
+                if (col == null) continue;
+
+                BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
+                if (unit != null && unit.currentState != CombatState.Dead)
                 {
-                    float dist = GetDistanceToTarget(unit);
-                    int penalty = Mathf.Max(0, unit.TargetPriorityPenalty);
-                    if (penalty < bestPenalty || (penalty == bestPenalty && dist < minDistance))
+                    bool isHostile = false;
+                    if (this.faction == UnitFaction.Player)
                     {
-                        bestPenalty = penalty;
-                        minDistance = dist;
-                        nearest = unit;
+                        isHostile = (unit.faction == UnitFaction.Enemy);
+                    }
+                    else if (this.faction == UnitFaction.Enemy)
+                    {
+                        isHostile = (unit.faction == UnitFaction.Player);
+                    }
+
+                    if (isHostile)
+                    {
+                        float dist = GetDistanceToTarget(unit);
+                        int penalty = Mathf.Max(0, unit.TargetPriorityPenalty);
+                        if (penalty < bestPenalty || (penalty == bestPenalty && dist < minDistance))
+                        {
+                            bestPenalty = penalty;
+                            minDistance = dist;
+                            nearest = unit;
+                        }
                     }
                 }
             }
-        }
 
-        System.Array.Clear(s_overlapCache, 0, count);
-        return nearest;
+            return nearest;
+        }
     }
 
     protected bool TrySwitchToBetterTarget()
@@ -1468,12 +1559,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             return false;
         }
 
-        if (navAgent.velocity.sqrMagnitude > movingAnimationVelocityThreshold * movingAnimationVelocityThreshold)
-        {
-            return true;
-        }
-
-        return navAgent.pathPending || (navAgent.hasPath && navAgent.remainingDistance > navAgent.stoppingDistance + 0.05f);
+        return navAgent.velocity.sqrMagnitude > movingAnimationVelocityThreshold * movingAnimationVelocityThreshold;
     }
 
     protected bool IsKnockupActive()

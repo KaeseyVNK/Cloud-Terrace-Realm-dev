@@ -14,9 +14,20 @@ public class GridSystem : MonoBehaviour
     [Header("Procedural Map")]
     [SerializeField] private bool _useProceduralSeed = true;
     [SerializeField] private int _mapSeed = 12345;
+    public int MapSeed
+    {
+        get => _mapSeed;
+        set
+        {
+            _mapSeed = value;
+            _useProceduralSeed = false;
+        }
+    }
     [SerializeField] private bool _resizeTerrainOnGenerate = true;
     [SerializeField] private Vector2Int _mapWorldSize = new Vector2Int(512, 512);
     [SerializeField] private int _startingSafeRadiusCells = 14;
+    [SerializeField] private Vector2Int _startingSafeZoneCenter = new Vector2Int(-1, -1);
+    public Vector2Int StartingSafeZoneCenter => _startingSafeZoneCenter;
 
     [Header("Navigation Bake")]
     [SerializeField] private bool _bakeNavMeshBeforeResources = true;
@@ -145,10 +156,10 @@ public class GridSystem : MonoBehaviour
     [SerializeField] private bool _respectResourceCapsOnRespawn = true;
     [SerializeField] private int _resourceRespawnSearchRadius = 8;
     [SerializeField] private int _resourceRespawnPlacementAttempts = 40;
-    [SerializeField] private Vector2 _woodRespawnDelayRange = new Vector2(120f, 180f);
-    [SerializeField] private Vector2 _stoneRespawnDelayRange = new Vector2(180f, 260f);
-    [SerializeField] private Vector2 _goldRespawnDelayRange = new Vector2(240f, 360f);
-    [SerializeField] private Vector2 _foodRespawnDelayRange = new Vector2(90f, 150f);
+    [SerializeField] private Vector2 _woodRespawnDelayRange = new Vector2(240f, 360f);
+    [SerializeField] private Vector2 _stoneRespawnDelayRange = new Vector2(360f, 520f);
+    [SerializeField] private Vector2 _goldRespawnDelayRange = new Vector2(480f, 720f);
+    [SerializeField] private Vector2 _foodRespawnDelayRange = new Vector2(180f, 300f);
 
     private GridCell[,] _gridArray;
     private GameObject[,] _waterObstaclesMap;
@@ -298,7 +309,7 @@ public class GridSystem : MonoBehaviour
     public int GetLength() => _length;
 
     [ContextMenu("0. Generate Full Procedural Map")]
-    private void GenerateFullProceduralMap()
+    public void GenerateFullProceduralMap()
     {
         _isGeneratingFullMap = true;
         try
@@ -313,6 +324,7 @@ public class GridSystem : MonoBehaviour
             ClearGrid();
             PrepareTerrainSize();
             GenerateTerrainShape();
+            FindSafeSpawnCenter();
 
             // [TEMPORARILY DISABLED] Grass generation from GridSystem
             // if (_useComputeShaderGrass)
@@ -347,7 +359,8 @@ public class GridSystem : MonoBehaviour
             {
                 if (b != null && b.name.StartsWith("ProceduralBridge_"))
                 {
-                    DestroyImmediate(b);
+                    if (Application.isPlaying) Destroy(b);
+                    else DestroyImmediate(b);
                 }
             }
 
@@ -363,6 +376,11 @@ public class GridSystem : MonoBehaviour
             }
 
             GenerateProceduralBridges(); // Sinh cầu tự động kết nối các bờ sông cô lập
+
+            if (Application.isPlaying)
+            {
+                InitializeRuntimeWaterObstacles();
+            }
 
             BakeNavigationMesh(force: true);
             GenerateGrid();
@@ -597,6 +615,65 @@ public class GridSystem : MonoBehaviour
 
         tData.SetHeights(0, 0, heights);
         GameLog.Log("Đã nặn xong địa hình!");
+    }
+
+    private void FindSafeSpawnCenter()
+    {
+        UpdateGridDimensions();
+        int centerX = _width / 2;
+        int centerZ = _length / 2;
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            _startingSafeZoneCenter = new Vector2Int(centerX, centerZ);
+            return;
+        }
+
+        // Tìm từ tâm lan rộng ra xung quanh
+        for (int r = 0; r < Mathf.Max(_width, _length); r++)
+        {
+            for (int dx = -r; dx <= r; dx++)
+            {
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Mathf.Abs(dx) != r && Mathf.Abs(dz) != r) continue; // Chỉ kiểm tra viền ngoài của vòng tròn/hình vuông bán kính r
+
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+
+                    if (x >= 4 && x < _width - 4 && z >= 4 && z < _length - 4)
+                    {
+                        // Kiểm tra khu vực 5x5 xung quanh ô này để bảo đảm có đủ không gian đất liền (không ngập nước)
+                        bool areaIsSafe = true;
+                        for (int checkX = x - 2; checkX <= x + 2; checkX++)
+                        {
+                            for (int checkZ = z - 2; checkZ <= z + 2; checkZ++)
+                            {
+                                float worldX = checkX * _cellSize;
+                                float worldZ = checkZ * _cellSize;
+                                float height = terrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                                if (height < _waterHeight)
+                                {
+                                    areaIsSafe = false;
+                                    break;
+                                }
+                            }
+                            if (!areaIsSafe) break;
+                        }
+
+                        if (areaIsSafe)
+                        {
+                            _startingSafeZoneCenter = new Vector2Int(x, z);
+                            GameLog.Log($"[GridSystem] Found safe spawn center at: {x}, {z} (Distance from map center: {r} cells)");
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dự phòng: Trả về tâm bản đồ nếu không tìm thấy
+        _startingSafeZoneCenter = new Vector2Int(centerX, centerZ);
     }
 
     [ContextMenu("2. Generate Terrain Details")]
@@ -860,7 +937,8 @@ public class GridSystem : MonoBehaviour
             {
                 continue;
             }
-            DestroyImmediate(child);
+            if (Application.isPlaying) Destroy(child);
+            else DestroyImmediate(child);
         }
         _gridArray = null;
     }
@@ -1583,8 +1661,10 @@ public class GridSystem : MonoBehaviour
             return false;
         }
 
-        Vector2Int center = new Vector2Int(_width / 2, _length / 2);
-        return Vector2Int.Distance(new Vector2Int(x, z), center) <= _startingSafeRadiusCells;
+        Vector2Int center = (_startingSafeZoneCenter.x >= 0 && _startingSafeZoneCenter.y >= 0) 
+            ? _startingSafeZoneCenter 
+            : new Vector2Int(_width / 2, _length / 2);
+        return Vector2.Distance(new Vector2(x, z), new Vector2(center.x, center.y)) <= _startingSafeRadiusCells;
     }
 
     // Tương thích API cũ
@@ -2218,6 +2298,14 @@ public class GridSystem : MonoBehaviour
     private void InitializeRuntimeWaterObstacles()
     {
         if (!Application.isPlaying) return;
+
+        // Dọn dẹp đối tượng cản nước runtime cũ nếu có để tránh trùng lặp khi sinh lại map
+        Transform oldParent = transform.Find("RuntimeNavMeshWaterObstacles");
+        if (oldParent != null)
+        {
+            if (Application.isPlaying) Destroy(oldParent.gameObject);
+            else DestroyImmediate(oldParent.gameObject);
+        }
 
         UpdateGridDimensions();
         _waterObstaclesMap = new GameObject[_width, _length];

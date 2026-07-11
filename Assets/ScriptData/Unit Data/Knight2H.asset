@@ -16,13 +16,13 @@ MonoBehaviour:
   description: Elite melee unit wielding a large shield with extremely high defense.
   unitPrefab: {fileID: 3795645226564922642, guid: 2d03f32498caa604b9a448737ac977e6, type: 3}
   portraitIcon: {fileID: 2019317813, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
-  productionTime: 5
+  productionTime: 18
   productionCosts:
   - resourceType: 2
-    amount: 40
+    amount: 70
   - resourceType: 1
-    amount: 15
+    amount: 40
   - resourceType: 4
-    amount: 45
+    amount: 75
   requiredTechnologies:
   - {fileID: 11400000, guid: d6ef6252564c3bc4ca8cd129d8ba5d80, type: 2}

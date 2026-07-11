@@ -70,7 +70,7 @@ Shader "Polytope Studio/PT_Vegetation_Foliage_Shader"
 		
 
 		HLSLINCLUDE
-		#pragma target 3.5
+		#pragma target 4.5
 		#pragma prefer_hlslcc gles
 		// ensure rendering platforms toggle list is visible
 

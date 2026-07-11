@@ -53,9 +53,9 @@ namespace CloudTerraceRealm.UI
 
         private IEnumerator LoadSceneAsyncCoroutine()
         {
-            yield return new WaitForSeconds(0.5f); // Chờ nhẹ trước khi bắt đầu tải
+            yield return new WaitForSecondsRealtime(0.5f); // Chờ nhẹ trước khi bắt đầu tải (Dùng thời gian thực)
 
-            float startTime = Time.time;
+            float startTime = Time.realtimeSinceStartup; // Dùng thời gian thực
             AsyncOperation op = SceneManager.LoadSceneAsync(_targetSceneName);
             if (op == null)
             {
@@ -76,7 +76,7 @@ namespace CloudTerraceRealm.UI
                 // Lerp mượt thanh tiến trình
                 while (progressValue < targetProgress)
                 {
-                    progressValue += Time.deltaTime * 1.5f; // Tốc độ chạy thanh tiến trình
+                    progressValue += Time.unscaledDeltaTime * 1.5f; // Tốc độ chạy thanh tiến trình (Dùng unscaled delta time)
                     progressValue = Mathf.Min(progressValue, targetProgress);
                     
                     if (_progressBar != null) _progressBar.value = progressValue;
@@ -86,20 +86,20 @@ namespace CloudTerraceRealm.UI
                 }
 
                 // Kiểm tra nếu đã tải xong ở background và đạt thời gian tải tối thiểu
-                float elapsed = Time.time - startTime;
+                float elapsed = Time.realtimeSinceStartup - startTime; // Dùng thời gian thực
                 if (op.progress >= 0.9f && elapsed >= _minLoadingTime)
                 {
                     // Chạy nốt thanh tiến trình lên 100%
                     while (progressValue < 1.0f)
                     {
-                        progressValue += Time.deltaTime * 2.0f;
+                        progressValue += Time.unscaledDeltaTime * 2.0f; // Dùng unscaled delta time
                         progressValue = Mathf.Min(progressValue, 1.0f);
                         if (_progressBar != null) _progressBar.value = progressValue;
                         if (_progressText != null) _progressText.text = "Completed! 100%";
                         yield return null;
                     }
 
-                    yield return new WaitForSeconds(0.3f); // Chờ ngắn
+                    yield return new WaitForSecondsRealtime(0.3f); // Chờ ngắn bằng thời gian thực
                     op.allowSceneActivation = true; // Chuyển cảnh chính thức!
                 }
 

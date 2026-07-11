@@ -244,33 +244,38 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
     /// </summary>
     private void ScanForThreats()
     {
-        // Sử dụng mảng cache tĩnh của BaseCombatUnitController để tối ưu hóa rác GC
-        int count = Physics.OverlapSphereNonAlloc(transform.position, _fleeRange, s_overlapCache);
         Transform closestThreat = null;
-        float minDistance = float.MaxValue;
-
-        for (int i = 0; i < count; i++)
+        using (s_combatScanMarker.Auto())
         {
-            Collider col = s_overlapCache[i];
-            if (col == null) continue;
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnitPerformanceMetrics.CombatScanCount++;
+            #endif
 
-            BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit != null && unit != this && unit.currentState != CombatState.Dead)
+            // Sử dụng mảng cache tĩnh của BaseCombatUnitController để tối ưu hóa rác GC
+            int count = Physics.OverlapSphereNonAlloc(transform.position, _fleeRange, s_combatOverlapCache);
+            float minDistance = float.MaxValue;
+
+            for (int i = 0; i < count; i++)
             {
-                // Chạy trốn cả người chơi (Player) và quái vật (Enemy)
-                if (unit.faction == UnitFaction.Player || unit.faction == UnitFaction.Enemy)
+                Collider col = s_combatOverlapCache[i];
+                if (col == null) continue;
+
+                BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
+                if (unit != null && unit != this && unit.currentState != CombatState.Dead)
                 {
-                    float dist = Vector3.Distance(transform.position, unit.transform.position);
-                    if (dist < minDistance)
+                    // Chạy trốn cả người chơi (Player) và quái vật (Enemy)
+                    if (unit.faction == UnitFaction.Player || unit.faction == UnitFaction.Enemy)
                     {
-                        minDistance = dist;
-                        closestThreat = unit.transform;
+                        float dist = Vector3.Distance(transform.position, unit.transform.position);
+                        if (dist < minDistance)
+                        {
+                            minDistance = dist;
+                            closestThreat = unit.transform;
+                        }
                     }
                 }
             }
         }
-
-        System.Array.Clear(s_overlapCache, 0, count);
 
         if (closestThreat != null)
         {
@@ -454,15 +459,18 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 15f, NavMesh.AllAreas))
             {
                 navAgent.Warp(hit.position);
             }
 
-            navAgent.isStopped = false;
-            navAgent.speed = _walkSpeed;
-            navAgent.stoppingDistance = 0.2f;
-            navAgent.ResetPath();
+            if (navAgent.isOnNavMesh)
+            {
+                navAgent.isStopped = false;
+                navAgent.speed = _walkSpeed;
+                navAgent.stoppingDistance = 0.2f;
+                navAgent.ResetPath();
+            }
         }
 
         // Kích hoạt lại Colliders
@@ -479,8 +487,8 @@ public class WildAnimalController : BaseCombatUnitController, IPoolable
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
-            rb.isKinematic = false;
-            rb.useGravity = true;
+            rb.isKinematic = true;
+            rb.useGravity = false;
         }
 
         // Khởi tạo lại Animator

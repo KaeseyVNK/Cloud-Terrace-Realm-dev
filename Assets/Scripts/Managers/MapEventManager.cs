@@ -629,12 +629,13 @@ public class MapEventManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISave
 
             if (prefab == null) continue;
 
-            GameObject enemy = Instantiate(prefab, spawnPos, Quaternion.identity);
+            GameObject enemy = PoolManager.Instance.Spawn(prefab, spawnPos, Quaternion.identity);
             
             // Set lính canh tĩnh đứng tại cổng
             var guard = enemy.GetComponent<EnemyUnitController>();
             if (guard != null)
             {
+                guard.OnSpawnedFromPool();
                 guard.prefabName = prefab.name;
                 guard.IsGuard = true;
             }

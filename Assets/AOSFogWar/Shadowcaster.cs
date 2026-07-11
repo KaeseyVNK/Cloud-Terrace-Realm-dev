@@ -90,6 +90,8 @@ namespace FischlWorks_FogWar
                 return colors;
             }
 
+            public int ColumnCount => levelRow.Count;
+
             // Indexer definition
             public LevelColumn this[int index] {
                 get {
@@ -99,9 +101,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in x axis is out of range");
-
-                        return null;
+                        if (levelRow.Count == 0) return null;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelRow.Count - 1);
+                        return levelRow[clampedIndex];
                     }
                 }
                 set {
@@ -111,9 +113,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in x axis is out of range");
-
-                        return;
+                        if (levelRow.Count == 0) return;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelRow.Count - 1);
+                        levelRow[clampedIndex] = value;
                     }
                 }
             }
@@ -173,9 +175,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in y axis is out of range");
-
-                        return ETileVisibility.Hidden;
+                        if (levelColumn.Count == 0) return ETileVisibility.Hidden;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelColumn.Count - 1);
+                        return levelColumn[clampedIndex];
                     }
                 }
                 set {
@@ -185,9 +187,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in y axis is out of range");
-
-                        return;
+                        if (levelColumn.Count == 0) return;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelColumn.Count - 1);
+                        levelColumn[clampedIndex] = value;
                     }
                 }
             }

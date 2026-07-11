@@ -16,12 +16,12 @@ MonoBehaviour:
   description: Melee unit wielding an axe with moderate health and armor.
   unitPrefab: {fileID: 12324393601355489, guid: ea5aeb9a31ec84445a08e415d3c39324, type: 3}
   portraitIcon: {fileID: 148914426, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
-  productionTime: 5
+  productionTime: 12
   productionCosts:
   - resourceType: 2
-    amount: 30
+    amount: 50
   - resourceType: 0
-    amount: 40
+    amount: 65
   - resourceType: 1
-    amount: 30
+    amount: 50
   requiredTechnologies: []

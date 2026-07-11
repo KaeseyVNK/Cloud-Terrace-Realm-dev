@@ -90,10 +90,23 @@ public class WeatherManager : MonoBehaviour
         }
         else
         {
-            // Kết thúc đêm: Nếu đêm vừa qua là Trăng Máu -> Trao thưởng
-            if (_currentWeather == WeatherState.BloodMoon)
+            // Kết thúc đêm
+            bool isBloodMoon = (_currentWeather == WeatherState.BloodMoon);
+            if (isBloodMoon)
             {
                 AwardBloodMoonSurvivalReward();
+            }
+            else
+            {
+                // Ngoại trừ 5 ngày đầu làm quen, từ ngày 6 trở đi sẽ nhận được thẻ nâng cấp vào buổi sáng
+                if (TimeManager.Instance != null && TimeManager.Instance.dayCount > 5)
+                {
+                    if (CardManager.Instance != null)
+                    {
+                        CardManager.Instance.PendingSurvivalDraft = true;
+                        CardManager.Instance.IsPendingSurvivalBloodMoon = false;
+                    }
+                }
             }
 
             // Ban ngày: Có tỉ lệ đổ mưa hoặc nắng hạn
@@ -132,7 +145,8 @@ public class WeatherManager : MonoBehaviour
         
         if (CardManager.Instance != null)
         {
-            CardManager.Instance.TriggerCardDraft();
+            CardManager.Instance.PendingSurvivalDraft = true;
+            CardManager.Instance.IsPendingSurvivalBloodMoon = true;
         }
 
         if (HUDManager.Instance != null)

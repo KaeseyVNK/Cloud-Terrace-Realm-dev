@@ -53,8 +53,10 @@ public class GameManager : MonoBehaviour
     [UnityEngine.Serialization.FormerlySerializedAs("startingVillagers")]
     [SerializeField] private int _startingVillagers = 3;
     
+#pragma warning disable 0414
     [UnityEngine.Serialization.FormerlySerializedAs("flatAreaRadius")]
     [SerializeField] private int _flatAreaRadius = 5;
+#pragma warning restore 0414
 
     [Header("Market Settings")]
     [SerializeField] private BuildingData _neutralMarketData;
@@ -312,16 +314,31 @@ public class GameManager : MonoBehaviour
     {
         if (_gridSystem == null || _buildingManager == null) return;
 
+        // Nếu là ván chơi mới (không phải resume ván cũ), tự động sinh seed ngẫu nhiên mới cho GridSystem
+        if (!CloudTerraceRealm.SaveSystem.SaveGameSystem.ResumeRequested)
+        {
+            int newSeed = UnityEngine.Random.Range(1, 1000000);
+            _gridSystem.MapSeed = newSeed;
+            GameLog.Log($"[GameManager] New game started. Generated map seed: {newSeed}");
+            
+            // Thực hiện sinh bản đồ ngẫu nhiên từ seed mới
+            _gridSystem.GenerateFullProceduralMap();
+        }
+
         int centerX = _gridSystem.GetWidth() / 2;
         int centerZ = _gridSystem.GetLength() / 2;
 
-        // San phẳng địa hình xung quanh trước khi xây và sinh dân (bán kính 5 ô)
+        if (_gridSystem.StartingSafeZoneCenter.x >= 0 && _gridSystem.StartingSafeZoneCenter.y >= 0)
+        {
+            centerX = _gridSystem.StartingSafeZoneCenter.x;
+            centerZ = _gridSystem.StartingSafeZoneCenter.y;
+            GameLog.Log($"[GameManager] Spawning base at safe non-river center: {centerX}, {centerZ}");
+        }
+
+        // Bake lại NavMesh bằng GridSystem để loại trừ các ô sông hồ ngập nước
         GridCell centerCell = _gridSystem.GetCell(centerX, centerZ);
         if (centerCell != null)
         {
-            _gridSystem.FlattenArea(centerX, centerZ, _flatAreaRadius, 0);
-
-            // Bake lại NavMesh bằng GridSystem để loại trừ các ô sông hồ ngập nước
             _gridSystem.BakeNavigationMesh(force: true);
         }
 
@@ -368,6 +385,11 @@ public class GameManager : MonoBehaviour
         int mapLength = _gridSystem.GetLength();
         int centerX = mapWidth / 2;
         int centerZ = mapLength / 2;
+        if (_gridSystem.StartingSafeZoneCenter.x >= 0 && _gridSystem.StartingSafeZoneCenter.y >= 0)
+        {
+            centerX = _gridSystem.StartingSafeZoneCenter.x;
+            centerZ = _gridSystem.StartingSafeZoneCenter.y;
+        }
 
         // Khởi tạo bộ sinh số ngẫu nhiên deterministic dựa trên seed của GridSystem (salt = 88)
         System.Random prng = _gridSystem.CreateDeterministicRandom(88);

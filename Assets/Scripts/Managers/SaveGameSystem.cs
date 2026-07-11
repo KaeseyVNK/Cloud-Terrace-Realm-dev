@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Cinemachine;
 
 namespace CloudTerraceRealm.SaveSystem
 {
@@ -21,6 +22,17 @@ public static class SaveGameSystem
     public static bool ResumeRequested => _resumeRequested;
     public static bool IsQuitting => _isQuitting;
     public static string SavePath => Path.Combine(Application.persistentDataPath, SaveFileName);
+
+#if UNITY_EDITOR
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        _resumeRequested = false;
+        _isQuitting = false;
+        IsLoading = false;
+        GameLog.Log("[SaveGame] Statics reset via SubsystemRegistration in Editor.");
+    }
+#endif
 
     public static bool IsGameScene(string sceneName)
     {
@@ -50,15 +62,35 @@ public static class SaveGameSystem
 
     public static void DeleteSave()
     {
-        if (SaveManager.Instance != null)
+        try
         {
-            SaveManager.Instance.DeleteSave();
+            if (SaveManager.Instance != null)
+            {
+                SaveManager.Instance.DeleteSave();
+            }
+            
+            if (File.Exists(SavePath))
+            {
+                File.Delete(SavePath);
+                GameLog.Log("[SaveGame] Deleted autosave.json");
+            }
+
+            // Also check for autosave_v2.json in case SaveManager.Instance is null
+            string savePathV2 = Path.Combine(Application.persistentDataPath, "autosave_v2.json");
+            if (File.Exists(savePathV2))
+            {
+                File.Delete(savePathV2);
+                GameLog.Log("[SaveGame] Deleted autosave_v2.json");
+            }
         }
-        else if (File.Exists(SavePath))
+        catch (Exception ex)
         {
-            File.Delete(SavePath);
+            GameLog.LogError($"[SaveGame] Failed to delete save files: {ex}");
         }
-        _resumeRequested = false;
+        finally
+        {
+            _resumeRequested = false;
+        }
     }
 
     public static bool SaveCurrentGame()
@@ -99,11 +131,6 @@ public static class SaveGameSystem
         if (SaveManager.Instance != null)
         {
             SaveManager.Instance.SaveGame();
-        }
-        else
-        {
-            // Warning (not Error): SaveManager chưa được khởi tạo trong scene hiện tại.
-            GameLog.LogWarning("[SaveGame] SaveManager.Instance is null. Skipping SaveDataV2 (SaveManager not yet initialized in scene).");
         }
 
         return true;
@@ -355,21 +382,22 @@ public static class SaveGameSystem
                     GameObject guardPrefab = EnemyManager.Instance.GetEnemyPrefabByName(gEntry.guardPrefabName);
                     if (guardPrefab == null) continue;
                     
-                    GameObject guardObj = UnityEngine.Object.Instantiate(guardPrefab, gEntry.position, Quaternion.Euler(gEntry.rotation));
+                    GameObject guardObj = PoolManager.Instance.Spawn(guardPrefab, gEntry.position, Quaternion.Euler(gEntry.rotation));
                     guardObj.transform.SetParent(guardsContainer.transform);
                     
                     BaseCombatUnitController guardUnit = guardObj.GetComponent<BaseCombatUnitController>();
                     if (guardUnit != null)
                     {
-                        guardUnit.faction = UnitFaction.Enemy;
-                        guardUnit.currentHealth = Mathf.Clamp(gEntry.currentHealth, 1, guardUnit.maxHealth);
-                        
                         if (guardUnit is EnemyUnitController enemyUnit)
                         {
+                            enemyUnit.OnSpawnedFromPool();
                             enemyUnit.CanRetreat = false;
                             enemyUnit.IsGuard = true;
                             enemyUnit.prefabName = gEntry.guardPrefabName;
                         }
+                        
+                        guardUnit.faction = UnitFaction.Enemy;
+                        guardUnit.currentHealth = Mathf.Clamp(gEntry.currentHealth, 1, guardUnit.maxHealth);
                         
                         spawnedGuards.Add(guardUnit);
                     }
@@ -500,11 +528,14 @@ public static class SaveGameSystem
             enemyCtrl.prefabName = entry.prefabName;
             enemyCtrl.currentHealth = Mathf.Clamp(entry.currentHealth, 1, enemyCtrl.maxHealth);
             
-            // Warp NavMeshAgent
+            // Warp NavMeshAgent an toàn
             var agent = enemyCtrl.GetComponent<UnityEngine.AI.NavMeshAgent>();
             if (agent != null && agent.enabled)
             {
-                agent.Warp(entry.position);
+                if (UnityEngine.AI.NavMesh.SamplePosition(entry.position, out UnityEngine.AI.NavMeshHit hit, 20f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    agent.Warp(hit.position);
+                }
             }
             
             // Nếu trời tối, tiếp tục lệnh đi công nhà chính
@@ -539,7 +570,24 @@ public static class SaveGameSystem
             data.currentTime = TimeManager.Instance.currentTime;
         }
 
-        if (Camera.main != null)
+        CameraControls camControls = UnityEngine.Object.FindAnyObjectByType<CameraControls>();
+        if (camControls != null)
+        {
+            data.hasCamera = true;
+            data.cameraPosition = camControls.transform.position;
+            data.cameraRotation = camControls.transform.eulerAngles;
+
+            var vcam = GetPrivateField<CinemachineCamera>(camControls, "vcam");
+            if (vcam != null)
+            {
+                var follow = vcam.GetComponent<CinemachineFollow>();
+                if (follow != null)
+                {
+                    data.cameraZoom = follow.FollowOffset.y;
+                }
+            }
+        }
+        else if (Camera.main != null)
         {
             data.hasCamera = true;
             data.cameraPosition = Camera.main.transform.position;
@@ -643,14 +691,38 @@ public static class SaveGameSystem
 
         foreach (BaseCombatUnitController unit in BaseCombatUnitController.Registry)
         {
-            if (!IsSavableCombatUnit(unit))
+            if (unit == null) continue;
+            bool isSavable = IsSavableCombatUnit(unit);
+            
+            if (!isSavable)
             {
                 continue;
             }
 
+            string realUnitName = unit.unitName;
+            if (realUnitName == "Combat Unit" || string.IsNullOrEmpty(realUnitName))
+            {
+                if (unit is ShieldKnightController)
+                {
+                    realUnitName = "Shield Knight";
+                }
+                else if (unit is MilitiaController)
+                {
+                    realUnitName = "Militia";
+                }
+                else if (unit is BomberController)
+                {
+                    realUnitName = "Bomber";
+                }
+                else if (unit is ArcherController)
+                {
+                    realUnitName = "Archer";
+                }
+            }
+
             data.combatUnits.Add(new CombatUnitEntry
             {
-                unitName = unit.unitName,
+                unitName = realUnitName,
                 objectName = unit.name,
                 position = unit.transform.position,
                 rotation = unit.transform.eulerAngles,
@@ -839,7 +911,7 @@ public static class SaveGameSystem
             return false;
         }
 
-        if (unit is BuildingCombatTarget || unit is MainBuildingCombatTarget || unit is MerchantCaravanUnit)
+        if (unit is BuildingCombatTarget || unit is MainBuildingCombatTarget || unit is MerchantCaravanUnit || unit is VillagerCombatTarget)
         {
             return false;
         }
@@ -1014,13 +1086,34 @@ public static class SaveGameSystem
 
     private static void ApplyCamera(SaveData data)
     {
-        if (!data.hasCamera || Camera.main == null)
+        if (!data.hasCamera)
         {
             return;
         }
 
-        Camera.main.transform.position = data.cameraPosition;
-        Camera.main.transform.eulerAngles = data.cameraRotation;
+        CameraControls camControls = UnityEngine.Object.FindAnyObjectByType<CameraControls>();
+        if (camControls != null)
+        {
+            camControls.transform.position = data.cameraPosition;
+            camControls.transform.eulerAngles = data.cameraRotation;
+
+            var vcam = GetPrivateField<CinemachineCamera>(camControls, "vcam");
+            if (vcam != null)
+            {
+                var follow = vcam.GetComponent<CinemachineFollow>();
+                if (follow != null)
+                {
+                    float zoomVal = data.cameraZoom > 0f ? data.cameraZoom : follow.FollowOffset.y;
+                    SetPrivateField(camControls, "targetZoomDistance", zoomVal);
+                    follow.FollowOffset = new Vector3(follow.FollowOffset.x, zoomVal, follow.FollowOffset.z);
+                }
+            }
+        }
+        else if (Camera.main != null)
+        {
+            Camera.main.transform.position = data.cameraPosition;
+            Camera.main.transform.eulerAngles = data.cameraRotation;
+        }
     }
 
     private static void ApplyResourceNodes(List<ResourceNodeEntry> savedNodes)
@@ -1391,27 +1484,46 @@ public static class SaveGameSystem
         // 1. Thu thập danh sách dân làng hiện tại đang hoạt động
         List<VillagerController> existing = GetActiveVillagers();
 
-        // 2. Nếu thiếu dân làng so với dữ liệu load, bổ sung thêm
-        for (int i = existing.Count; i < villagers.Count; i++)
+        // 2. Tiêu diệt tất cả dân làng hiện tại để tránh dùng lộn prefab từ SaveManager hoặc scene cũ
+        foreach (var villager in existing)
         {
-            GameManager.Instance.AddVillager(villagers[i].position);
-        }
-
-        // 3. Nếu thừa dân làng, tiêu diệt bớt và loại khỏi danh sách (tránh lỗi quét lại đối tượng đang bị hủy)
-        existing = GetActiveVillagers();
-        if (existing.Count > villagers.Count)
-        {
-            for (int i = villagers.Count; i < existing.Count; i++)
+            if (villager != null)
             {
-                if (existing[i] != null)
+                UnityEngine.Object.Destroy(villager.gameObject);
+            }
+        }
+        existing.Clear();
+
+        // 3. Khởi tạo lại toàn bộ dân làng từ prefab chuẩn của VillageData
+        UnitData villagerData = FindUnitData("Villager");
+        GameObject villagerPrefab = (villagerData != null) ? villagerData.unitPrefab : null;
+
+        for (int i = 0; i < villagers.Count; i++)
+        {
+            GameObject spawned = null;
+            if (villagerPrefab != null)
+            {
+                spawned = UnityEngine.Object.Instantiate(villagerPrefab, villagers[i].position, Quaternion.identity);
+            }
+            else
+            {
+                // Fallback nếu không tìm thấy UnitData
+                GameManager.Instance.AddVillager(villagers[i].position);
+                continue;
+            }
+
+            if (spawned != null)
+            {
+                spawned.transform.SetParent(GameManager.VillagersContainer);
+                VillagerController controller = spawned.GetComponent<VillagerController>();
+                if (controller != null)
                 {
-                    UnityEngine.Object.Destroy(existing[i].gameObject);
+                    existing.Add(controller);
                 }
             }
-            existing.RemoveRange(villagers.Count, existing.Count - villagers.Count);
         }
 
-        // 4. Định vị lại vị trí, hướng quay và hòm đồ cho dân làng
+        // 4. Định vị lại vị trí, hướng quay, hòm đồ, và khôi phục lệnh cho dân làng
         int count = Mathf.Min(existing.Count, villagers.Count);
         for (int i = 0; i < count; i++)
         {
@@ -1436,36 +1548,15 @@ public static class SaveGameSystem
 
             if (System.Enum.TryParse<VillagerState>(villagers[i].villagerState, true, out var parsedState))
             {
-                // Tạm đặt tất cả thành Idle trước, RestoreVillagerCommand sẽ đặt lại state đúng sau delay
-                SetPrivateField(existing[i], "_currentState", VillagerState.Idle);
+                SetPrivateField(existing[i], "_currentState", parsedState);
             }
             else
             {
                 SetPrivateField(existing[i], "_currentState", VillagerState.Idle);
             }
 
-            // Delay restore commands to next frame so NavMeshAgent is stable after Warp
-            if (!string.IsNullOrEmpty(villagers[i].targetType) && villagers[i].targetType != "None")
-            {
-                var villagerRef = existing[i];
-                var entryRef = villagers[i];
-                villagerRef.StartCoroutine(DelayedRestoreVillagerCommand(villagerRef, entryRef));
-            }
+            RestoreVillagerCommand(existing[i], villagers[i]);
         }
-    }
-
-    private static System.Collections.IEnumerator DelayedRestoreVillagerCommand(VillagerController villager, UnitEntry entry)
-    {
-        // Wait 2 frames for NavMeshAgent to properly initialize after Warp
-        yield return null;
-        yield return null;
-
-        if (villager == null || !villager.gameObject.activeInHierarchy)
-        {
-            yield break;
-        }
-
-        RestoreVillagerCommand(villager, entry);
     }
 
     private static void RestoreVillagerCommand(VillagerController villager, UnitEntry entry)
@@ -1475,52 +1566,110 @@ public static class SaveGameSystem
             return;
         }
 
-        Debug.Log($"[SaveGame] RestoreVillagerCommand: {villager.name} | type={entry.targetType} | pos={entry.targetPosition}");
-
         if (entry.targetType == "Building")
         {
-            var targetObj = FindClosestObjectOfType<ConstructibleBuilding>(entry.targetPosition);
-            Debug.Log($"[SaveGame]   -> Building found: {(targetObj != null ? targetObj.name : "NULL")}");
+            var targetObj = FindClosestObjectOfType<ConstructibleBuilding>(entry.targetPosition, 30f);
             if (targetObj != null)
             {
-                villager.CommandBuild(targetObj);
+                villager.TargetBuilding = targetObj;
+                SetPrivateField(villager, "_currentJob", null);
+                SetPrivateField(villager, "_repairTarget", null);
+                SetPrivateField(villager, "_huntTarget", null);
+                SetPrivateField(villager, "_targetRiceField", null);
+
+                // Thiết lập trạng thái trực tiếp
+                float distToDestSqr = (villager.transform.position - targetObj.transform.position).sqrMagnitude;
+                if (distToDestSqr > 4.0f)
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Moving);
+                }
+                else
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Building);
+                }
             }
         }
         else if (entry.targetType == "Resource")
         {
-            var targetObj = FindClosestObjectOfType<ResourceNode>(entry.targetPosition);
-            Debug.Log($"[SaveGame]   -> ResourceNode found: {(targetObj != null ? targetObj.name + " (" + targetObj.ResourceType + ")" : "NULL")}");
+            var targetObj = FindClosestObjectOfType<ResourceNode>(entry.targetPosition, 30f);
             if (targetObj != null)
             {
-                villager.CommandGather(targetObj, null);
+                ZoneType zType = ZoneType.None;
+                if (targetObj.ResourceType == ResourceType.Wood) zType = ZoneType.Logging;
+                else if (targetObj.ResourceType == ResourceType.Stone) zType = ZoneType.Mining;
+                else if (targetObj.ResourceType == ResourceType.Food) zType = ZoneType.Farming;
+
+                var job = new Job(zType, targetObj.ResourceType, entry.targetPosition);
+                SetPrivateField(villager, "_currentJob", job);
+                SetPrivateField(villager, "_targetResource", targetObj.ResourceType);
+                villager.TargetBuilding = null;
+                SetPrivateField(villager, "_repairTarget", null);
+                SetPrivateField(villager, "_huntTarget", null);
+                SetPrivateField(villager, "_targetRiceField", null);
+
+                float distToJobSqr = (villager.transform.position - entry.targetPosition).sqrMagnitude;
+                if (distToJobSqr > 42.25f)
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Moving);
+                }
+                else
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Gathering);
+                }
             }
         }
         else if (entry.targetType == "Ruins")
         {
-            var targetObj = FindClosestObjectOfType<AncientRuins>(entry.targetPosition);
-            Debug.Log($"[SaveGame]   -> Ruins found: {(targetObj != null ? targetObj.name : "NULL")}");
+            var targetObj = FindClosestObjectOfType<AncientRuins>(entry.targetPosition, 30f);
             if (targetObj != null)
             {
-                villager.CommandExplore(targetObj);
+                SetPrivateField(villager, "_targetRuins", targetObj);
+                villager.TargetBuilding = null;
+                SetPrivateField(villager, "_currentJob", null);
+                SetPrivateField(villager, "_repairTarget", null);
+                SetPrivateField(villager, "_huntTarget", null);
+                SetPrivateField(villager, "_targetRiceField", null);
+
+                float distToRuins = Vector3.Distance(villager.transform.position, targetObj.transform.position);
+                if (distToRuins > 4.5f)
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Moving);
+                }
+                else
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Gathering);
+                }
             }
         }
         else if (entry.targetType == "RiceField")
         {
-            var targetObj = FindClosestObjectOfType<RiceField>(entry.targetPosition);
-            Debug.Log($"[SaveGame]   -> RiceField found: {(targetObj != null ? targetObj.name : "NULL")}");
+            var targetObj = FindClosestObjectOfType<RiceField>(entry.targetPosition, 30f);
             if (targetObj != null)
             {
-                villager.CommandFarm(targetObj);
+                SetPrivateField(villager, "_targetRiceField", targetObj);
+                villager.TargetBuilding = null;
+                SetPrivateField(villager, "_currentJob", null);
+                SetPrivateField(villager, "_repairTarget", null);
+                SetPrivateField(villager, "_huntTarget", null);
+
+                float distToField = Vector3.Distance(villager.transform.position, targetObj.transform.position);
+                if (distToField > 4.5f)
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Moving);
+                }
+                else
+                {
+                    SetPrivateField(villager, "_currentState", VillagerState.Gathering);
+                }
             }
         }
         else if (entry.targetType == "Move")
         {
-            Debug.Log($"[SaveGame]   -> Moving to {entry.targetPosition}");
-            villager.CommandMoveTo(entry.targetPosition);
+            SetPrivateField(villager, "_currentState", VillagerState.Moving);
         }
     }
 
-    private static T FindClosestObjectOfType<T>(Vector3 position, float maxDistance = 50f) where T : MonoBehaviour
+    private static T FindClosestObjectOfType<T>(Vector3 position, float maxDistance = 30f) where T : MonoBehaviour
     {
         T[] objects = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Exclude);
         T closest = null;
@@ -1584,7 +1733,14 @@ public static class SaveGameSystem
         {
             if (IsSavableCombatUnit(unit))
             {
-                UnityEngine.Object.Destroy(unit.gameObject);
+                if (PoolManager.Instance != null && unit.gameObject.GetComponent<PooledObject>() != null)
+                {
+                    PoolManager.Instance.Release(unit.gameObject);
+                }
+                else
+                {
+                    UnityEngine.Object.Destroy(unit.gameObject);
+                }
             }
         }
 
@@ -1594,19 +1750,35 @@ public static class SaveGameSystem
             UnitData data = FindUnitData(entry.unitName);
             if (data != null && data.unitPrefab != null)
             {
-                GameObject spawned = UnityEngine.Object.Instantiate(data.unitPrefab, entry.position, Quaternion.Euler(entry.rotation));
-                spawned.transform.SetParent(GameManager.CombatUnitsContainer);
-                BaseCombatUnitController controller = spawned.GetComponent<BaseCombatUnitController>();
-                if (controller != null)
-                {
-                    controller.unitName = entry.unitName;
-                    controller.currentHealth = Mathf.Clamp(entry.currentHealth, 1, controller.maxHealth);
+                GameObject spawned = PoolManager.Instance != null
+                    ? PoolManager.Instance.Spawn(data.unitPrefab, entry.position, Quaternion.Euler(entry.rotation))
+                    : UnityEngine.Object.Instantiate(data.unitPrefab, entry.position, Quaternion.Euler(entry.rotation));
 
-                    // Warp NavMeshAgent thay vì set transform.position trực tiếp để tránh lỗi đồng bộ vật lý NavMesh
-                    var agent = controller.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                    if (agent != null && agent.enabled)
+                if (spawned != null)
+                {
+                    spawned.transform.SetParent(GameManager.CombatUnitsContainer);
+                    BaseCombatUnitController controller = spawned.GetComponent<BaseCombatUnitController>();
+                    if (controller != null)
                     {
-                        agent.Warp(entry.position);
+                        controller.faction = UnitFaction.Player;
+                        controller.unitName = entry.unitName;
+                        controller.ApplyPlayerTechnologyStats();
+                        controller.currentState = CombatState.Idle;
+                        controller.currentHealth = Mathf.Clamp(entry.currentHealth, 1, controller.maxHealth);
+
+                        // Warp NavMeshAgent thay vì set transform.position trực tiếp để tránh lỗi đồng bộ vật lý NavMesh
+                        var agent = controller.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                        if (agent != null && agent.enabled)
+                        {
+                            if (UnityEngine.AI.NavMesh.SamplePosition(entry.position, out UnityEngine.AI.NavMeshHit hit, 20f, UnityEngine.AI.NavMesh.AllAreas))
+                            {
+                                agent.Warp(hit.position);
+                            }
+                            if (agent.isOnNavMesh)
+                            {
+                                agent.ResetPath();
+                            }
+                        }
                     }
                 }
             }
@@ -1620,7 +1792,13 @@ public static class SaveGameSystem
             return null;
         }
 
-        UnitData result = FindUnitDataInBuilding(BuildingManager.Instance.MainBuildingData, unitName);
+        string lookupName = unitName;
+        if (unitName == "Militia")
+        {
+            lookupName = "Axeman";
+        }
+
+        UnitData result = FindUnitDataInBuilding(BuildingManager.Instance.MainBuildingData, lookupName);
         if (result != null)
         {
             return result;
@@ -1628,7 +1806,7 @@ public static class SaveGameSystem
 
         foreach (BuildingData building in BuildingManager.Instance.AvailableBuildings)
         {
-            result = FindUnitDataInBuilding(building, unitName);
+            result = FindUnitDataInBuilding(building, lookupName);
             if (result != null)
             {
                 return result;
@@ -1921,6 +2099,7 @@ public class SaveData
     public bool hasCamera;
     public Vector3 cameraPosition;
     public Vector3 cameraRotation;
+    public float cameraZoom;
     public List<ResourceEntry> resources = new List<ResourceEntry>();
     public List<ResourceNodeEntry> resourceNodes = new List<ResourceNodeEntry>();
     public List<BuildingEntry> buildings = new List<BuildingEntry>();

@@ -532,6 +532,7 @@ public class BuildingManager : MonoBehaviour
         // Lấy vị trí input hiện tại (hỗ trợ cả Touch và Mouse)
         Vector2 inputPos = Vector2.zero;
         bool isPointerDown = false;
+        bool shouldProcess = true;
 
         bool isTouch = Input.touchCount > 0;
         if (isTouch)
@@ -542,16 +543,36 @@ public class BuildingManager : MonoBehaviour
         }
         else
         {
-            inputPos = Input.mousePosition;
-            isPointerDown = Input.GetMouseButtonDown(0);
+            // Trên Mobile, nếu không có touch thì không cập nhật vị trí và không ẩn GhostBuilding
+            if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer)
+            {
+                shouldProcess = false;
+            }
+            else
+            {
+                inputPos = Input.mousePosition;
+                isPointerDown = Input.GetMouseButtonDown(0);
+            }
+        }
+
+        if (!shouldProcess)
+        {
+            return;
         }
 
         // NGĂN CLICK XUYÊN QUA UI (UI Click-Through)
         if (IsPointerOverUI(inputPos))
         {
-            if (_ghostBuilding != null)
+            // Trên Mobile, nếu đã có preview thì giữ nguyên hiển thị của GhostBuilding tại vị trí đó
+            bool isMobile = Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer;
+            bool hasPreview = _lastPreviewX != -999 && _lastPreviewZ != -999;
+            
+            if (!isMobile || !hasPreview)
             {
-                _ghostBuilding.SetActive(false);
+                if (_ghostBuilding != null)
+                {
+                    _ghostBuilding.SetActive(false);
+                }
             }
             return;
         }
@@ -1401,7 +1422,7 @@ public class BuildingManager : MonoBehaviour
 
     private void AddShelterComponentIfHouse(GameObject building, BuildingData data)
     {
-        if (data != null && (data.buildingName.ToLower().Contains("house") || data.buildingName.ToLower().Contains("home") || building.name.ToLower().Contains("homeblue")))
+        if (data != null && (data.category == BuildingCategory.Residential || building.name.ToLower().Contains("homeblue")))
         {
             HouseShelter shelter = building.GetComponent<HouseShelter>();
             if (shelter == null)
@@ -1518,6 +1539,31 @@ public class BuildingManager : MonoBehaviour
         {
             _currentRotationIndex = (_currentRotationIndex + 1) % 4;
             GameLog.Log($"Xoay công trình: {_currentRotationIndex * 90} độ (từ UI)");
+
+            // Cập nhật ngay lập tức mô hình xem trước (ghost) khi xoay trên Mobile
+            if (_ghostBuilding != null && _currentSelectedBuilding != null && _lastPreviewX != -999 && _lastPreviewZ != -999)
+            {
+                GridCell centerCell = _gridSystem.GetCell(_lastPreviewX, _lastPreviewZ);
+                if (centerCell != null)
+                {
+                    Vector2Int size = _currentSelectedBuilding.buildingSize;
+                    if (_currentRotationIndex % 2 != 0)
+                    {
+                        size = new Vector2Int(size.y, size.x);
+                    }
+                    int startX = _lastPreviewX - size.x / 2;
+                    int startZ = _lastPreviewZ - size.y / 2;
+                    bool canBuild = CheckBuildingArea(startX, startZ, size, out var cellsToOccupy);
+                    SetGhostColor(canBuild ? new Color(0, 1, 0, 0.5f) : new Color(1, 0, 0, 0.5f));
+                    Vector3 centerPos = CalculateBuildingCenter(startX, startZ, centerCell.elevation, size);
+
+                    _ghostBuilding.transform.position = centerPos;
+                    _ghostBuilding.transform.rotation = Quaternion.Euler(0, _currentRotationIndex * 90f, 0);
+                    _ghostBuilding.SetActive(true);
+
+                    _lastPreviewRotation = _currentRotationIndex;
+                }
+            }
         }
     }
 

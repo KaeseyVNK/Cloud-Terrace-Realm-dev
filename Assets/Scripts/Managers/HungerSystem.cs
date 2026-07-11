@@ -15,11 +15,20 @@ public class HungerSystem : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Initialize()
     {
-        // Tránh tạo trùng lặp nếu đã tồn tại trong scene
-        if (FindAnyObjectByType<HungerSystem>() != null)
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
         {
-            return;
-        }
+            if (scene.name != "MainMenuScene" && scene.name != "LoadingScene")
+            {
+                EnsureInstance();
+            }
+        };
+        EnsureInstance();
+    }
+
+    private static void EnsureInstance()
+    {
+        if (Instance != null) return;
+        if (FindAnyObjectByType<HungerSystem>() != null) return;
 
         GameObject go = new GameObject("HungerSystem");
         go.AddComponent<HungerSystem>();
@@ -50,6 +59,11 @@ public class HungerSystem : MonoBehaviour
         {
             GameLog.LogError("[HungerSystem] Không tìm thấy TimeManager.Instance để đăng ký sự kiện!");
         }
+
+        if (ResourceManager.Instance != null)
+        {
+            ResourceManager.Instance.OnResourceChanged += HandleResourceChanged;
+        }
     }
 
     private void OnDestroy()
@@ -58,7 +72,96 @@ public class HungerSystem : MonoBehaviour
         {
             TimeManager.Instance.OnDayChanged -= HandleDayChanged;
         }
+
+        if (ResourceManager.Instance != null)
+        {
+            ResourceManager.Instance.OnResourceChanged -= HandleResourceChanged;
+        }
     }
+
+    private void HandleResourceChanged(ResourceType type, int amount)
+    {
+        if (type == ResourceType.Food && amount > 0)
+        {
+            List<VillagerController> villagers = VillagerController.SpawnedVillagers;
+            List<VillagerController> hungryVillagers = new List<VillagerController>();
+            
+            for (int i = 0; i < villagers.Count; i++)
+            {
+                if (villagers[i] != null && villagers[i].IsHungry)
+                {
+                    hungryVillagers.Add(villagers[i]);
+                }
+            }
+
+            List<BaseCombatUnitController> hungryCombatUnits = new List<BaseCombatUnitController>();
+            foreach (var unit in BaseCombatUnitController.Registry)
+            {
+                if (unit != null && unit.faction == UnitFaction.Player && !(unit is BuildingCombatTarget) && unit.IsHungry)
+                {
+                    hungryCombatUnits.Add(unit);
+                }
+            }
+
+            int totalHungry = hungryVillagers.Count + hungryCombatUnits.Count;
+            if (totalHungry > 0)
+            {
+                int foodToConsume = Mathf.Min(totalHungry, amount);
+                if (foodToConsume > 0)
+                {
+                    if (ResourceManager.Instance.TryConsumeResource(ResourceType.Food, foodToConsume))
+                    {
+                        int consumed = 0;
+                        Vector3 spawnPos = Vector3.zero;
+                        bool hasPos = false;
+
+                        for (int i = 0; i < hungryVillagers.Count && consumed < foodToConsume; i++)
+                        {
+                            hungryVillagers[i].SetHungry(false);
+                            if (!hasPos) { spawnPos = hungryVillagers[i].transform.position; hasPos = true; }
+                            consumed++;
+                        }
+
+                        for (int i = 0; i < hungryCombatUnits.Count && consumed < foodToConsume; i++)
+                        {
+                            hungryCombatUnits[i].SetHungry(false);
+                            if (!hasPos) { spawnPos = hungryCombatUnits[i].transform.position; hasPos = true; }
+                            consumed++;
+                        }
+                        
+                        if (hasPos)
+                        {
+                            MyGame.UI.FloatingText.Spawn(spawnPos, $"-{foodToConsume} Lương thực", new Color(0.95f, 0.26f, 0.21f));
+                        }
+
+                        bool anyHungry = false;
+                        for (int i = 0; i < villagers.Count; i++)
+                        {
+                            if (villagers[i] != null && villagers[i].IsHungry)
+                            {
+                                anyHungry = true;
+                                break;
+                            }
+                        }
+                        if (!anyHungry)
+                        {
+                            foreach (var unit in BaseCombatUnitController.Registry)
+                            {
+                                if (unit != null && unit.faction == UnitFaction.Player && !(unit is BuildingCombatTarget) && unit.IsHungry)
+                                {
+                                    anyHungry = true;
+                                    break;
+                                }
+                            }
+                        }
+                        IsFoodShortage = anyHungry;
+                        GameLog.Log($"[HungerSystem] Đã có thêm lương thực! {foodToConsume} cư dân đói đã được ăn no.");
+                    }
+                }
+            }
+        }
+    }
+
 
     private void HandleDayChanged(int dayCount)
     {
@@ -67,12 +170,22 @@ public class HungerSystem : MonoBehaviour
             return;
         }
 
-        // Lấy danh sách cư dân từ SpawnedVillagers tĩnh để bao gồm cả cư dân đang trú ẩn
         List<VillagerController> villagers = VillagerController.SpawnedVillagers;
-        int foodNeeded = villagers.Count;
+        
+        List<BaseCombatUnitController> combatUnits = new List<BaseCombatUnitController>();
+        foreach (var unit in BaseCombatUnitController.Registry)
+        {
+            if (unit != null && unit.faction == UnitFaction.Player && !(unit is BuildingCombatTarget) && unit.currentState != CombatState.Dead)
+            {
+                combatUnits.Add(unit);
+            }
+        }
+
+        int totalUnits = villagers.Count + combatUnits.Count;
+        int foodNeeded = totalUnits;
         if (CardManager.Instance != null && CardManager.Instance.IsDecreeActive("decree_martial_law"))
         {
-            foodNeeded = Mathf.CeilToInt(villagers.Count * 0.8f); // Giảm 20% lượng tiêu thụ thực phẩm
+            foodNeeded = Mathf.CeilToInt(totalUnits * 0.8f);
         }
 
         if (foodNeeded <= 0)
@@ -87,31 +200,33 @@ public class HungerSystem : MonoBehaviour
         {
             ResourceManager.Instance.TryConsumeResource(ResourceType.Food, foodNeeded);
 
-            // Tất cả cư dân được ăn no
             for (int i = 0; i < villagers.Count; i++)
             {
-                if (villagers[i] != null)
-                {
-                    villagers[i].SetHungry(false);
-                }
+                if (villagers[i] != null) villagers[i].SetHungry(false);
+            }
+            for (int i = 0; i < combatUnits.Count; i++)
+            {
+                if (combatUnits[i] != null) combatUnits[i].SetHungry(false);
             }
 
             IsFoodShortage = false;
-            GameLog.Log($"[HungerSystem] Ngày {dayCount}: Đã tiêu thụ {foodNeeded} lương thực cho {villagers.Count} cư dân. Mọi người đều no bụng.");
+            GameLog.Log($"[HungerSystem] Ngày {dayCount}: Đã tiêu thụ {foodNeeded} lương thực cho {villagers.Count} dân làng và {combatUnits.Count} lính. Mọi người đều no bụng.");
+            
+            SpawnFoodDeductionFloatingText(foodNeeded);
         }
         else
         {
-            // Thiếu hụt lương thực
             ResourceManager.Instance.TryConsumeResource(ResourceType.Food, foodAvailable);
 
-            // Nuôi sống X dân làng đầu tiên, số còn lại bị đói
+            int fedCount = 0;
             for (int i = 0; i < villagers.Count; i++)
             {
                 if (villagers[i] != null)
                 {
-                    if (i < foodAvailable)
+                    if (fedCount < foodAvailable)
                     {
                         villagers[i].SetHungry(false);
+                        fedCount++;
                     }
                     else
                     {
@@ -119,9 +234,48 @@ public class HungerSystem : MonoBehaviour
                     }
                 }
             }
+            for (int i = 0; i < combatUnits.Count; i++)
+            {
+                if (combatUnits[i] != null)
+                {
+                    if (fedCount < foodAvailable)
+                    {
+                        combatUnits[i].SetHungry(false);
+                        fedCount++;
+                    }
+                    else
+                    {
+                        combatUnits[i].SetHungry(true);
+                    }
+                }
+            }
 
             IsFoodShortage = true;
             GameLog.LogWarning($"[HungerSystem] Ngày {dayCount}: THIẾU LƯƠNG THỰC! Chỉ cung cấp được {foodAvailable}/{foodNeeded} phần ăn. {foodNeeded - foodAvailable} cư dân bị đói!");
+            
+            if (foodAvailable > 0)
+            {
+                SpawnFoodDeductionFloatingText(foodAvailable);
+            }
         }
+    }
+
+    private void SpawnFoodDeductionFloatingText(int amount)
+    {
+        Vector3 spawnPos = Vector3.zero;
+        var mainHouse = UnityEngine.Object.FindAnyObjectByType<MainBuildingCombatTarget>();
+        if (mainHouse != null)
+        {
+            spawnPos = mainHouse.transform.position;
+        }
+        else
+        {
+            List<VillagerController> villagers = VillagerController.SpawnedVillagers;
+            if (villagers.Count > 0 && villagers[0] != null)
+            {
+                spawnPos = villagers[0].transform.position;
+            }
+        }
+        MyGame.UI.FloatingText.Spawn(spawnPos, $"-{amount} Lương thực", new Color(0.95f, 0.26f, 0.21f));
     }
 }

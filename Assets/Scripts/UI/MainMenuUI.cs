@@ -17,6 +17,36 @@ namespace CloudTerraceRealm.UI
         [SerializeField] private Button _playButton;
         [SerializeField] private Button _continueButton;
 
+        private void Awake()
+        {
+            // Đảm bảo TimeScale trở lại bình thường khi ở Main Menu
+            Time.timeScale = 1f;
+
+            // Dọn dẹp các singleton game cũ trong scene DontDestroyOnLoad để tránh mang trạng thái sang ván mới,
+            // giữ lại AudioManager để tránh ngắt nhạc nền và SaveGameRuntime cho tự động lưu.
+            GameObject tempObj = new GameObject();
+            DontDestroyOnLoad(tempObj);
+            UnityEngine.SceneManagement.Scene dontDestroyScene = tempObj.scene;
+            Destroy(tempObj);
+
+            GameObject[] rootObjects = dontDestroyScene.GetRootGameObjects();
+            for (int i = 0; i < rootObjects.Length; i++)
+            {
+                GameObject obj = rootObjects[i];
+                if (obj != null)
+                {
+                    if (obj.GetComponent<MyGame.Audio.AudioManager>() != null || 
+                        obj.GetComponentInChildren<MyGame.Audio.AudioManager>() != null ||
+                        obj.GetComponent<SaveGameRuntime>() != null ||
+                        obj.GetComponentInChildren<SaveGameRuntime>() != null)
+                    {
+                        continue;
+                    }
+                    Destroy(obj);
+                }
+            }
+        }
+
         private void Start()
         {
             EnsureContinueButton();

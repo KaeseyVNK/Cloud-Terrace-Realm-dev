@@ -46,16 +46,57 @@ public class UnitSelectionManager : MonoBehaviour
     public event System.Action OnSelectionChanged;
     private readonly List<SelectableUnit> _prevSelectedUnits = new List<SelectableUnit>();
 
+    [SerializeField] private GridSystem _gridSystem;
+    private Camera _mainCamera;
+    [SerializeField] private LayerMask _commandLayerMask;
+    private LayerMask _effectiveCommandLayerMask;
+
+    private static readonly RaycastHit[] s_sphereCastHits = new RaycastHit[64];
+    private static readonly RaycastHit[] s_raycastHits = new RaycastHit[64];
+
+    #if UNITY_EDITOR || DEVELOPMENT_BUILD
+    private static float _lastCommandSphereWarningTime = 0f;
+    private static float _lastCommandRaycastWarningTime = 0f;
+    #endif
+
+    private static readonly Unity.Profiling.ProfilerMarker s_resolveDestinationMarker = new Unity.Profiling.ProfilerMarker("RTS.Command.ResolveDestination");
+    private static readonly Unity.Profiling.ProfilerMarker s_dispatchMarker = new Unity.Profiling.ProfilerMarker("RTS.Command.Dispatch");
+
     void Awake()
     {
         if (Instance == null)
             Instance = this;
         else
             Destroy(gameObject);
+
+        if (_gridSystem == null)
+        {
+            _gridSystem = FindAnyObjectByType<GridSystem>();
+        }
+        _mainCamera = Camera.main;
+    }
+
+    private void ResolveCommandLayerMask()
+    {
+        if (_commandLayerMask.value != 0)
+        {
+            _effectiveCommandLayerMask = _commandLayerMask;
+        }
+        else
+        {
+            _effectiveCommandLayerMask = LayerMask.GetMask("Default", "Unit", "Resource", "Unit Enemy", "Buiding");
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_effectiveCommandLayerMask.value == 0)
+            {
+                Debug.LogWarning("[RTS] Failed to retrieve layers for command input fallback.");
+            }
+            #endif
+        }
     }
 
     void Start()
     {
+        ResolveCommandLayerMask();
         whiteTexture = new Texture2D(1, 1);
         whiteTexture.SetPixel(0, 0, Color.white);
         whiteTexture.Apply();
@@ -63,6 +104,10 @@ public class UnitSelectionManager : MonoBehaviour
 
     void Update()
     {
+        #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        UnitPerformanceMetrics.ReportIfNeeded();
+        #endif
+
         // Bấm Esc để hủy chế độ ra lệnh chủ động
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -360,7 +405,7 @@ public class UnitSelectionManager : MonoBehaviour
 
                 if (selectedUnits.Count > 0)
                 {
-                    Ray ray = Camera.main.ScreenPointToRay(touch.position);
+                    Ray ray = _mainCamera != null ? _mainCamera.ScreenPointToRay(touch.position) : Camera.main.ScreenPointToRay(touch.position);
                     bool tappedFriendlyUnit = false;
 
                     if (Physics.SphereCast(ray, 1f, out RaycastHit hit, 1000f, unitLayerMask))
@@ -368,8 +413,8 @@ public class UnitSelectionManager : MonoBehaviour
                         SelectableUnit unit = hit.collider.GetComponentInParent<SelectableUnit>();
                         if (unit != null)
                         {
-                            BaseCombatUnitController combatUnit = unit.GetComponent<BaseCombatUnitController>();
-                            VillagerController villager = unit.GetComponent<VillagerController>();
+                            BaseCombatUnitController combatUnit = unit.CombatController;
+                            VillagerController villager = unit.VillagerController;
                             if ((combatUnit != null && combatUnit.faction == UnitFaction.Player) || villager != null)
                             {
                                 tappedFriendlyUnit = true;
@@ -471,7 +516,7 @@ public class UnitSelectionManager : MonoBehaviour
 
     private void ExecuteTargetingCommand()
     {
-        Ray ray = Camera.main.ScreenPointToRay(_commandScreenPos);
+        Ray ray = _mainCamera != null ? _mainCamera.ScreenPointToRay(_commandScreenPos) : Camera.main.ScreenPointToRay(_commandScreenPos);
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
             // Spawn Indicator cho chế độ Chỉ định ra lệnh
@@ -486,8 +531,15 @@ public class UnitSelectionManager : MonoBehaviour
             else if (_isGatherMode)
             {
                 ResourceNode clickedNode = hit.collider.GetComponentInParent<ResourceNode>();
+                ConstructibleBuilding clickedBuilding = hit.collider.GetComponentInParent<ConstructibleBuilding>();
+                BaseCombatUnitController clickedFriendlyUnit = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+
                 if (clickedNode != null)
                     MyGame.UI.MoveIndicator.Spawn(clickedNode.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
+                else if (clickedBuilding != null)
+                    MyGame.UI.MoveIndicator.Spawn(clickedBuilding.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
+                else if (clickedFriendlyUnit != null && clickedFriendlyUnit.faction == UnitFaction.Player)
+                    MyGame.UI.MoveIndicator.Spawn(clickedFriendlyUnit.transform.position, Vector3.up, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.4f, 0.4f);
                 else
                     MyGame.UI.MoveIndicator.Spawn(hit.point, hit.normal, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
             }
@@ -508,7 +560,7 @@ public class UnitSelectionManager : MonoBehaviour
                 {
                     if (unit != null)
                     {
-                        BaseCombatUnitController combatUnit = unit.GetComponent<BaseCombatUnitController>();
+                        BaseCombatUnitController combatUnit = unit.CombatController;
                         if (combatUnit != null)
                         {
                             if (clickedEnemy != null && clickedEnemy.faction != combatUnit.faction)
@@ -542,7 +594,7 @@ public class UnitSelectionManager : MonoBehaviour
                     {
                         if (unit != null)
                         {
-                            VillagerController villager = unit.GetComponent<VillagerController>();
+                            VillagerController villager = unit.VillagerController;
                             if (villager != null)
                             {
                                 villager.CommandHunt(animal);
@@ -555,7 +607,7 @@ public class UnitSelectionManager : MonoBehaviour
                 {
                     if (clickedNode == null)
                     {
-                        GridSystem grid = FindAnyObjectByType<GridSystem>();
+                        GridSystem grid = _gridSystem;
                         if (grid != null)
                         {
                             grid.GetXY(hit.point, out int gridX, out int gridZ);
@@ -577,7 +629,7 @@ public class UnitSelectionManager : MonoBehaviour
                         {
                             if (unit != null)
                             {
-                                VillagerController villager = unit.GetComponent<VillagerController>();
+                                VillagerController villager = unit.VillagerController;
                                 if (villager != null)
                                 {
                                     villager.CommandGather(clickedNode, null);
@@ -588,10 +640,49 @@ public class UnitSelectionManager : MonoBehaviour
                     }
                     else
                     {
-                        RiceField clickedRiceField = hit.collider.GetComponentInParent<RiceField>();
-                        if (clickedRiceField != null)
+                        // Kiểm tra xem có chỉ định sửa chữa hoặc xây dựng công trình dở dang hay không
+                        ConstructibleBuilding clickedBuilding = hit.collider.GetComponentInParent<ConstructibleBuilding>();
+                        BaseCombatUnitController clickedFriendlyUnit = hit.collider.GetComponentInParent<BaseCombatUnitController>();
+
+                        if (clickedBuilding != null && !clickedBuilding.IsCompleted)
                         {
-                            DistributeVillagersToRiceFields(clickedRiceField);
+                            foreach (var unit in selectedUnits)
+                            {
+                                if (unit != null)
+                                {
+                                    VillagerController villager = unit.VillagerController;
+                                    if (villager != null)
+                                    {
+                                        villager.CommandBuild(clickedBuilding);
+                                        GameLog.Log($"[RTS] Chỉ định xây dựng (từ GatherMode): {clickedBuilding.gameObject.name}");
+                                    }
+                                }
+                            }
+                        }
+                        else if (clickedFriendlyUnit != null && clickedFriendlyUnit.faction == UnitFaction.Player &&
+                                 (clickedFriendlyUnit.GetComponent<BuildingCombatTarget>() != null || clickedFriendlyUnit.GetComponent<MainBuildingCombatTarget>() != null) &&
+                                 clickedFriendlyUnit.currentHealth < clickedFriendlyUnit.maxHealth)
+                        {
+                            foreach (var unit in selectedUnits)
+                            {
+                                if (unit != null)
+                                {
+                                    VillagerController villager = unit.VillagerController;
+                                    if (villager != null)
+                                    {
+                                        villager.CommandRepair(clickedFriendlyUnit);
+                                        GameLog.Log($"[RTS] Chỉ định sửa chữa (từ GatherMode): {clickedFriendlyUnit.gameObject.name}");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            RiceField clickedRiceField = hit.collider.GetComponentInParent<RiceField>();
+                            if (clickedRiceField != null)
+                            {
+                                DistributeVillagersToRiceFields(clickedRiceField);
+                            }
                         }
                     }
                 }
@@ -718,7 +809,7 @@ public class UnitSelectionManager : MonoBehaviour
             return;
         }
 
-        Ray ray = Camera.main.ScreenPointToRay(_commandScreenPos);
+        Ray ray = _mainCamera != null ? _mainCamera.ScreenPointToRay(_commandScreenPos) : Camera.main.ScreenPointToRay(_commandScreenPos);
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
             GameLog.Log($"[RTS] Raycast RightClick trúng: {hit.collider.gameObject.name} tại điểm {hit.point}");
@@ -748,7 +839,7 @@ public class UnitSelectionManager : MonoBehaviour
             }
             
             // 3. Kiểm tra dự phòng xem click vào ô đất có tài nguyên không
-            GridSystem grid = FindAnyObjectByType<GridSystem>();
+            GridSystem grid = _gridSystem;
             if (clickedNode == null && grid != null)
             {
                 grid.GetXY(hit.point, out int gridX, out int gridZ);
@@ -808,118 +899,121 @@ public class UnitSelectionManager : MonoBehaviour
                 MyGame.UI.MoveIndicator.Spawn(hit.point, hit.normal, new Color(0.2f, 0.8f, 0.2f, 1.0f), 1.2f, 0.4f);
             }
  
-             // Chỉ số dùng để tính toán điểm đội hình di chuyển thường
-             int moveIndex = 0;
+            // Chỉ số dùng để tính toán điểm đội hình di chuyển thường
+            int moveIndex = 0;
 
             if (clickedRiceField != null)
             {
                 DistributeVillagersToRiceFields(clickedRiceField);
             }
 
-            foreach (var unit in selectedUnits)
+            using (s_dispatchMarker.Auto())
             {
-                if (unit != null)
+                foreach (var unit in selectedUnits)
                 {
-                    VillagerController villager = unit.GetComponent<VillagerController>();
-                    BaseCombatUnitController combatUnit = unit.GetComponent<BaseCombatUnitController>();
-
-                    bool shouldGarrison = clickedWatchTower != null;
-                    if (clickedWatchTower != null && villager != null)
+                    if (unit != null)
                     {
-                        BaseCombatUnitController towerUnit = clickedWatchTower.GetComponent<BaseCombatUnitController>();
-                        if (towerUnit != null && towerUnit.currentHealth < towerUnit.maxHealth)
+                        VillagerController villager = unit.VillagerController;
+                        BaseCombatUnitController combatUnit = unit.CombatController;
+
+                        bool shouldGarrison = clickedWatchTower != null;
+                        if (clickedWatchTower != null && villager != null)
                         {
-                            shouldGarrison = false; // Ưu tiên sửa chữa nếu chòi canh bị hỏng
+                            BaseCombatUnitController towerUnit = clickedWatchTower.GetComponent<BaseCombatUnitController>();
+                            if (towerUnit != null && towerUnit.currentHealth < towerUnit.maxHealth)
+                            {
+                                shouldGarrison = false; // Ưu tiên sửa chữa nếu chòi canh bị hỏng
+                            }
                         }
-                    }
 
-                    if (shouldGarrison && clickedWatchTower.TrySendToGarrison(unit))
-                    {
-                        GameLog.Log($"[RTS] Da ra lenh {unit.gameObject.name} vao thap canh.");
-                        continue;
-                    }
-
-                    if (villager != null)
-                    {
-                        if (clickedRiceField != null)
+                        if (shouldGarrison && clickedWatchTower.TrySendToGarrison(unit))
                         {
+                            GameLog.Log($"[RTS] Da ra lenh {unit.gameObject.name} vao thap canh.");
                             continue;
                         }
 
-                        // A.0. Ưu tiên 0: Click vào Phế Tích Cổ để khai quật
-                        if (clickedRuins != null)
+                        if (villager != null)
                         {
-                            if (!clickedRuins.IsCleared)
+                            if (clickedRiceField != null)
                             {
-                                GameLog.LogWarning("[RTS] Phế tích đang bị quái vật canh giữ! Hãy tiêu diệt chúng trước.");
+                                continue;
                             }
-                            else if (clickedRuins.IsExplored)
+
+                            // A.0. Ưu tiên 0: Click vào Phế Tích Cổ để khai quật
+                            if (clickedRuins != null)
                             {
-                                GameLog.Log("[RTS] Phế tích này đã được khai quật xong.");
+                                if (!clickedRuins.IsCleared)
+                                {
+                                    GameLog.LogWarning("[RTS] Phế tích đang bị quái vật canh giữ! Hãy tiêu diệt chúng trước.");
+                                }
+                                else if (clickedRuins.IsExplored)
+                                {
+                                    GameLog.Log("[RTS] Phế tích này đã được khai quật xong.");
+                                }
+                                else
+                                {
+                                    villager.CommandExplore(clickedRuins);
+                                    GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi khai quật phế tích.");
+                                }
+                                continue;
+                            }
+
+                            // A. Ưu tiên 1: Click vào công trình đang xây dựng dở dang -> Đi xây
+                            if (clickedBuilding != null && !clickedBuilding.IsCompleted)
+                            {
+                                villager.CommandBuild(clickedBuilding);
+                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi xây dựng {clickedBuilding.gameObject.name}");
+                            }
+                            // A.2. Ưu tiên 1.2: Click vào công trình thân thiện bị thương -> Sửa chữa
+                            else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Player &&
+                                     (clickedEnemy.GetComponent<BuildingCombatTarget>() != null || clickedEnemy.GetComponent<MainBuildingCombatTarget>() != null) &&
+                                     clickedEnemy.currentHealth < clickedEnemy.maxHealth)
+                            {
+                                villager.CommandRepair(clickedEnemy);
+                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi sửa chữa {clickedEnemy.gameObject.name}");
+                            }
+                            // B. Ưu tiên 2: Click vào mỏ tài nguyên -> Đi khai thác
+                            else if (clickedNode != null)
+                            {
+                                villager.CommandGather(clickedNode, null);
+                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} khai thác {clickedNode.ResourceType}");
+                            }
+                            // B.2. Ưu tiên 2.2: Click vào thú hoang dã -> Đi săn
+                            else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Neutral && clickedEnemy.GetComponent<WildAnimalController>() != null)
+                            {
+                                WildAnimalController animal = clickedEnemy.GetComponent<WildAnimalController>();
+                                villager.CommandHunt(animal);
+                                GameLog.Log($"[RTS] Đã ra lệnh cho dân làng {unit.gameObject.name} đi săn thú hoang {clickedEnemy.unitName}");
+                            }
+                            else if (clickedRiceField != null)
+                            {
+                                villager.CommandFarm(clickedRiceField);
+                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} chăm sóc ruộng lúa");
+                            }
+                            // C. Ưu tiên 3: Click vào đất trống -> Di chuyển
+                            else
+                            {
+                                // Tính vị trí trong đội hình vòng tròn đồng tâm
+                                Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.2f), hit.point);
+                                villager.CommandMoveTo(targetPos);
+                                moveIndex++;
+                            }
+                        }
+                        else if (combatUnit != null)
+                        {
+                            // Nếu click vào một đơn vị đối địch khác phe -> Tiến hành tấn công!
+                            if (clickedEnemy != null && clickedEnemy.faction != combatUnit.faction)
+                            {
+                                combatUnit.CommandAttack(clickedEnemy);
+                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} tấn công {clickedEnemy.unitName}");
                             }
                             else
                             {
-                                villager.CommandExplore(clickedRuins);
-                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi khai quật phế tích.");
+                                // Tính vị trí trong đội hình vòng tròn đồng tâm
+                                Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.5f), hit.point);
+                                combatUnit.CommandMove(targetPos);
+                                moveIndex++;
                             }
-                            continue;
-                        }
-
-                        // A. Ưu tiên 1: Click vào công trình đang xây dựng dở dang -> Đi xây
-                        if (clickedBuilding != null && !clickedBuilding.IsCompleted)
-                        {
-                            villager.CommandBuild(clickedBuilding);
-                            GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi xây dựng {clickedBuilding.gameObject.name}");
-                        }
-                        // A.2. Ưu tiên 1.2: Click vào công trình thân thiện bị thương -> Sửa chữa
-                        else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Player &&
-                                 (clickedEnemy.GetComponent<BuildingCombatTarget>() != null || clickedEnemy.GetComponent<MainBuildingCombatTarget>() != null) &&
-                                 clickedEnemy.currentHealth < clickedEnemy.maxHealth)
-                        {
-                            villager.CommandRepair(clickedEnemy);
-                            GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi sửa chữa {clickedEnemy.gameObject.name}");
-                        }
-                        // B. Ưu tiên 2: Click vào mỏ tài nguyên -> Đi khai thác
-                        else if (clickedNode != null)
-                        {
-                            villager.CommandGather(clickedNode, null);
-                            GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} khai thác {clickedNode.ResourceType}");
-                        }
-                        // B.2. Ưu tiên 2.2: Click vào thú hoang dã -> Đi săn
-                        else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Neutral && clickedEnemy.GetComponent<WildAnimalController>() != null)
-                        {
-                            WildAnimalController animal = clickedEnemy.GetComponent<WildAnimalController>();
-                            villager.CommandHunt(animal);
-                            GameLog.Log($"[RTS] Đã ra lệnh cho dân làng {unit.gameObject.name} đi săn thú hoang {clickedEnemy.unitName}");
-                        }
-                        else if (clickedRiceField != null)
-                        {
-                            villager.CommandFarm(clickedRiceField);
-                            GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} chăm sóc ruộng lúa");
-                        }
-                        // C. Ưu tiên 3: Click vào đất trống -> Di chuyển
-                        else
-                        {
-                            // Tính vị trí trong đội hình vòng tròn đồng tâm
-                            Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.2f), hit.point);
-                            villager.CommandMoveTo(targetPos);
-                            moveIndex++;
-                        }
-                    }
-                    else if (combatUnit != null)
-                    {
-                        // Nếu click vào một đơn vị đối địch khác phe -> Tiến hành tấn công!
-                        if (clickedEnemy != null && clickedEnemy.faction != combatUnit.faction)
-                        {
-                            combatUnit.CommandAttack(clickedEnemy);
-                            GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} tấn công {clickedEnemy.unitName}");
-                        }
-                        else
-                        {
-                            // Tính vị trí trong đội hình vòng tròn đồng tâm
-                            Vector3 targetPos = ResolveCommandDestination(hit.point + GetFormationOffset(moveIndex, 1.5f), hit.point);
-                            combatUnit.CommandMove(targetPos);
-                            moveIndex++;
                         }
                     }
                 }
@@ -935,21 +1029,29 @@ public class UnitSelectionManager : MonoBehaviour
     {
         // 1. Thử dùng SphereCast để quét diện rộng tìm đối tượng tương tác (Unit, Thú, Tài nguyên, Nhà)
         // Giúp người chơi dễ dàng click trúng các mục tiêu nhỏ hoặc đang di chuyển nhanh (như gà)
-        RaycastHit[] sphereHits = Physics.SphereCastAll(ray, 0.75f, 1000f);
-        System.Array.Sort(sphereHits, (a, b) => a.distance.CompareTo(b.distance));
-
-        for (int i = 0; i < sphereHits.Length; i++)
+        int sphereCount = Physics.SphereCastNonAlloc(ray, 0.75f, s_sphereCastHits, 1000f, _effectiveCommandLayerMask);
+        
+        #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (sphereCount >= s_sphereCastHits.Length)
         {
-            Collider col = sphereHits[i].collider;
-            if (col == null)
+            UnitPerformanceMetrics.BufferOverflowCount++;
+            if (Time.time >= _lastCommandSphereWarningTime + 3.0f)
             {
-                continue;
+                Debug.LogWarning("[RTS] SphereCast buffer capacity reached / buffer saturation!");
+                _lastCommandSphereWarningTime = Time.time;
             }
+        }
+        #endif
 
-            if (IsHiddenByFog(col.gameObject))
-            {
-                continue;
-            }
+        int bestSphereIndex = -1;
+        float minSphereDistance = float.MaxValue;
+
+        for (int i = 0; i < sphereCount; i++)
+        {
+            Collider col = s_sphereCastHits[i].collider;
+            if (col == null) continue;
+
+            if (IsHiddenByFog(col.gameObject)) continue;
 
             // Kiểm tra xem đối tượng va chạm có thành phần tương tác được không
             bool isInteractable = col.GetComponentInParent<BaseCombatUnitController>() != null ||
@@ -960,28 +1062,55 @@ public class UnitSelectionManager : MonoBehaviour
 
             if (isInteractable)
             {
-                commandHit = sphereHits[i];
-                return true;
+                if (s_sphereCastHits[i].distance < minSphereDistance)
+                {
+                    minSphereDistance = s_sphereCastHits[i].distance;
+                    bestSphereIndex = i;
+                }
             }
         }
 
-        // 2. Dự phòng: Dùng Raycast chính xác thông thường (cho click di chuyển mặt đất, vv.)
-        RaycastHit[] hits = Physics.RaycastAll(ray, 1000f);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-        for (int i = 0; i < hits.Length; i++)
+        if (bestSphereIndex != -1)
         {
-            if (hits[i].collider == null)
-            {
-                continue;
-            }
+            commandHit = s_sphereCastHits[bestSphereIndex];
+            return true;
+        }
 
-            if (IsHiddenByFog(hits[i].collider.gameObject))
+        // 2. Dự phòng: Dùng Raycast chính xác thông thường (cho click di chuyển mặt đất, vv.)
+        int raycastCount = Physics.RaycastNonAlloc(ray, s_raycastHits, 1000f, _effectiveCommandLayerMask);
+        
+        #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (raycastCount >= s_raycastHits.Length)
+        {
+            UnitPerformanceMetrics.BufferOverflowCount++;
+            if (Time.time >= _lastCommandRaycastWarningTime + 3.0f)
             {
-                continue;
+                Debug.LogWarning("[RTS] Raycast buffer capacity reached / buffer saturation!");
+                _lastCommandRaycastWarningTime = Time.time;
             }
+        }
+        #endif
 
-            commandHit = hits[i];
+        int bestRaycastIndex = -1;
+        float minRaycastDistance = float.MaxValue;
+
+        for (int i = 0; i < raycastCount; i++)
+        {
+            Collider col = s_raycastHits[i].collider;
+            if (col == null) continue;
+
+            if (IsHiddenByFog(col.gameObject)) continue;
+
+            if (s_raycastHits[i].distance < minRaycastDistance)
+            {
+                minRaycastDistance = s_raycastHits[i].distance;
+                bestRaycastIndex = i;
+            }
+        }
+
+        if (bestRaycastIndex != -1)
+        {
+            commandHit = s_raycastHits[bestRaycastIndex];
             return true;
         }
 
@@ -1002,26 +1131,29 @@ public class UnitSelectionManager : MonoBehaviour
 
     private Vector3 ResolveCommandDestination(Vector3 desiredPosition, Vector3 fallbackCenter)
     {
-        if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit desiredHit, CommandDestinationSampleRadius, WalkableNavMeshAreaMask))
+        using (s_resolveDestinationMarker.Auto())
         {
-            return desiredHit.position;
-        }
+            if (NavMesh.SamplePosition(desiredPosition, out NavMeshHit desiredHit, CommandDestinationSampleRadius, WalkableNavMeshAreaMask))
+            {
+                return desiredHit.position;
+            }
 
-        if (NavMesh.SamplePosition(fallbackCenter, out NavMeshHit fallbackHit, CommandDestinationSampleRadius * 2f, WalkableNavMeshAreaMask))
-        {
-            return fallbackHit.position;
-        }
+            if (NavMesh.SamplePosition(fallbackCenter, out NavMeshHit fallbackHit, CommandDestinationSampleRadius * 2f, WalkableNavMeshAreaMask))
+            {
+                return fallbackHit.position;
+            }
 
-        if (Terrain.activeTerrain != null)
-        {
-            desiredPosition.y = Terrain.activeTerrain.SampleHeight(desiredPosition) + Terrain.activeTerrain.transform.position.y;
-        }
-        else
-        {
-            desiredPosition.y = 0f;
-        }
+            if (Terrain.activeTerrain != null)
+            {
+                desiredPosition.y = Terrain.activeTerrain.SampleHeight(desiredPosition) + Terrain.activeTerrain.transform.position.y;
+            }
+            else
+            {
+                desiredPosition.y = 0f;
+            }
 
-        return desiredPosition;
+            return desiredPosition;
+        }
     }
 
     public Vector3 GetFormationOffset(int index, float spacing)
@@ -1390,3 +1522,64 @@ public class UnitSelectionManager : MonoBehaviour
     }
 
 }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+public static class UnitPerformanceMetrics
+{
+    public static int SetDestinationCount;
+    public static int CombatScanCount;
+    public static int KiteScanCount;
+    public static int HuntRepathCount;
+    public static int BufferOverflowCount;
+
+    private static float _lastReportTime;
+
+    public static void ReportIfNeeded()
+    {
+        if (UnityEngine.Time.time >= _lastReportTime + 4.0f)
+        {
+            int pendingCount = 0;
+            for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
+            {
+                var unit = BaseCombatUnitController.Registry[i];
+                if (unit != null && unit.enabled && unit.gameObject.activeInHierarchy)
+                {
+                    var agent = unit.NavAgent;
+                    if (agent != null && agent.enabled && agent.pathPending)
+                    {
+                        pendingCount++;
+                    }
+                }
+            }
+            for (int i = 0; i < VillagerController.AllVillagers.Count; i++)
+            {
+                var villager = VillagerController.AllVillagers[i];
+                if (villager != null && villager.enabled && villager.gameObject.activeInHierarchy)
+                {
+                    var agent = villager.NavAgent;
+                    if (agent != null && agent.enabled && agent.pathPending)
+                    {
+                        pendingCount++;
+                    }
+                }
+            }
+
+            UnityEngine.Debug.Log($"[Performance Metrics] (Last 4s)\n" +
+                                  $"- SetDestination calls: {SetDestinationCount}\n" +
+                                  $"- Combat scans: {CombatScanCount}\n" +
+                                  $"- Kite scans: {KiteScanCount}\n" +
+                                  $"- Hunt repaths: {HuntRepathCount}\n" +
+                                  $"- Path pending units: {pendingCount}\n" +
+                                  $"- Buffer overflows: {BufferOverflowCount}");
+
+            // Reset after report
+            SetDestinationCount = 0;
+            CombatScanCount = 0;
+            KiteScanCount = 0;
+            HuntRepathCount = 0;
+            BufferOverflowCount = 0;
+            _lastReportTime = UnityEngine.Time.time;
+        }
+    }
+}
+#endif

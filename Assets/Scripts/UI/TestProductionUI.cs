@@ -18,6 +18,12 @@ public class TestProductionUI : MonoBehaviour
     public BuildingProduction SelectedProduction => selectedProduction;
     public BlacksmithResearch SelectedResearch => selectedResearch;
 
+    private System.Collections.Generic.List<BuildingProduction> selectedProductions = new System.Collections.Generic.List<BuildingProduction>();
+    public System.Collections.Generic.List<BuildingProduction> SelectedProductions => selectedProductions;
+
+    private float _lastBuildingClickTime = 0f;
+    private BuildingProduction _lastClickedBuilding = null;
+
     private Vector2 productionScrollPosition;
     private Vector2 researchScrollPosition;
     private bool _isRallyTargetingMode = false;
@@ -52,23 +58,38 @@ public class TestProductionUI : MonoBehaviour
                     Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                     if (Physics.Raycast(ray, out RaycastHit hit))
                     {
-                    BuildingProduction targetProd = _rallyTargetOverride != null ? _rallyTargetOverride : selectedProduction;
-                    if (targetProd == null && MainBuildingUI.Instance != null && MainBuildingUI.Instance.SelectedMainBuilding != null)
-                    {
-                        targetProd = MainBuildingUI.Instance.SelectedMainBuilding.GetComponent<BuildingProduction>() ?? 
-                                     MainBuildingUI.Instance.SelectedMainBuilding.GetComponentInChildren<BuildingProduction>();
-                    }
+                        if (selectedProductions.Count > 0)
+                        {
+                            foreach (var prod in selectedProductions)
+                            {
+                                if (prod != null)
+                                {
+                                    prod.SetRallyFromHit(hit);
+                                    prod.SetRallyFlagVisible(true);
+                                }
+                            }
+                            GameLog.Log($"[TestProductionUI] Setting Rally Point for {selectedProductions.Count} selected buildings at {hit.point}");
+                        }
+                        else
+                        {
+                            BuildingProduction targetProd = _rallyTargetOverride != null ? _rallyTargetOverride : selectedProduction;
+                            if (targetProd == null && MainBuildingUI.Instance != null && MainBuildingUI.Instance.SelectedMainBuilding != null)
+                            {
+                                targetProd = MainBuildingUI.Instance.SelectedMainBuilding.GetComponent<BuildingProduction>() ?? 
+                                             MainBuildingUI.Instance.SelectedMainBuilding.GetComponentInChildren<BuildingProduction>();
+                            }
 
-                    if (targetProd != null)
-                    {
-                        GameLog.Log("[TestProductionUI] Setting Rally Point for: " + targetProd.gameObject.name + " at position " + hit.point);
-                        targetProd.SetRallyFromHit(hit);
-                        targetProd.SetRallyFlagVisible(true);
-                    }
-                    else
-                    {
-                        GameLog.LogWarning("[TestProductionUI] Cannot set Rally Point: targetProd is null!");
-                    }
+                            if (targetProd != null)
+                            {
+                                GameLog.Log("[TestProductionUI] Setting Rally Point for: " + targetProd.gameObject.name + " at position " + hit.point);
+                                targetProd.SetRallyFromHit(hit);
+                                targetProd.SetRallyFlagVisible(true);
+                            }
+                            else
+                            {
+                                GameLog.LogWarning("[TestProductionUI] Cannot set Rally Point: targetProd is null!");
+                            }
+                        }
                     }
                     _isRallyTargetingMode = false;
                     _rallyTargetOverride = null;
@@ -102,7 +123,20 @@ public class TestProductionUI : MonoBehaviour
                         return;
                     }
 
-                    SelectProduction(prod);
+                    float timeSinceLastClick = Time.time - _lastBuildingClickTime;
+                    bool isDoubleClick = timeSinceLastClick < 0.3f && _lastClickedBuilding == prod;
+                    _lastBuildingClickTime = Time.time;
+                    _lastClickedBuilding = prod;
+
+                    if (isDoubleClick)
+                    {
+                        GameLog.Log($"[TestProductionUI] Double click building: {prod.gameObject.name}. Selecting all same type on screen.");
+                        SelectAllBuildingsOfSameTypeOnScreen(prod);
+                    }
+                    else
+                    {
+                        SelectProduction(prod);
+                    }
                     GameLog.Log("Đã chọn công trình để sản xuất: " + clickedBuilding.name);
                     return;
                 }
@@ -124,10 +158,21 @@ public class TestProductionUI : MonoBehaviour
 
                 // Nếu click chuột phải (hoặc tap khi đã chọn công trình sản xuất và không bấm trúng cái gì khác)
                 // Ta chỉ đặt rally point bằng chuột phải. Nếu là chuột trái, ta không tự động đặt rally point ở đây (tránh nhầm lẫn với deselect).
-                if (Input.GetMouseButtonDown(1) && selectedProduction != null)
+                if (Input.GetMouseButtonDown(1))
                 {
-                    selectedProduction.SetRallyFromHit(hit);
-                    return;
+                    if (selectedProductions.Count > 0)
+                    {
+                        foreach (var p in selectedProductions)
+                        {
+                            if (p != null) p.SetRallyFromHit(hit);
+                        }
+                        return;
+                    }
+                    else if (selectedProduction != null)
+                    {
+                        selectedProduction.SetRallyFromHit(hit);
+                        return;
+                    }
                 }
 
                 if (Input.GetMouseButtonDown(1))
@@ -187,12 +232,22 @@ public class TestProductionUI : MonoBehaviour
     {
         GameLog.Log("[TestProductionUI] SelectProduction called for: " + (production != null ? production.gameObject.name : "null"));
 
+        foreach (var p in selectedProductions)
+        {
+            if (p != null && p != production) p.SetRallyFlagVisible(false);
+        }
+        selectedProductions.Clear();
+
         if (selectedProduction != null && selectedProduction != production)
         {
             selectedProduction.SetRallyFlagVisible(false);
         }
 
         selectedProduction = production;
+        if (production != null)
+        {
+            selectedProductions.Add(production);
+        }
         selectedResearch = null;
 
         if (UnitSelectionManager.Instance != null)
@@ -228,8 +283,41 @@ public class TestProductionUI : MonoBehaviour
         }
     }
 
+    private void SelectAllBuildingsOfSameTypeOnScreen(BuildingProduction referenceProd)
+    {
+        DeselectProduction();
+        if (referenceProd == null || referenceProd.BuildingData == null) return;
+
+        string refName = referenceProd.BuildingData.buildingName;
+        foreach (var p in BuildingProduction.Registry)
+        {
+            if (p != null && p.BuildingData != null && p.BuildingData.buildingName == refName)
+            {
+                ConstructibleBuilding cb = p.GetComponent<ConstructibleBuilding>();
+                if (cb != null && !cb.IsCompleted) continue;
+
+                Vector3 screenPoint = Camera.main.WorldToViewportPoint(p.transform.position);
+                bool isOnScreen = screenPoint.z > 0 && screenPoint.x >= 0 && screenPoint.x <= 1 && screenPoint.y >= 0 && screenPoint.y <= 1;
+
+                if (isOnScreen)
+                {
+                    selectedProductions.Add(p);
+                    p.SetRallyFlagVisible(true);
+                }
+            }
+        }
+
+        selectedProduction = referenceProd;
+    }
+
     public void DeselectProduction()
     {
+        foreach (var prod in selectedProductions)
+        {
+            if (prod != null) prod.SetRallyFlagVisible(false);
+        }
+        selectedProductions.Clear();
+
         if (selectedProduction != null)
         {
             selectedProduction.SetRallyFlagVisible(false);

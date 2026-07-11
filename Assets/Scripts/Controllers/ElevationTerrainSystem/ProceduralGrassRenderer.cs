@@ -477,7 +477,6 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
         bool logDiagnostics = (++_diagnosticFrameCount >= 100);
         if (logDiagnostics) _diagnosticFrameCount = 0;
-        int totalRenderedBlades = 0;
 
         foreach (var typeData in _runtimeGrassTypes)
         {
@@ -488,7 +487,6 @@ public class ProceduralGrassRenderer : MonoBehaviour
             _computeShader.SetInt("_NumSourceBlades", typeData.totalSourceBlades);
             _computeShader.Dispatch(kernel, Mathf.CeilToInt(typeData.totalSourceBlades / 64f), 1, 1);
             ComputeBuffer.CopyCount(typeData.culledBuffer, typeData.argsBuffer, sizeof(uint));
-            if (logDiagnostics) { typeData.argsBuffer.GetData(_argsDataBuffer); totalRenderedBlades += (int)_argsDataBuffer[1]; }
             _propertyBlock.Clear();
             _propertyBlock.SetBuffer("_CulledBuffer", typeData.culledBuffer);
             _propertyBlock.SetVector("_WindDirection", _windDirection);
@@ -497,7 +495,6 @@ public class ProceduralGrassRenderer : MonoBehaviour
             _propertyBlock.SetFloat("_WindStrength", _windStrength);
             Graphics.DrawMeshInstancedIndirect(_bladeMesh, 0, typeData.material, _bounds, typeData.argsBuffer, 0, _propertyBlock, UnityEngine.Rendering.ShadowCastingMode.Off, true, _layer);
         }
-        if (logDiagnostics) GameLog.Log($"[ProceduralGrassRenderer Debug] GPU rendering: {totalRenderedBlades} / {_totalSourceBlades} total blades visible.");
     }
 
     private int CollectBuildingExclusionZones()

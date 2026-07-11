@@ -16,6 +16,13 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
     [SerializeField] private float _kiteTriggerDistance = 5f;
     [SerializeField] private float _kiteRetreatDistance = 5f;
     [SerializeField] private float _meleeThreatAttackRange = 3.5f;
+    [SerializeField] private LayerMask _combatUnitLayerMask;
+    private LayerMask _effectiveCombatUnitLayerMask;
+    [SerializeField] private float _kiteScanInterval = 0.15f;
+
+    private float _nextKiteScanTime;
+    private static readonly Collider[] s_kiteOverlapCache = new Collider[128];
+    private static readonly Unity.Profiling.ProfilerMarker s_kiteScanMarker = new Unity.Profiling.ProfilerMarker("RTS.Ranged.KiteScan");
 
     private bool _isHoldingAimAfterTargetLost;
     private float _aimHoldUntil;
@@ -24,9 +31,33 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
     protected virtual bool UsesArrowProjectile => true;
     protected virtual bool CanStartKiting() => true;
 
+    private void ResolveCombatUnitLayerMask()
+    {
+        if (_combatUnitLayerMask.value != 0)
+        {
+            _effectiveCombatUnitLayerMask = _combatUnitLayerMask;
+        }
+        else
+        {
+            _effectiveCombatUnitLayerMask = LayerMask.GetMask("Unit", "Unit Enemy");
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_effectiveCombatUnitLayerMask.value == 0)
+            {
+                Debug.LogWarning($"[Ranged] Failed to retrieve layers 'Unit', 'Unit Enemy' for fallback on {gameObject.name}.");
+            }
+            else
+            {
+                Debug.LogWarning($"[Ranged] _combatUnitLayerMask is unassigned (0) on {gameObject.name}. Falling back to default Unit/Enemy layers.");
+            }
+            #endif
+        }
+    }
+
     protected override void Start()
     {
         maxAutoChaseDistance = Mathf.Min(maxAutoChaseDistance, 8f);
+        _nextKiteScanTime = Time.time + Random.Range(0f, _kiteScanInterval);
+        ResolveCombatUnitLayerMask();
         base.Start();
 
         if (!UsesArrowProjectile)
@@ -202,36 +233,57 @@ public abstract class RangedCombatUnitController : BaseCombatUnitController
 
     private BaseCombatUnitController FindNearestMeleeThreat()
     {
-        int count = Physics.OverlapSphereNonAlloc(transform.position, _kiteTriggerDistance, s_overlapCache);
-        BaseCombatUnitController nearestThreat = null;
-        float nearestSqrDistance = float.MaxValue;
-
-        for (int i = 0; i < count; i++)
+        if (Time.time < _nextKiteScanTime)
         {
-            Collider col = s_overlapCache[i];
-            if (col == null) continue;
-
-            BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit == null
-                || unit == this
-                || unit.currentState == CombatState.Dead
-                || unit.faction == faction
-                || unit.attackRange > _meleeThreatAttackRange
-                || !unit.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
-
-            float sqrDistance = (unit.transform.position - transform.position).sqrMagnitude;
-            if (sqrDistance < nearestSqrDistance)
-            {
-                nearestThreat = unit;
-                nearestSqrDistance = sqrDistance;
-            }
+            return null;
         }
 
-        System.Array.Clear(s_overlapCache, 0, count);
-        return nearestThreat;
+        _nextKiteScanTime = Time.time + _kiteScanInterval + Random.Range(0f, 0.05f);
+
+        using (s_kiteScanMarker.Auto())
+        {
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnitPerformanceMetrics.KiteScanCount++;
+            #endif
+
+            int count = Physics.OverlapSphereNonAlloc(transform.position, _kiteTriggerDistance, s_kiteOverlapCache, _effectiveCombatUnitLayerMask, QueryTriggerInteraction.Collide);
+
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (count >= s_kiteOverlapCache.Length)
+            {
+                UnitPerformanceMetrics.BufferOverflowCount++;
+            }
+            #endif
+
+            BaseCombatUnitController nearestThreat = null;
+            float nearestSqrDistance = float.MaxValue;
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider col = s_kiteOverlapCache[i];
+                if (col == null) continue;
+
+                BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
+                if (unit == null
+                    || unit == this
+                    || unit.currentState == CombatState.Dead
+                    || unit.faction == faction
+                    || unit.attackRange > _meleeThreatAttackRange
+                    || !unit.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                float sqrDistance = (unit.transform.position - transform.position).sqrMagnitude;
+                if (sqrDistance < nearestSqrDistance)
+                {
+                    nearestThreat = unit;
+                    nearestSqrDistance = sqrDistance;
+                }
+            }
+
+            return nearestThreat;
+        }
     }
 
     private bool HasFinishedKiting()

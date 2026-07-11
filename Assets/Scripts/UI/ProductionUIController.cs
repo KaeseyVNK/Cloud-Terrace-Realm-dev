@@ -295,7 +295,61 @@ public class ProductionUIController : MonoBehaviour
             UnitCardUI card = Instantiate(templateToUse, _unitCardsContainer, false);
             card.gameObject.SetActive(true);
             UnitData capturedUnit = unitData; // Capture for lambda
-            card.Setup(unitData, () => _currentProduction?.RequestProduceUnit(capturedUnit));
+            card.Setup(unitData, () => {
+                if (TestProductionUI.Instance != null && TestProductionUI.Instance.SelectedProductions.Count > 0)
+                {
+                    if (!capturedUnit.AreTechnologyRequirementsMet())
+                    {
+                        GameLog.LogWarning("Chưa mở khóa công nghệ để sản xuất " + capturedUnit.unitName + ": " + capturedUnit.GetMissingTechnologyNames());
+                        return;
+                    }
+
+                    if (!ResourceManager.Instance.CanAfford(capturedUnit.productionCosts))
+                    {
+                        GameLog.LogWarning("Không đủ tài nguyên để sản xuất " + capturedUnit.unitName);
+                        return;
+                    }
+
+                    if (PopulationManager.IsVillagerUnit(capturedUnit) && !PopulationManager.CanQueueVillager(out string populationReason))
+                    {
+                        GameLog.LogWarning(populationReason);
+                        return;
+                    }
+
+                    BuildingProduction bestTarget = null;
+                    int minQueueSize = int.MaxValue;
+                    foreach (var prod in TestProductionUI.Instance.SelectedProductions)
+                    {
+                        if (prod == null || prod.BuildingData == null || !prod.BuildingData.producibleUnits.Contains(capturedUnit))
+                            continue;
+
+                        ConstructibleBuilding cb = prod.GetComponent<ConstructibleBuilding>();
+                        if (cb != null && !cb.IsCompleted)
+                            continue;
+
+                        int queueSize = prod.ProductionQueueCount() + (prod.CurrentProducingUnit != null ? 1 : 0);
+                        if (queueSize < minQueueSize)
+                        {
+                            minQueueSize = queueSize;
+                            bestTarget = prod;
+                        }
+                    }
+
+                    if (bestTarget != null)
+                    {
+                        ResourceManager.Instance.ConsumeCosts(capturedUnit.productionCosts);
+                        bestTarget.EnqueueUnitWithoutCost(capturedUnit);
+                    }
+                    else
+                    {
+                        GameLog.LogWarning("Không có công trình nào được chọn có khả năng sản xuất " + capturedUnit.unitName);
+                    }
+                }
+                else
+                {
+                    _currentProduction?.RequestProduceUnit(capturedUnit);
+                }
+            });
             _spawnedCards.Add(card);
         }
     }

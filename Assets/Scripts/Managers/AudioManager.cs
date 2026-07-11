@@ -17,6 +17,20 @@ namespace MyGame.Audio
         [Tooltip("Các bản nhạc nền sẽ phát luân phiên trong quá trình chơi game")]
         [SerializeField] private AudioClip[] _bgmPlaylist;
 
+        [Header("Medieval BGM Categories")]
+        [SerializeField] private AudioClip[] _mainThemeClips;
+        [SerializeField] private AudioClip[] _overworldTownClips;
+        [SerializeField] private AudioClip[] _battleBossClips;
+
+        public enum MusicCategory
+        {
+            MainMenu,
+            OverworldTown,
+            BattleBoss
+        }
+
+        private MusicCategory _currentCategory = MusicCategory.MainMenu;
+
         [Tooltip("Tự động trộn danh sách nhạc phát ngẫu nhiên không trùng lặp cho đến khi hết danh sách")]
         [SerializeField] private bool _shufflePlaylist = true;
 
@@ -110,6 +124,28 @@ namespace MyGame.Audio
 
         private void Start()
         {
+            // Khởi tạo thể loại nhạc ban đầu dựa vào Scene hiện tại
+            _currentCategory = MusicCategory.MainMenu;
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sceneName != "MainMenuScene" && sceneName != "LoadingScene")
+            {
+                _currentCategory = MusicCategory.OverworldTown;
+            }
+
+            // Gán BGM playlist tương ứng
+            switch (_currentCategory)
+            {
+                case MusicCategory.MainMenu:
+                    if (_mainThemeClips != null && _mainThemeClips.Length > 0) _bgmPlaylist = _mainThemeClips;
+                    break;
+                case MusicCategory.OverworldTown:
+                    if (_overworldTownClips != null && _overworldTownClips.Length > 0) _bgmPlaylist = _overworldTownClips;
+                    break;
+                case MusicCategory.BattleBoss:
+                    if (_battleBossClips != null && _battleBossClips.Length > 0) _bgmPlaylist = _battleBossClips;
+                    break;
+            }
+
             if (_bgmPlaylist != null && _bgmPlaylist.Length > 0)
             {
                 PlayNextTrack();
@@ -144,6 +180,9 @@ namespace MyGame.Audio
 
         private void UpdateMusicQueue()
         {
+            // Tự động kiểm tra và chuyển thể loại nhạc (BGM Category) dựa theo trạng thái game
+            UpdateMusicCategory();
+
             if (_bgmPlaylist == null || _bgmPlaylist.Length == 0 || _isTransitioning) return;
 
             // Nếu không có nhạc đang phát
@@ -160,6 +199,62 @@ namespace MyGame.Audio
                 if (remainingTime <= _crossfadeDuration)
                 {
                     PlayNextTrack();
+                }
+            }
+        }
+
+        private void UpdateMusicCategory()
+        {
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            MusicCategory targetCategory = MusicCategory.MainMenu;
+
+            if (sceneName != "MainMenuScene" && sceneName != "LoadingScene")
+            {
+                bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
+                bool hasActiveEnemies = EnemyManager.Instance != null && EnemyManager.Instance.ActiveEnemies.Count > 0;
+
+                if (isNight || hasActiveEnemies)
+                {
+                    targetCategory = MusicCategory.BattleBoss;
+                }
+                else
+                {
+                    targetCategory = MusicCategory.OverworldTown;
+                }
+            }
+
+            if (targetCategory != _currentCategory)
+            {
+                MusicCategory oldCategory = _currentCategory;
+                _currentCategory = targetCategory;
+
+                AudioClip[] selectedPlaylist = null;
+                switch (_currentCategory)
+                {
+                    case MusicCategory.MainMenu:
+                        selectedPlaylist = _mainThemeClips;
+                        break;
+                    case MusicCategory.OverworldTown:
+                        selectedPlaylist = _overworldTownClips;
+                        break;
+                    case MusicCategory.BattleBoss:
+                        selectedPlaylist = _battleBossClips;
+                        break;
+                }
+
+                // Nếu thể loại nhạc được chọn có dữ liệu, chuyển danh sách BGM và phát ngay
+                if (selectedPlaylist != null && selectedPlaylist.Length > 0)
+                {
+                    _bgmPlaylist = selectedPlaylist;
+                    _playlistBag.Clear();
+                    _currentTrackIndex = -1;
+                    PlayNextTrack();
+                    GameLog.Log($"[AudioManager] Chuyển đổi nhạc nền sang thể loại: {_currentCategory}");
+                }
+                else
+                {
+                    // Fallback nếu danh sách trống
+                    _currentCategory = oldCategory;
                 }
             }
         }

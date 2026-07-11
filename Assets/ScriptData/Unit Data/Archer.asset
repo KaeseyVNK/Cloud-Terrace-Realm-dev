@@ -16,13 +16,13 @@ MonoBehaviour:
   description: Ranged unit attacking from a safe distance.
   unitPrefab: {fileID: 2983170981788088436, guid: 95bce1260ad008649954c7ce7462971d, type: 3}
   portraitIcon: {fileID: 1892394124, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
-  productionTime: 8
+  productionTime: 15
   productionCosts:
   - resourceType: 2
-    amount: 25
+    amount: 40
   - resourceType: 0
-    amount: 30
+    amount: 50
   - resourceType: 4
-    amount: 15
+    amount: 30
   requiredTechnologies:
   - {fileID: 11400000, guid: 42c87ceea9ab20c428dd5328cf103f7a, type: 2}

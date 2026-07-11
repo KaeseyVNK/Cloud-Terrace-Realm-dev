@@ -2,12 +2,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Điều khiển một thẻ đơn vị trong giao diện sản xuất.
 /// Tự động hiển thị tên, chi phí và trạng thái khóa/mở khóa.
 /// </summary>
-public class UnitCardUI : MonoBehaviour
+public class UnitCardUI : MonoBehaviour, IPointerClickHandler
 {
     [Header("References")]
     [SerializeField] private Image _portraitIcon;
@@ -80,6 +81,16 @@ public class UnitCardUI : MonoBehaviour
 
         if (_costText != null)
             _costText.color = canAfford ? Color.white : new Color(1f, 0.4f, 0.4f, 1f);
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        // Chỉ cho phép click để mua khi công nghệ đã mở khóa và đủ tài nguyên
+        if (_unitData != null && _unitData.AreTechnologyRequirementsMet() &&
+            ResourceManager.Instance != null && ResourceManager.Instance.CanAfford(_unitData.productionCosts))
+        {
+            OnTrainButtonClicked();
+        }
     }
 
     private void OnTrainButtonClicked()

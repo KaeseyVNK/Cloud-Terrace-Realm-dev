@@ -248,6 +248,25 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         }
     }
 
+    public int ProductionQueueCount()
+    {
+        return _productionQueue.Count;
+    }
+
+    public void EnqueueUnitWithoutCost(UnitData unit)
+    {
+        _productionQueue.Enqueue(unit);
+        if (MyGame.Audio.AudioManager.Instance != null)
+        {
+            MyGame.Audio.AudioManager.Instance.PlayTrainingStart();
+        }
+        GameLog.Log("Đã thêm " + unit.unitName + " vào hàng đợi sản xuất của " + gameObject.name);
+        if (!_isProducing)
+        {
+            StartNextProduction();
+        }
+    }
+
     /// <summary>
     /// Hủy một lượt sản xuất lính trong hàng đợi theo index và hoàn tiền.
     /// </summary>

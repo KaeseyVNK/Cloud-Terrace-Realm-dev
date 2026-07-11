@@ -109,9 +109,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlacksmithResearch
   availableTechnologies:
-  - {fileID: 11400000, guid: 42c87ceea9ab20c428dd5328cf103f7a, type: 2}
-  - {fileID: 11400000, guid: d6ef6252564c3bc4ca8cd129d8ba5d80, type: 2}
-  - {fileID: 11400000, guid: 046ff2c8df4662a44938502fa37c9ef0, type: 2}
   - {fileID: 11400000, guid: 3faf3cbae2e3e044ca720e74a1ab2866, type: 2}
   - {fileID: 11400000, guid: 8374ea34847dbd2418fd086efb230c6c, type: 2}
   - {fileID: 11400000, guid: 2f83a96058cbaca4facf60e3a1f195fd, type: 2}

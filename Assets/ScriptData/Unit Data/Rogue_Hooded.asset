@@ -16,13 +16,13 @@ MonoBehaviour:
   description: Mobile unit with rapid shooting, high damage, and high evasion.
   unitPrefab: {fileID: 2197299902483451894, guid: 1d44eb9b270c71545a9e0af684d0fc04, type: 3}
   portraitIcon: {fileID: -489099260, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
-  productionTime: 10
+  productionTime: 20
   productionCosts:
   - resourceType: 2
-    amount: 40
+    amount: 65
   - resourceType: 0
-    amount: 40
+    amount: 65
   - resourceType: 4
-    amount: 20
+    amount: 40
   requiredTechnologies:
   - {fileID: 11400000, guid: 42c87ceea9ab20c428dd5328cf103f7a, type: 2}

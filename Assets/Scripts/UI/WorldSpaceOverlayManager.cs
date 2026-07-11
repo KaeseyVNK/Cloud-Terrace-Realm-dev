@@ -137,10 +137,24 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     private BaseCombatUnitController _selectedResearchCombat;
     private int _lastSelectionCacheFrame = -1;
 
+    private static WorldSpaceOverlayManager _instance;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Initialize()
     {
-        // Nếu Designer đã chủ động kéo WorldSpaceOverlayManager vào Scene, bỏ qua việc tự tạo mới
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
+        {
+            if (scene.name != "MainMenuScene" && scene.name != "LoadingScene")
+            {
+                EnsureInstance();
+            }
+        };
+        EnsureInstance();
+    }
+
+    private static void EnsureInstance()
+    {
+        if (_instance != null) return;
         if (FindAnyObjectByType<WorldSpaceOverlayManager>() != null)
         {
             GameLog.Log("[WorldSpaceOverlayManager] Tìm thấy instance có sẵn trong Scene. Dùng cấu hình tùy biến của Designer.");
@@ -148,7 +162,7 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         }
 
         GameObject go = new GameObject("WorldSpaceOverlayManager");
-        go.AddComponent<WorldSpaceOverlayManager>();
+        _instance = go.AddComponent<WorldSpaceOverlayManager>();
         DontDestroyOnLoad(go);
         GameLog.Log("[WorldSpaceOverlayManager] Không thấy có sẵn trong Scene. Đã tự động tạo phiên bản mặc định.");
     }

@@ -56,7 +56,7 @@ namespace CloudTerraceRealm.UI
 
             if (_statusText != null)
             {
-                _statusText.text = isOn ? "Quét Chọn: BẬT" : "Quét Chọn: TẮT";
+                _statusText.text = isOn ? "Box Select: ON" : "Box Select: OFF";
             }
 
             if (_buttonImage != null)

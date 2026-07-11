@@ -63,7 +63,7 @@ namespace CloudTerraceRealm.SaveSystem
                 }
 
                 // Thu thập tất cả các SaveableEntity hiện có trong cảnh
-                var allEntities = FindObjectsByType<SaveableEntity>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                var allEntities = FindObjectsByType<SaveableEntity>(FindObjectsInactive.Include);
                 
                 foreach (var entity in allEntities)
                 {
@@ -118,6 +118,7 @@ namespace CloudTerraceRealm.SaveSystem
                 {
                     SetPrivateField(gridSystem, "_mapSeed", data.mapSeed);
                     SetPrivateField(gridSystem, "_useProceduralSeed", false);
+                    gridSystem.GenerateFullProceduralMap();
                 }
 
                 // Chuyển dữ liệu nạp vào dictionary để tra cứu nhanh bằng SaveID
@@ -131,7 +132,7 @@ namespace CloudTerraceRealm.SaveSystem
                 }
 
                 // Tìm các thực thể hiện hữu trong cảnh
-                var sceneEntities = FindObjectsByType<SaveableEntity>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                var sceneEntities = FindObjectsByType<SaveableEntity>(FindObjectsInactive.Include);
                 var entitiesToKeep = new List<SaveableEntity>();
 
                 foreach (var sceneEntity in sceneEntities)
@@ -232,7 +233,7 @@ namespace CloudTerraceRealm.SaveSystem
             activeCaravans.Clear();
 
             // 1. Phục hồi các Cổng Hư Không (Portals)
-            var portals = FindObjectsByType<VoidPortal>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var portals = FindObjectsByType<VoidPortal>(FindObjectsInactive.Include);
             foreach (var portal in portals)
             {
                 if (portal != null && portal.currentState != CombatState.Dead)
@@ -243,7 +244,7 @@ namespace CloudTerraceRealm.SaveSystem
             }
 
             // 2. Phục hồi các Đoàn Xe Thồ (Caravans)
-            var caravans = FindObjectsByType<MerchantCaravanUnit>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var caravans = FindObjectsByType<MerchantCaravanUnit>(FindObjectsInactive.Include);
             
             // Gom nhóm các caravan unit theo startPos của chúng
             var caravanGroups = new Dictionary<Vector3, List<MerchantCaravanUnit>>();
@@ -311,8 +312,8 @@ namespace CloudTerraceRealm.SaveSystem
 
         private void LinkGuardsToRuins()
         {
-            var ruins = FindObjectsByType<AncientRuins>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            var guards = FindObjectsByType<EnemyUnitController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var ruins = FindObjectsByType<AncientRuins>(FindObjectsInactive.Include);
+            var guards = FindObjectsByType<EnemyUnitController>(FindObjectsInactive.Include);
             
             foreach (var ruin in ruins)
             {

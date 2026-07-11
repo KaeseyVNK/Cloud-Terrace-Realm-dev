@@ -56,9 +56,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in x axis is out of range");
-
-                        return null;
+                        if (levelRow.Count == 0) return null;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelRow.Count - 1);
+                        return levelRow[clampedIndex];
                     }
                 }
                 set {
@@ -68,9 +68,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in x axis is out of range");
-
-                        return;
+                        if (levelRow.Count == 0) return;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelRow.Count - 1);
+                        levelRow[clampedIndex] = value;
                     }
                 }
             }
@@ -113,9 +113,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in y axis is out of range");
-
-                        return ETileState.Empty;
+                        if (levelColumn.Count == 0) return ETileState.Empty;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelColumn.Count - 1);
+                        return levelColumn[clampedIndex];
                     }
                 }
                 set {
@@ -125,9 +125,9 @@ namespace FischlWorks_FogWar
                     }
                     else
                     {
-                        Debug.LogErrorFormat("index given in y axis is out of range");
-
-                        return;
+                        if (levelColumn.Count == 0) return;
+                        int clampedIndex = Mathf.Clamp(index, 0, levelColumn.Count - 1);
+                        levelColumn[clampedIndex] = value;
                     }
                 }
             }
@@ -265,8 +265,10 @@ namespace FischlWorks_FogWar
         private bool ignoreTriggers = true;
 
         [BigHeader("Debug Options")]
+#if UNITY_EDITOR
         [SerializeField]
         private bool drawGizmos = false;
+#endif
         [SerializeField]
         private bool LogOutOfRange = false;
 
@@ -489,6 +491,10 @@ namespace FischlWorks_FogWar
 
         private void UpdateFogField()
         {
+            if (shadowcaster != null && shadowcaster.fogField != null && shadowcaster.fogField.ColumnCount != levelData.levelDimensionX)
+            {
+                shadowcaster.Initialize(this);
+            }
             shadowcaster.ResetTileVisibility();
             RemoveInvalidFogRevealers();
 
@@ -759,6 +765,11 @@ namespace FischlWorks_FogWar
         /// Checks if the given pair of world coordinates and additionalRadius is visible by FogRevealers.
         public bool CheckVisibility(Vector3 worldCoordinates, int additionalRadius)
         {
+            if (shadowcaster != null && shadowcaster.fogField != null && shadowcaster.fogField.ColumnCount != levelData.levelDimensionX)
+            {
+                shadowcaster.Initialize(this);
+            }
+
             Vector2Int levelCoordinates = WorldToLevel(worldCoordinates);
             if (shadowcaster == null ||
                 shadowcaster.fogField == null ||

@@ -8,8 +8,20 @@ public class SelectableUnit : MonoBehaviour
 
     private bool isSelected = false;
 
+    public VillagerController VillagerController { get; private set; }
+    public BaseCombatUnitController CombatController { get; private set; }
+
     // Danh sách chứa tất cả các unit trên bản đồ để tối ưu Box Selection
     public static List<SelectableUnit> AllUnits = new List<SelectableUnit>();
+
+    void Awake()
+    {
+        TryGetComponent(out VillagerController vc);
+        VillagerController = vc;
+
+        TryGetComponent(out BaseCombatUnitController cc);
+        CombatController = cc;
+    }
 
     void OnEnable()
     {

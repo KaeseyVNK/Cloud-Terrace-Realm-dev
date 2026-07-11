@@ -917,6 +917,9 @@ MonoBehaviour:
   attackRange: 8
   attackCooldown: 2.2
   scanRange: 14
+  _combatTargetLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
   idleScanInterval: 0.25
   movingScanInterval: 0.35
   currentState: 0

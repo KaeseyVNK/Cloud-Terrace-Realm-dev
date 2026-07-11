@@ -7,6 +7,7 @@ public static class GameLog
     [Conditional("DEVELOPMENT_BUILD")]
     public static void Log(object message)
     {
+        if (IsMainMenuScene()) return;
         UnityEngine.Debug.Log(message);
     }
 
@@ -14,7 +15,20 @@ public static class GameLog
     [Conditional("DEVELOPMENT_BUILD")]
     public static void Log(object message, Object context)
     {
+        if (IsMainMenuScene()) return;
         UnityEngine.Debug.Log(message, context);
+    }
+
+    private static bool IsMainMenuScene()
+    {
+        try
+        {
+            return UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenuScene";
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     [Conditional("UNITY_EDITOR")]

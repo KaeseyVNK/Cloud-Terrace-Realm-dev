@@ -95,7 +95,7 @@ public class ResourceNode : MonoBehaviour
     }
     private const float DefaultHarvestSlotRadius = 3.4f;
     private const float OverflowHarvestSlotRadius = 4.6f;
-    private const float HarvestSlotColliderClearance = 0.85f;
+    private const float HarvestSlotColliderClearance = 1.25f;
     private int[] _reservedSlots; // Khởi tạo động trong Awake dựa trên _maxHarvestSlots
     private Transform _visualTarget; // Đối tượng visual thực tế được áp dụng hiệu ứng scale (không thay đổi Collider ở root)
 

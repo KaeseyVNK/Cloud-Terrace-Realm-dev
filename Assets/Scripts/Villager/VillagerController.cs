@@ -41,10 +41,10 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     [SerializeField] private int _maxCarryCapacity = 15;
 
     [Tooltip("Thời gian để hoàn thành 1 chu kỳ khai thác (giây)")]
-    [SerializeField] private float _timeToGather = 2.2f;
+    [SerializeField] private float _timeToGather = 3.0f;
 
     [Tooltip("Số lượng tài nguyên khai thác mỗi chu kỳ")]
-    [SerializeField] private int _gatherAmountPerTick = 3;
+    [SerializeField] private int _gatherAmountPerTick = 2;
 
     [Header("Chuỗi Cung Ứng - Nộp Tài Nguyên")]
     [Tooltip("Thời gian để nộp tài nguyên vào kho (giây)")]
@@ -132,6 +132,18 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     private bool _hasAttackTriggerParam;
 
     private WildAnimalController _huntTarget;
+    private float _nextHuntRepathTime = 0f;
+    private Vector3 _lastHuntDestination = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+
+    [Header("Hunt Navigation Optimization")]
+    [SerializeField, Min(0.05f)]
+    private float _huntRepathInterval = 0.25f;
+
+    [SerializeField, Min(0.1f)]
+    private float _huntRepathDistance = 1.25f;
+    private static readonly Unity.Profiling.ProfilerMarker s_huntRepathMarker = new Unity.Profiling.ProfilerMarker("RTS.Villager.HuntRepath");
+    private TechnologyManager _subscribedTechnologyManager;
+    private bool _isRegisteredInAllVillagers = false;
     private bool _wasFarmingWildAnimals = false;
     private RiceField _targetRiceField;
     private AncientRuins _targetRuins;
@@ -238,6 +250,11 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     public IReadOnlyDictionary<ResourceType, int> Inventory => _inventory;
 
     /// <summary>
+    /// NavMeshAgent reference of this villager.
+    /// </summary>
+    public NavMeshAgent NavAgent => _navAgent;
+
+    /// <summary>
     /// Sức chứa tối đa của dân làng.
     /// </summary>
     public int MaxCarryCapacity => EffectiveMaxCarryCapacity;
@@ -306,18 +323,44 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
     #region Unity Lifecycle Methods
 
+    private void SubscribeToTechnologyEvent()
+    {
+        if (_subscribedTechnologyManager != null) return;
+
+        if (TechnologyManager.HasInstance)
+        {
+            _subscribedTechnologyManager = TechnologyManager.Instance;
+            _subscribedTechnologyManager.OnTechnologyUnlocked += HandleTechnologyUnlocked;
+        }
+    }
+
+    private void UnsubscribeFromTechnologyEvent()
+    {
+        if (_subscribedTechnologyManager != null)
+        {
+            _subscribedTechnologyManager.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+            _subscribedTechnologyManager = null;
+        }
+    }
+
     private void OnEnable()
     {
-        AllVillagers.Add(this);
+        if (!_isRegisteredInAllVillagers)
+        {
+            AllVillagers.Add(this);
+            _isRegisteredInAllVillagers = true;
+        }
+        SubscribeToTechnologyEvent();
     }
 
     private void OnDisable()
     {
-        AllVillagers.Remove(this);
-        if (TechnologyManager.HasInstance)
+        if (_isRegisteredInAllVillagers)
         {
-            TechnologyManager.Instance.OnTechnologyUnlocked -= HandleTechnologyUnlocked;
+            AllVillagers.Remove(this);
+            _isRegisteredInAllVillagers = false;
         }
+        UnsubscribeFromTechnologyEvent();
         if (_carryVisuals != null)
         {
             _carryVisuals.Hide();
@@ -414,10 +457,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             gameObject.AddComponent<UnitLightController>();
         }
 
-        if (TechnologyManager.HasInstance)
-        {
-            TechnologyManager.Instance.OnTechnologyUnlocked += HandleTechnologyUnlocked;
-        }
+        SubscribeToTechnologyEvent();
         ApplyVillagerTechnologyStats();
     }
 
@@ -932,7 +972,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
         if (_huntTarget != null)
         {
-            if (_huntTarget.currentState == CombatState.Dead)
+            if (_huntTarget.currentState == CombatState.Dead || !_huntTarget.gameObject.activeInHierarchy)
             {
                 _navAgent.ResetPath();
                 OnReachedDestination();
@@ -948,11 +988,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
                 return;
             }
 
-            float sqrDistToTargetDest = (_navAgent.destination - _huntTarget.transform.position).sqrMagnitude;
-            if (sqrDistToTargetDest > 0.25f) // 0.5f * 0.5f = 0.25f
-            {
-                SetPathToTarget(_huntTarget.transform.position);
-            }
+            TryRepathToHuntTarget(false);
         }
 
         // Stuck Solver (AOE/SC2 Style)
@@ -1082,30 +1118,73 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
         _navAgent.stoppingDistance = 0.25f;
 
-        NavMeshPath path = new NavMeshPath();
-        _navAgent.CalculatePath(targetPos, path);
-
-        if (path.status == NavMeshPathStatus.PathComplete || path.status == NavMeshPathStatus.PathPartial)
+        // Thử thiết lập điểm đến trực tiếp (bất đồng bộ)
+        if (_navAgent.SetDestination(targetPos))
         {
-            Vector3 finalTarget = targetPos;
-            if (path.corners.Length > 0)
-            {
-                finalTarget = path.corners[path.corners.Length - 1];
-            }
-
-            _navAgent.SetDestination(finalTarget);
             _navAgent.isStopped = false;
             return true;
         }
 
+        // Dự phòng: Lấy điểm gần nhất trên NavMesh trong phạm vi 20 mét
         if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 20.0f, ~2))
         {
-            _navAgent.SetDestination(hit.position);
-            _navAgent.isStopped = false;
-            return true;
+            if (_navAgent.SetDestination(hit.position))
+            {
+                _navAgent.isStopped = false;
+                return true;
+            }
         }
 
         GameLog.LogWarning($"[NavMesh] Không tìm được đường đi đến {targetPos}!");
+        return false;
+    }
+
+    private bool TryRepathToHuntTarget(bool forceImmediate)
+    {
+        // 1. Kiểm tra target hợp lệ
+        if (_huntTarget == null || !_huntTarget.gameObject.activeInHierarchy || _huntTarget.currentState == CombatState.Dead)
+        {
+            return false;
+        }
+
+        // 2. Kiểm tra agent hợp lệ
+        if (_navAgent == null || !_navAgent.enabled || !_navAgent.isOnNavMesh)
+        {
+            return false;
+        }
+
+        // 3. Kiểm tra villager chưa nằm trong _huntRange
+        float sqrDistToTarget = (transform.position - _huntTarget.transform.position).sqrMagnitude;
+        if (sqrDistToTarget <= _huntRange * _huntRange)
+        {
+            if (_navAgent.hasPath)
+            {
+                _navAgent.ResetPath();
+            }
+            return false;
+        }
+
+        // 4. Kiểm tra điều kiện repath (forceImmediate hoặc qua thời gian/khoảng cách)
+        Vector3 targetPos = _huntTarget.transform.position;
+        float sqrDistToPrevDest = (targetPos - _lastHuntDestination).sqrMagnitude;
+        bool distanceExceeded = sqrDistToPrevDest >= _huntRepathDistance * _huntRepathDistance;
+
+        if (forceImmediate || (Time.time >= _nextHuntRepathTime && distanceExceeded))
+        {
+            using (s_huntRepathMarker.Auto())
+            {
+                #if UNITY_EDITOR || DEVELOPMENT_BUILD
+                UnitPerformanceMetrics.HuntRepathCount++;
+                #endif
+
+                if (SetPathToTarget(targetPos))
+                {
+                    _lastHuntDestination = targetPos;
+                    _nextHuntRepathTime = Time.time + _huntRepathInterval + Random.Range(0f, 0.03f);
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -1390,6 +1469,22 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
                 return;
             }
 
+            // 1. Kiểm tra target hợp lệ đầu tiên để tránh NullReferenceException
+            if (_huntTarget == null ||
+                !_huntTarget.gameObject.activeInHierarchy ||
+                _huntTarget.currentState == CombatState.Dead)
+            {
+                _huntTarget = null;
+
+                if (_animator != null && _hasIsAimingParam)
+                {
+                    _animator.SetBool("isAiming", false);
+                }
+
+                ChangeState(VillagerState.Idle);
+                return;
+            }
+
             // Đảm bảo agent dừng đứng yên khi ngắm bắn
             if (_navAgent != null && _navAgent.enabled && _navAgent.isOnNavMesh && !_navAgent.isStopped)
             {
@@ -1397,8 +1492,10 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
                 _navAgent.velocity = Vector3.zero;
             }
 
+            Vector3 targetPosition = _huntTarget.transform.position;
+
             // Quay mặt về phía con thú
-            Vector3 dirToBeast = (_huntTarget.transform.position - transform.position).normalized;
+            Vector3 dirToBeast = (targetPosition - transform.position).normalized;
             dirToBeast.y = 0;
             if (dirToBeast.sqrMagnitude > 0.01f)
             {
@@ -1406,8 +1503,10 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             }
 
             // Kiểm tra khoảng cách để săn
-            float dist = Vector3.Distance(transform.position, _huntTarget.transform.position);
-            if (dist > _huntRange + 2.0f)
+            float chaseThreshold = _huntRange + 2f;
+            float sqrDistance = (transform.position - targetPosition).sqrMagnitude;
+
+            if (sqrDistance > chaseThreshold * chaseThreshold)
             {
                 if (_animator != null && _hasIsAimingParam)
                 {
@@ -1415,12 +1514,16 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
                 }
 
                 // Đuổi theo nếu thú chạy trốn ra ngoài tầm bắn
-                if (_navAgent != null && _navAgent.enabled)
+                if (TryRepathToHuntTarget(true))
                 {
-                    _navAgent.isStopped = false;
-                    _navAgent.SetDestination(_huntTarget.transform.position);
+                    ChangeState(VillagerState.Moving);
                 }
-                ChangeState(VillagerState.Moving);
+                else
+                {
+                    // Thực sự thất bại khi tìm đường đi
+                    _huntTarget = null;
+                    ChangeState(VillagerState.Idle);
+                }
                 return;
             }
 
@@ -2509,7 +2612,20 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     /// </summary>
     public void CommandHunt(WildAnimalController animal)
     {
-        if (animal == null || animal.currentState == CombatState.Dead) return;
+        // 1. Kiểm tra tính hợp lệ trước khi nhận lệnh và trước khi thay đổi bất cứ công việc hiện tại nào
+        if (animal == null ||
+            !animal.gameObject.activeInHierarchy ||
+            animal.currentState == CombatState.Dead)
+        {
+            return;
+        }
+
+        if (_navAgent == null ||
+            !_navAgent.enabled ||
+            !_navAgent.isOnNavMesh)
+        {
+            return;
+        }
 
         _overrideShelter = true;
         CancelAssignedGarrison();
@@ -2527,6 +2643,8 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         TargetBuilding = null;
         _repairTarget = null;
         _huntTarget = animal;
+        _nextHuntRepathTime = 0f;
+        _lastHuntDestination = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
         _currentJob = null;
         _isManualMove = false;
         _wasFarmingWildAnimals = true;
@@ -2534,13 +2652,28 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
         _targetResource = ResourceType.Food;
 
-        if (SetPathToTarget(animal.transform.position))
+        // 2. Nếu villager đã nằm trong _huntRange
+        float sqrDistToTarget = (transform.position - _huntTarget.transform.position).sqrMagnitude;
+        if (sqrDistToTarget <= _huntRange * _huntRange)
+        {
+            if (_navAgent.hasPath)
+            {
+                _navAgent.ResetPath();
+            }
+            ChangeState(VillagerState.Gathering);
+            return;
+        }
+
+        // 3. Nếu villager ở ngoài _huntRange
+        if (TryRepathToHuntTarget(true))
         {
             ChangeState(VillagerState.Moving);
             MyGame.UI.FloatingText.Spawn(transform.position, "Đi Săn", Color.red);
         }
         else
         {
+            // Không tìm được đường đi
+            _huntTarget = null;
             ChangeState(VillagerState.Idle);
         }
     }

@@ -66,7 +66,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
         base.Start();
     }
 
-    public new void OnSpawnedFromPool()
+    public override void OnSpawnedFromPool()
     {
         base.OnSpawnedFromPool();
         LoadDefaultSummonPrefabsIfNeeded();
@@ -75,7 +75,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
         nextSummonTime = Time.time + summonInterval;
     }
 
-    public new void OnReturnedToPool()
+    public override void OnReturnedToPool()
     {
         StopSummoning();
         base.OnReturnedToPool();
@@ -267,36 +267,42 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
     private BaseCombatUnitController FindNearestMeleeThreat()
     {
-        int count = Physics.OverlapSphereNonAlloc(transform.position, kiteTriggerDistance, s_overlapCache);
-        BaseCombatUnitController nearestThreat = null;
-        float nearestSqrDistance = float.MaxValue;
-
-        for (int i = 0; i < count; i++)
+        using (s_combatScanMarker.Auto())
         {
-            Collider col = s_overlapCache[i];
-            if (col == null) continue;
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnitPerformanceMetrics.CombatScanCount++;
+            #endif
 
-            BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit == null
-                || unit == this
-                || unit.currentState == CombatState.Dead
-                || unit.faction == faction
-                || unit.attackRange > meleeThreatAttackRange
-                || !unit.gameObject.activeInHierarchy)
+            int count = Physics.OverlapSphereNonAlloc(transform.position, kiteTriggerDistance, s_combatOverlapCache);
+            BaseCombatUnitController nearestThreat = null;
+            float nearestSqrDistance = float.MaxValue;
+
+            for (int i = 0; i < count; i++)
             {
-                continue;
+                Collider col = s_combatOverlapCache[i];
+                if (col == null) continue;
+
+                BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
+                if (unit == null
+                    || unit == this
+                    || unit.currentState == CombatState.Dead
+                    || unit.faction == faction
+                    || unit.attackRange > meleeThreatAttackRange
+                    || !unit.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                float sqrDistance = (unit.transform.position - transform.position).sqrMagnitude;
+                if (sqrDistance < nearestSqrDistance)
+                {
+                    nearestThreat = unit;
+                    nearestSqrDistance = sqrDistance;
+                }
             }
 
-            float sqrDistance = (unit.transform.position - transform.position).sqrMagnitude;
-            if (sqrDistance < nearestSqrDistance)
-            {
-                nearestThreat = unit;
-                nearestSqrDistance = sqrDistance;
-            }
+            return nearestThreat;
         }
-
-        System.Array.Clear(s_overlapCache, 0, count);
-        return nearestThreat;
     }
 
     private bool HasFinishedKiting()
@@ -524,8 +530,7 @@ public class SkeletonMageController : EnemyUnitController, IPoolable
 
         if (IsNavAgentReady())
         {
-            Vector3 currentPosition = transform.position;
-            if (NavMesh.SamplePosition(currentPosition, out NavMeshHit hit, 2f, ~2))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
             {
                 transform.position = hit.position;
                 navAgent.Warp(hit.position);

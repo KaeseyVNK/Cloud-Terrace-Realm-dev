@@ -17,8 +17,8 @@ MonoBehaviour:
     and repairing structures.
   unitPrefab: {fileID: 2983170981788088436, guid: 02b870f62052c3549a5ef5efdcf8574e, type: 3}
   portraitIcon: {fileID: 1801842555, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
-  productionTime: 5
+  productionTime: 10
   productionCosts:
   - resourceType: 2
-    amount: 50
+    amount: 80
   requiredTechnologies: []

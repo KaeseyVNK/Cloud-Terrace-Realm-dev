@@ -39,6 +39,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _combatUnitMaxHealthMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.unitHealthMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.unitHealthMultiplier;
             return val;
         }
     }
@@ -48,6 +49,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _combatUnitAttackDamageMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.unitDamageMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.unitDamageMultiplier;
             return val;
         }
     }
@@ -57,6 +59,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _combatUnitMoveSpeedMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.unitSpeedMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.unitSpeedMultiplier;
             return val;
         }
     }
@@ -67,6 +70,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _villagerMoveSpeedMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.villagerSpeedMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.villagerSpeedMultiplier;
             return val;
         }
     }
@@ -76,6 +80,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             int val = _villagerCarryCapacityBonus;
             if (_activeDecreeCard != null) val += _activeDecreeCard.villagerCarryCapacityBonus;
+            if (_activeNightDecreeCard != null) val += _activeNightDecreeCard.villagerCarryCapacityBonus;
             return val;
         }
     }
@@ -86,6 +91,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _woodGatherSpeedMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.woodGatherMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.woodGatherMultiplier;
             return val;
         }
     }
@@ -95,6 +101,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _stoneGatherSpeedMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.stoneGatherMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.stoneGatherMultiplier;
             return val;
         }
     }
@@ -104,6 +111,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _goldGatherSpeedMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.goldGatherMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.goldGatherMultiplier;
             return val;
         }
     }
@@ -113,6 +121,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _foodGatherSpeedMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.foodGatherMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.foodGatherMultiplier;
             return val;
         }
     }
@@ -123,6 +132,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float val = _buildingMaxHealthMultiplier;
             if (_activeDecreeCard != null) val *= _activeDecreeCard.buildingMaxHealthMultiplier;
+            if (_activeNightDecreeCard != null) val *= _activeNightDecreeCard.buildingMaxHealthMultiplier;
             return val;
         }
     }
@@ -132,6 +142,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             int val = _populationCapBonus;
             if (_activeDecreeCard != null) val += _activeDecreeCard.populationCapBonus;
+            if (_activeNightDecreeCard != null) val += _activeNightDecreeCard.populationCapBonus;
             return val;
         }
     }
@@ -139,6 +150,10 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
     [Header("Morning Decree System")]
     private UpgradeCardData _activeDecreeCard = null;
     public UpgradeCardData ActiveDecreeCard => _activeDecreeCard;
+
+    [Header("Night Decree System")]
+    private UpgradeCardData _activeNightDecreeCard = null;
+    public UpgradeCardData ActiveNightDecreeCard => _activeNightDecreeCard;
     public float DecreeFogVisionMultiplier => IsDecreeActive("decree_night_scout") ? 2.0f : 1.0f;
 
     public bool IsDecreeActive(string decreeId)
@@ -149,8 +164,22 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
     private readonly HashSet<string> _unlockedUnitIds = new HashSet<string>();
     private readonly HashSet<string> _discoveredUnitIds = new HashSet<string>();
     private readonly HashSet<string> _cardUnlockableUnits = new HashSet<string>();
-
     public event Action OnCardStateChanged;
+
+    private bool _pendingSurvivalDraft = false;
+    private bool _isPendingSurvivalBloodMoon = false;
+
+    public bool PendingSurvivalDraft
+    {
+        get => _pendingSurvivalDraft;
+        set => _pendingSurvivalDraft = value;
+    }
+
+    public bool IsPendingSurvivalBloodMoon
+    {
+        get => _isPendingSurvivalBloodMoon;
+        set => _isPendingSurvivalBloodMoon = value;
+    }
 
     private void Awake()
     {
@@ -168,6 +197,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 
         InitializeCardUnlockableUnits();
         InitializeDefaultDecrees();
+        InitializeDefaultNightDecrees();
     }
 
     private void EnsureSaveableEntity(string saveID)
@@ -194,6 +224,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         if (TimeManager.Instance != null)
         {
             TimeManager.Instance.OnDayChanged += HandleDayChanged;
+            TimeManager.Instance.OnDayNightChanged += HandleDayNightChanged;
         }
 
         // Add existing unlocked cards to available lists on start if pre-populated
@@ -218,6 +249,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         if (TimeManager.Instance != null)
         {
             TimeManager.Instance.OnDayChanged -= HandleDayChanged;
+            TimeManager.Instance.OnDayNightChanged -= HandleDayNightChanged;
         }
     }
 
@@ -315,9 +347,9 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 
     /// <summary>
     /// Kích hoạt màn hình chọn thẻ nâng cấp (dừng game).
-    /// minimumRarity: đảm bảo ít nhất 1 trong 3 thẻ ≥ rarity yêu cầu.
+    /// minimumRarity: đảm bảo ít nhất 1 trong các thẻ ≥ rarity yêu cầu.
     /// </summary>
-    public void TriggerCardDraft(CardRarity minimumRarity = CardRarity.Common)
+    public void TriggerCardDraft(CardRarity minimumRarity = CardRarity.Common, bool isBloodMoon = false)
     {
         if (_draftUIController == null)
         {
@@ -330,7 +362,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
             return;
         }
 
-        List<UpgradeCardData> choices = GetWeightedCardChoices(3, minimumRarity);
+        List<UpgradeCardData> choices = GetWeightedCardChoices(3, minimumRarity, isBloodMoon);
         if (choices.Count == 0)
         {
             GameLog.LogWarning("[CardManager] No cards available to draft.");
@@ -346,7 +378,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
     /// - count: số thẻ cần chọn (thường là 3).
     /// - minimumRarity: nếu khác Common, slot đầu tiên sẽ được bảo đảm ≥ rarity này.
     /// </summary>
-    private List<UpgradeCardData> GetWeightedCardChoices(int count, CardRarity minimumRarity)
+    private List<UpgradeCardData> GetWeightedCardChoices(int count, CardRarity minimumRarity, bool isBloodMoon = false)
     {
         // Xây pool loại bỏ Unlock đã có
         List<UpgradeCardData> pool = new List<UpgradeCardData>();
@@ -374,7 +406,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 
             // Tính tổng trọng số
             int totalWeight = 0;
-            foreach (var c in currentPool) totalWeight += c.RarityWeight;
+            foreach (var c in currentPool) totalWeight += GetDynamicRarityWeight(c, isBloodMoon);
 
             // Quay số ngẫu nhiên
             int roll = UnityEngine.Random.Range(0, totalWeight);
@@ -383,7 +415,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 
             foreach (var c in currentPool)
             {
-                cumulative += c.RarityWeight;
+                cumulative += GetDynamicRarityWeight(c, isBloodMoon);
                 if (roll < cumulative)
                 {
                     picked = c;
@@ -398,6 +430,20 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         return choices;
     }
 
+    private int GetDynamicRarityWeight(UpgradeCardData card, bool isBloodMoon)
+    {
+        if (!isBloodMoon) return card.RarityWeight;
+
+        return card.rarity switch
+        {
+            CardRarity.Common    => 20,  // Giảm cơ hội ra thẻ Common
+            CardRarity.Rare      => 80,  // Tăng gấp đôi cơ hội Rare
+            CardRarity.Epic      => 50,  // Tăng gấp ba cơ hội Epic
+            CardRarity.Legendary => 25,  // Tăng gấp sáu cơ hội Legendary
+            _                    => 20
+        };
+    }
+
     /// <summary>
     /// Apply the card chosen by the player and resume the game.
     /// </summary>
@@ -410,6 +456,20 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
 
         Time.timeScale = 1f; // Resume the game
         OnCardStateChanged?.Invoke();
+
+        // Nếu có thẻ nâng cấp sống sót đêm đang chờ, kích hoạt nó ngay sau khi đóng sắc lệnh sáng
+        if (card.cardType == UpgradeCardType.Decree && _pendingSurvivalDraft)
+        {
+            _pendingSurvivalDraft = false;
+            StartCoroutine(TriggerCardDraftDelayedRoutine());
+        }
+    }
+
+    private System.Collections.IEnumerator TriggerCardDraftDelayedRoutine()
+    {
+        yield return new WaitForSecondsRealtime(0.15f);
+        TriggerCardDraft(CardRarity.Common, _isPendingSurvivalBloodMoon);
+        _isPendingSurvivalBloodMoon = false;
     }
 
     private void ApplyCardEffects(UpgradeCardData card, bool triggerFloatingText)
@@ -498,8 +558,16 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         }
         else if (card.cardType == UpgradeCardType.Decree)
         {
-            _activeDecreeCard = card;
-            GameLog.Log($"[CardManager] Active Decree: {card.cardName}");
+            if (card.cardId.StartsWith("night_decree"))
+            {
+                _activeNightDecreeCard = card;
+                GameLog.Log($"[CardManager] Active Night Decree: {card.cardName}");
+            }
+            else
+            {
+                _activeDecreeCard = card;
+                GameLog.Log($"[CardManager] Active Decree: {card.cardName}");
+            }
             RecalculateAllUnitStats();
         }
         else if (card.cardType == UpgradeCardType.Instant)
@@ -804,5 +872,111 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         _activeDecreeCard = decree;
 
         RecalculateAllUnitStats();
+    }
+
+    private void InitializeDefaultNightDecrees()
+    {
+        CreateNightDecreeIfNotExists("night_decree_defense", "Phòng Thủ Nửa Đêm",
+            "Sức mạnh công trình +25%, sát thương của lính +25%, nhưng dân làng di chuyển chậm hơn 25% vào ban đêm.",
+            1.25f, 1.25f, 1f, 0.75f, 1.25f);
+            
+        CreateNightDecreeIfNotExists("night_decree_scavenger", "Khai Thác Ban Đêm",
+            "Tốc độ farm tài nguyên của dân làng +40% vào ban đêm, nhưng máu tối đa của lính giảm 15%.",
+            1f, 1f, 0.85f, 1f, 1f, 1.4f);
+
+        CreateNightDecreeIfNotExists("night_decree_frenzy", "Huyết Thệ Đêm",
+            "Sát thương và tốc độ của lính +25%, nhưng máu tối đa của công trình giảm 15%.",
+            1f, 1.25f, 1f, 1.25f, 0.85f);
+    }
+
+    private void CreateNightDecreeIfNotExists(string id, string name, string desc, float hpMult, float dmgMult, float unitSpeedMult, float villagerSpeedMult, float bldgHpMult, float gatherMult = 1f)
+    {
+        foreach (var c in _allCards)
+        {
+            if (c != null && c.cardId == id) return;
+        }
+
+        UpgradeCardData newCard = ScriptableObject.CreateInstance<UpgradeCardData>();
+        newCard.cardId = id;
+        newCard.cardName = name;
+        newCard.description = desc;
+        newCard.cardType = UpgradeCardType.Decree;
+        newCard.rarity = CardRarity.Rare;
+        
+        newCard.unitHealthMultiplier = hpMult;
+        newCard.unitDamageMultiplier = dmgMult;
+        newCard.unitSpeedMultiplier = unitSpeedMult;
+        newCard.villagerSpeedMultiplier = villagerSpeedMult;
+        newCard.buildingMaxHealthMultiplier = bldgHpMult;
+        newCard.woodGatherMultiplier = gatherMult;
+        newCard.stoneGatherMultiplier = gatherMult;
+        newCard.goldGatherMultiplier = gatherMult;
+        newCard.foodGatherMultiplier = gatherMult;
+
+        _allCards.Add(newCard);
+    }
+
+    private void HandleDayNightChanged(bool isNight)
+    {
+        if (isNight)
+        {
+            TriggerNightDecreeDraft();
+        }
+        else
+        {
+            _activeNightDecreeCard = null;
+            RecalculateAllUnitStats();
+        }
+    }
+
+    public void TriggerNightDecreeDraft()
+    {
+        if (_draftUIController == null)
+        {
+            _draftUIController = FindAnyObjectByType<CardDraftUIController>(FindObjectsInactive.Include);
+        }
+
+        if (_draftUIController == null)
+        {
+            GameLog.LogError("[CardManager] Cannot trigger night decree draft: CardDraftUIController is missing!");
+            return;
+        }
+
+        List<UpgradeCardData> nightDecreeChoices = new List<UpgradeCardData>();
+        foreach (var card in _allCards)
+        {
+            if (card != null && card.cardType == UpgradeCardType.Decree && card.cardId.StartsWith("night_decree"))
+            {
+                nightDecreeChoices.Add(card);
+            }
+        }
+
+        if (nightDecreeChoices.Count == 0)
+        {
+            GameLog.LogWarning("[CardManager] No night decree cards available in database. Initializing defaults...");
+            InitializeDefaultNightDecrees();
+            foreach (var card in _allCards)
+            {
+                if (card != null && card.cardType == UpgradeCardType.Decree && card.cardId.StartsWith("night_decree"))
+                {
+                    nightDecreeChoices.Add(card);
+                }
+            }
+        }
+
+        List<UpgradeCardData> choices = new List<UpgradeCardData>();
+        List<UpgradeCardData> remaining = new List<UpgradeCardData>(nightDecreeChoices);
+        for (int i = 0; i < 3 && remaining.Count > 0; i++)
+        {
+            int idx = UnityEngine.Random.Range(0, remaining.Count);
+            choices.Add(remaining[idx]);
+            remaining.RemoveAt(idx);
+        }
+
+        if (choices.Count > 0)
+        {
+            Time.timeScale = 0f; // Pause game
+            _draftUIController.OpenMenu(choices);
+        }
     }
 }

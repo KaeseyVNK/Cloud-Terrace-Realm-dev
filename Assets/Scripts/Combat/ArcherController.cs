@@ -17,6 +17,7 @@ public class ArcherController : RangedCombatUnitController, IPoolable
     protected override void Start()
     {
         returnToPoolOnDeath = true;
+        faction = UnitFaction.Player;
         base.Start();
     }
 
@@ -40,14 +41,17 @@ public class ArcherController : RangedCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 15f, NavMesh.AllAreas))
             {
                 navAgent.Warp(hit.position);
             }
 
-            navAgent.isStopped = false;
-            navAgent.stoppingDistance = 0.2f;
-            navAgent.ResetPath();
+            if (navAgent.isOnNavMesh)
+            {
+                navAgent.isStopped = false;
+                navAgent.stoppingDistance = 0.2f;
+                navAgent.ResetPath();
+            }
         }
 
         animator = GetComponentInChildren<Animator>();
@@ -69,8 +73,8 @@ public class ArcherController : RangedCombatUnitController, IPoolable
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
-            rb.isKinematic = false;
-            rb.useGravity = true;
+            rb.isKinematic = true;
+            rb.useGravity = false;
         }
 
         SelectableUnit selectable = GetComponent<SelectableUnit>();

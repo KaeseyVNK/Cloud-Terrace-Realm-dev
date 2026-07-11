@@ -17,13 +17,13 @@ MonoBehaviour:
     damage.
   unitPrefab: {fileID: 8583302773672984860, guid: ff58c2b3c227e1840b8ddec54542b959, type: 3}
   portraitIcon: {fileID: 20535701, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
-  productionTime: 5
+  productionTime: 14
   productionCosts:
   - resourceType: 2
-    amount: 30
+    amount: 50
   - resourceType: 0
-    amount: 10
+    amount: 25
   - resourceType: 4
-    amount: 20
+    amount: 45
   requiredTechnologies:
   - {fileID: 11400000, guid: 046ff2c8df4662a44938502fa37c9ef0, type: 2}

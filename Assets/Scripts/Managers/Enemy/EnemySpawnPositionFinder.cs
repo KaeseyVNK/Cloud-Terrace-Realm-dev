@@ -28,7 +28,7 @@ public class EnemySpawnPositionFinder
             spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos);
         }
 
-        if (NavMesh.SamplePosition(spawnPos, out NavMeshHit hit, safeRadius * 2f, ~2))
+        if (NavMesh.SamplePosition(spawnPos, out NavMeshHit hit, safeRadius * 2f, NavMesh.AllAreas))
         {
             spawnPos = hit.position;
         }
@@ -86,13 +86,24 @@ public class EnemySpawnPositionFinder
         float bestScore = float.NegativeInfinity;
         int safeCandidateCount = Mathf.Max(4, candidateCount);
 
-        for (int i = 0; i < safeCandidateCount; i++)
+        int validCandidatesFound = 0;
+        int attempts = 0;
+        const int MaxAttempts = 40;
+
+        while (validCandidatesFound < safeCandidateCount && attempts < MaxAttempts)
         {
+            attempts++;
             GetRandomPointAroundCenter(centerPos, minDist, maxDist, width, length, out int edgeX, out int edgeZ);
-
             Vector3 candidatePos = _gridSystem.GetWorldPosition(edgeX, edgeZ);
-            int edgeChoice = GetEdgeChoiceFromDirection(centerPos, candidatePos);
 
+            // Kiểm tra điểm này có thể tiếp cận được căn cứ không
+            if (!IsSpawnPositionReachable(candidatePos, centerPos))
+            {
+                continue;
+            }
+
+            validCandidatesFound++;
+            int edgeChoice = GetEdgeChoiceFromDirection(centerPos, candidatePos);
             float score = GetSpawnCandidateScore(candidatePos, edgeChoice, minSpawnDistanceFromCamera, avoidRepeatingSpawnEdge);
             if (score > bestScore)
             {
@@ -100,6 +111,26 @@ public class EnemySpawnPositionFinder
                 bestEdgeChoice = edgeChoice;
                 bestEdgeX = edgeX;
                 bestEdgeZ = edgeZ;
+            }
+        }
+
+        // Fallback phòng hờ: Nếu không tìm thấy điểm tiếp cận hợp lệ nào sau nhiều lần thử,
+        // thì lấy điểm ngẫu nhiên như cũ để tránh lỗi đơ hệ thống spawn.
+        if (bestScore == float.NegativeInfinity)
+        {
+            for (int i = 0; i < safeCandidateCount; i++)
+            {
+                GetRandomPointAroundCenter(centerPos, minDist, maxDist, width, length, out int edgeX, out int edgeZ);
+                Vector3 candidatePos = _gridSystem.GetWorldPosition(edgeX, edgeZ);
+                int edgeChoice = GetEdgeChoiceFromDirection(centerPos, candidatePos);
+                float score = GetSpawnCandidateScore(candidatePos, edgeChoice, minSpawnDistanceFromCamera, avoidRepeatingSpawnEdge);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestEdgeChoice = edgeChoice;
+                    bestEdgeX = edgeX;
+                    bestEdgeZ = edgeZ;
+                }
             }
         }
 
@@ -193,5 +224,60 @@ public class EnemySpawnPositionFinder
             default:
                 return "East";
         }
+    }
+
+    /// <summary>
+    /// Kiểm tra xem điểm spawn ngẫu nhiên có kết nối NavMesh tới căn cứ người chơi hay không.
+    /// Cho phép PathPartial nếu điểm nghẽn là do công trình người chơi (như tường rào, cửa cổng).
+    /// </summary>
+    private bool IsSpawnPositionReachable(Vector3 spawnPos, Vector3 centerPos)
+    {
+        // 1. Tìm vị trí hợp lệ gần nhất trên NavMesh cho điểm Spawn
+        if (!NavMesh.SamplePosition(spawnPos, out NavMeshHit spawnHit, 15f, NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        // 2. Tìm vị trí hợp lệ gần nhất trên NavMesh cho nhà chính (centerPos)
+        if (!NavMesh.SamplePosition(centerPos, out NavMeshHit centerHit, 15f, NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        // 3. Tính toán đường đi NavMesh giữa 2 điểm
+        NavMeshPath path = new NavMeshPath();
+        if (NavMesh.CalculatePath(spawnHit.position, centerHit.position, NavMesh.AllAreas, path))
+        {
+            // Nếu đường đi hoàn chỉnh -> Có thể tiếp cận
+            if (path.status == NavMeshPathStatus.PathComplete)
+            {
+                return true;
+            }
+
+            // Nếu đường đi bị bán phần (PathPartial), kiểm tra xem có phải do người chơi chặn tường không
+            if (path.status == NavMeshPathStatus.PathPartial && path.corners.Length > 0)
+            {
+                Vector3 lastCorner = path.corners[path.corners.Length - 1];
+                
+                // Quét tìm xem điểm kẹt cuối cùng có ở gần công trình của người chơi hay không
+                Collider[] colliders = Physics.OverlapSphere(lastCorner, 8f);
+                foreach (var col in colliders)
+                {
+                    if (col != null)
+                    {
+                        if (col.GetComponentInParent<ConstructibleBuilding>() != null ||
+                            col.GetComponentInParent<BuildingCombatTarget>() != null ||
+                            col.GetComponentInParent<MainBuildingCombatTarget>() != null ||
+                            col.GetComponentInParent<WatchTowerGarrison>() != null)
+                        {
+                            // Có công trình người chơi chặn đường -> Điểm này vẫn hợp lệ (quái sẽ đến phá tường)
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

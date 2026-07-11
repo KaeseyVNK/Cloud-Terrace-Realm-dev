@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9f285bc6e96e9c408e96e1d72f863f3, type: 3}
+  m_Name: NightFrenzy
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardData
+  cardId: night_decree_frenzy
+  cardName: "Huy\u1EBFt Th\u1EC7 \u0110\xEAm"
+  description: "S\xE1t th\u01B0\u01A1ng v\xE0 t\u1ED1c \u0111\u1ED9 c\u1EE7a l\xEDnh
+    +25%, nh\u01B0ng m\xE1u t\u1ED1i \u0111a c\u1EE7a c\xF4ng tr\xECnh gi\u1EA3m
+    15%."
+  icon: {fileID: 2027208650, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
+  cardType: 3
+  rarity: 1
+  unitHealthMultiplier: 1
+  unitDamageMultiplier: 1.25
+  unitSpeedMultiplier: 1.25
+  villagerSpeedMultiplier: 1
+  villagerCarryCapacityBonus: 0
+  woodGatherMultiplier: 1
+  stoneGatherMultiplier: 1
+  goldGatherMultiplier: 1
+  foodGatherMultiplier: 1
+  buildingToUnlock: {fileID: 0}
+  unitToUnlock: {fileID: 0}
+  instantResourceType: 0
+  instantResourceAmount: 0
+  instantWoodAmount: 0
+  instantStoneAmount: 0
+  instantFoodAmount: 0
+  instantMilitiaCount: 0
+  healMainBuilding: 0
+  healMainBuildingPercent: 0
+  buildingMaxHealthMultiplier: 0.85
+  populationCapBonus: 0

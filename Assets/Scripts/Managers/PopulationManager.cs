@@ -16,8 +16,20 @@ public static class PopulationManager
         }
         _lastRefreshTime = Time.time;
 
-        // 1. Quét dân làng từ danh sách SpawnedVillagers tĩnh
-        _cachedCurrentVillagers = VillagerController.SpawnedVillagers.Count;
+        // 1. Quét dân làng từ danh sách SpawnedVillagers tĩnh và binh lính từ BaseCombatUnitController.Registry
+        int currentPop = VillagerController.SpawnedVillagers.Count;
+        for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
+        {
+            BaseCombatUnitController unit = BaseCombatUnitController.Registry[i];
+            if (unit != null && unit.faction == UnitFaction.Player &&
+                unit.GetComponent<BuildingCombatTarget>() == null &&
+                unit.GetComponent<MainBuildingCombatTarget>() == null &&
+                unit.GetComponent<ConstructibleBuilding>() == null)
+            {
+                currentPop++;
+            }
+        }
+        _cachedCurrentVillagers = currentPop;
 
         // 2. Quét sức chứa nhà dân từ Registry tĩnh của HouseShelter
         int capacity = 0;
@@ -26,7 +38,32 @@ public static class PopulationManager
             HouseShelter shelter = HouseShelter.Registry[i];
             if (shelter != null && shelter.gameObject.activeInHierarchy && shelter.IsOperational())
             {
-                capacity += Mathf.Max(0, shelter.Capacity);
+                bool isHouse = true;
+                if (BuildingManager.Instance != null && BuildingManager.Instance.BuildingDataMap.TryGetValue(shelter.gameObject, out BuildingData data))
+                {
+                    // Chỉ tính sức chứa nếu là nhà dân (Residential) hoặc nhà chính (Main Building)
+                    isHouse = (data.category == BuildingCategory.Residential || 
+                               data.buildingName.ToLower().Contains("main") || 
+                               data.buildingName.ToLower().Contains("townhall"));
+                }
+                else
+                {
+                    // Dự phòng dựa trên tên đối tượng nếu không tìm thấy trong map dữ liệu
+                    string nameLower = shelter.gameObject.name.ToLower();
+                    if (nameLower.Contains("storage") || nameLower.Contains("kho") || nameLower.Contains("ruin") || nameLower.Contains("market") || nameLower.Contains("tower"))
+                    {
+                        // Vẫn cho phép nếu tên chứa "main" (nhà chính)
+                        if (!nameLower.Contains("main"))
+                        {
+                            isHouse = false;
+                        }
+                    }
+                }
+
+                if (isHouse)
+                {
+                    capacity += Mathf.Max(0, shelter.Capacity);
+                }
             }
         }
         _cachedMaxVillagers = capacity;
@@ -81,7 +118,9 @@ public static class PopulationManager
         }
 
         return unit.unitPrefab.GetComponent<VillagerController>() != null ||
-               unit.unitPrefab.GetComponentInChildren<VillagerController>(true) != null;
+               unit.unitPrefab.GetComponentInChildren<VillagerController>(true) != null ||
+               unit.unitPrefab.GetComponent<BaseCombatUnitController>() != null ||
+               unit.unitPrefab.GetComponentInChildren<BaseCombatUnitController>(true) != null;
     }
 
     public static bool CanQueueVillager(out string reason)

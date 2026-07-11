@@ -123,19 +123,20 @@ public class AncientRuins : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
                         spawnPos.y = transform.position.y;
                     }
 
-                    GameObject guardObj = Instantiate(config.guardPrefab, spawnPos, Quaternion.identity);
+                    GameObject guardObj = PoolManager.Instance.Spawn(config.guardPrefab, spawnPos, Quaternion.identity);
                     guardObj.transform.SetParent(guardsContainer.transform); // Gom vào parent object
                     
                     BaseCombatUnitController guardUnit = guardObj.GetComponent<BaseCombatUnitController>();
                     
                     if (guardUnit != null)
                     {
-                        guardUnit.faction = UnitFaction.Enemy;
                         if (guardUnit is EnemyUnitController enemyUnit)
                         {
+                            enemyUnit.OnSpawnedFromPool();
                             enemyUnit.CanRetreat = false;
                             enemyUnit.IsGuard = true;
                         }
+                        guardUnit.faction = UnitFaction.Enemy;
 
                         // Áp dụng hệ số tăng sức mạnh lính canh theo tiến trình game
                         if (EnemyManager.Instance != null)

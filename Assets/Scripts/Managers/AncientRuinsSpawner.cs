@@ -235,6 +235,11 @@ public class AncientRuinsSpawner : MonoBehaviour
         int mapLength = _gridSystem.GetLength();
         int centerX = mapWidth / 2;
         int centerZ = mapLength / 2;
+        if (_gridSystem.StartingSafeZoneCenter.x >= 0 && _gridSystem.StartingSafeZoneCenter.y >= 0)
+        {
+            centerX = _gridSystem.StartingSafeZoneCenter.x;
+            centerZ = _gridSystem.StartingSafeZoneCenter.y;
+        }
 
         int maxAttempts = 200;
 

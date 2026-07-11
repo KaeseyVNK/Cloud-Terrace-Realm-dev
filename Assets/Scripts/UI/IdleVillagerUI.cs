@@ -16,11 +16,28 @@ public class IdleVillagerUI : MonoBehaviour
     private Texture2D _hudButtonHoverTex;
     private bool _stylesInitialized = false;
 
+    private static IdleVillagerUI _instance;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Initialize()
     {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
+        {
+            if (scene.name != "MainMenuScene" && scene.name != "LoadingScene")
+            {
+                EnsureInstance();
+            }
+        };
+        EnsureInstance();
+    }
+
+    private static void EnsureInstance()
+    {
+        if (_instance != null) return;
+        if (FindAnyObjectByType<IdleVillagerUI>() != null) return;
+
         GameObject go = new GameObject("IdleVillagerUI");
-        go.AddComponent<IdleVillagerUI>();
+        _instance = go.AddComponent<IdleVillagerUI>();
         DontDestroyOnLoad(go);
         GameLog.Log("[IdleVillagerUI] Đã tự động khởi chạy Hệ thống chỉ báo Dân Rảnh Rỗi.");
     }

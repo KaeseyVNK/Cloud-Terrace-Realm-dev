@@ -69,6 +69,9 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     private bool _isRetreating = false;
     private float _retreatTimer = 0f;
     private float _enemyMovingStuckTimer = 0f;
+    private float _sunburnTimer = 0f;
+    private float _lastDayNightState = -1f;
+    private float _appliedDamageMultiplier = 1f;
 
     [Header("Behavior Settings")]
     [Tooltip("Cho phép quái bỏ chạy về nơi xuất phát khi gần hết máu")]
@@ -127,8 +130,11 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         base.Start();
     }
 
-    public void OnSpawnedFromPool()
+    public virtual void OnSpawnedFromPool()
     {
+        _sunburnTimer = 0f;
+        _lastDayNightState = -1f;
+        _appliedDamageMultiplier = 1f;
         RestoreBaseStats();
         returnToPoolOnDeath = true;
         faction = UnitFaction.Enemy;
@@ -177,14 +183,17 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 navAgent.enabled = true;
             }
 
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, ~2))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 15f, NavMesh.AllAreas))
             {
                 navAgent.Warp(hit.position);
             }
 
-            navAgent.isStopped = false;
-            navAgent.stoppingDistance = 0.2f;
-            navAgent.ResetPath();
+            if (navAgent.isOnNavMesh)
+            {
+                navAgent.isStopped = false;
+                navAgent.stoppingDistance = 0.2f;
+                navAgent.ResetPath();
+            }
             // Ngẫu nhiên hóa avoidancePriority để chúng tự động tránh nhau tốt hơn, không đi hàng một
             navAgent.avoidancePriority = Random.Range(30, 71);
         }
@@ -208,14 +217,14 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
-            rb.isKinematic = false;
-            rb.useGravity = true;
+            rb.isKinematic = true;
+            rb.useGravity = false;
         }
 
         ChangeState(CombatState.Idle);
     }
 
-    public void OnReturnedToPool()
+    public virtual void OnReturnedToPool()
     {
         currentTarget = null;
         isStunned = false;
@@ -226,6 +235,9 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         _isRetreating = false;
         _enemyMovingStuckTimer = 0f;
         _appliedSpeedMultiplier = 1f;
+        _sunburnTimer = 0f;
+        _lastDayNightState = -1f;
+        _appliedDamageMultiplier = 1f;
         ClearScanCache();
     }
 
@@ -233,6 +245,30 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
     {
         base.ApplyStatMultipliers(healthMult, damageMult, speedMult);
         _appliedSpeedMultiplier = speedMult;
+        _appliedDamageMultiplier = damageMult;
+
+        // Cập nhật chỉ số theo ngày/đêm ban đầu
+        bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
+        UpdateDayNightStats(isNight);
+    }
+
+    private void UpdateDayNightStats(bool isNight)
+    {
+        if (baseAttackDamage < 0)
+        {
+            baseAttackDamage = attackDamage;
+        }
+
+        if (isNight)
+        {
+            // Ban đêm: Giữ nguyên sát thương theo hệ số nhân độ khó
+            attackDamage = Mathf.RoundToInt(baseAttackDamage * _appliedDamageMultiplier);
+        }
+        else
+        {
+            // Ban ngày: Giảm 35% sát thương
+            attackDamage = Mathf.RoundToInt(baseAttackDamage * _appliedDamageMultiplier * 0.65f);
+        }
     }
 
     public void SetRallyPoint(Vector3 position)
@@ -242,18 +278,25 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         float distOffset = Random.Range(1.0f, 3.5f);
         Vector3 offsetPos = position + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distOffset;
 
-        if (NavMesh.SamplePosition(offsetPos, out NavMeshHit hit, 5f, ~2))
+        if (NavMesh.SamplePosition(offsetPos, out NavMeshHit hit, 5f, NavMesh.AllAreas))
         {
             offsetPos = hit.position;
         }
 
         _rallyPosition = offsetPos;
         _isWaitingForRally = true;
-        if (navAgent != null && navAgent.enabled)
+        if (IsNavAgentReady())
         {
             navAgent.isStopped = false;
-            navAgent.SetDestination(_rallyPosition);
-            ChangeState(CombatState.Moving);
+            if (navAgent.SetDestination(_rallyPosition))
+            {
+                ChangeState(CombatState.Moving);
+            }
+            else
+            {
+                // Nếu SetDestination thất bại ngay lập tức, tắt trạng thái chờ rally để tránh kẹt
+                _isWaitingForRally = false;
+            }
         }
     }
 
@@ -290,6 +333,32 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
         UpdateNightSpeedBuff();
 
+        // Cập nhật chỉ số theo Ngày/Đêm (Giảm sát thương ban ngày)
+        bool isNight = TimeManager.Instance != null && TimeManager.Instance.IsNight;
+        float currentStateVal = isNight ? 1f : 0f;
+        if (currentStateVal != _lastDayNightState)
+        {
+            _lastDayNightState = currentStateVal;
+            UpdateDayNightStats(isNight);
+        }
+
+        // Sunburn ban ngày (mất máu thầm lặng dưới nắng mặt trời: 1 HP mỗi giây)
+        if (!isNight)
+        {
+            _sunburnTimer += Time.deltaTime;
+            if (_sunburnTimer >= 1f)
+            {
+                _sunburnTimer = 0f;
+                currentHealth -= 1;
+                if (currentHealth <= 0)
+                {
+                    currentHealth = 0;
+                    Die();
+                    return;
+                }
+            }
+        }
+
         if (isStunned) return;
 
         if (IsKnockupActive())
@@ -304,41 +373,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             return;
         }
 
-        // 1. Retreat Check
-        if (_canRetreat && currentHealth < maxHealth * 0.25f && !_isRetreating)
-        {
-            int playerUnitsCount = 0;
-            int alliedUnitsCount = 0;
-            int count = Physics.OverlapSphereNonAlloc(transform.position, 15f, s_overlapCache);
-            for (int i = 0; i < count; i++)
-            {
-                Collider col = s_overlapCache[i];
-                if (col == null) continue;
 
-                BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-                if (unit != null && unit.currentState != CombatState.Dead)
-                {
-                    if (unit.faction == this.faction)
-                        alliedUnitsCount++;
-                    else
-                        playerUnitsCount++;
-                }
-            }
-            System.Array.Clear(s_overlapCache, 0, count);
-            if (playerUnitsCount > alliedUnitsCount)
-            {
-                _isRetreating = true;
-                _retreatTimer = 5f;
-                ClearScanCache();
-                currentTarget = null;
-                if (navAgent != null && navAgent.enabled)
-                {
-                    navAgent.isStopped = false;
-                    navAgent.SetDestination(_spawnPosition);
-                    ChangeState(CombatState.Moving);
-                }
-            }
-        }
 
         if (_isRetreating)
         {
@@ -349,7 +384,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             }
             else
             {
-                if (navAgent != null && navAgent.enabled && navAgent.destination != _spawnPosition)
+                if (IsNavAgentReady() && navAgent.destination != _spawnPosition)
                 {
                     navAgent.isStopped = false;
                     navAgent.SetDestination(_spawnPosition);
@@ -381,13 +416,44 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         // 2. Nếu đang chờ tập hợp tại Rally Point
         if (_isWaitingForRally)
         {
-            if (navAgent != null && navAgent.enabled)
+            if (IsNavAgentReady())
             {
-                if (navAgent.destination != _rallyPosition)
+                if (Vector3.Distance(navAgent.destination, _rallyPosition) > 0.1f)
                 {
                     navAgent.isStopped = false;
-                    navAgent.SetDestination(_rallyPosition);
-                    ChangeState(CombatState.Moving);
+                    if (navAgent.SetDestination(_rallyPosition))
+                    {
+                        ChangeState(CombatState.Moving);
+                    }
+                    else
+                    {
+                        // Nếu không thể đi tới Rally Point, bỏ qua luôn để tránh bị lặp trạng thái vô hạn
+                        _isWaitingForRally = false;
+                    }
+                }
+            }
+            return;
+        }
+
+        // 2.2. Kiểm tra ban ngày (Wandering lảng vảng)
+        bool isDay = TimeManager.Instance != null && !TimeManager.Instance.IsNight;
+        if (isDay)
+        {
+            _repathTimer += Time.deltaTime;
+            if (_repathTimer >= Random.Range(5f, 10f))
+            {
+                _repathTimer = 0f;
+                if (IsNavAgentReady() && !navAgent.hasPath)
+                {
+                    Vector2 randCircle = Random.insideUnitCircle * 5f; // Bán kính lảng vảng 5 mét
+                    Vector3 dest = transform.position + new Vector3(randCircle.x, 0f, randCircle.y);
+                    if (UnityEngine.AI.NavMesh.SamplePosition(dest, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        navAgent.stoppingDistance = 0.2f;
+                        navAgent.isStopped = false;
+                        navAgent.SetDestination(hit.position);
+                        ChangeState(CombatState.Moving);
+                    }
                 }
             }
             return;
@@ -399,7 +465,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             float distToSpawn = Vector3.Distance(transform.position, _spawnPosition);
             if (distToSpawn > 2f)
             {
-                if (navAgent != null && navAgent.enabled && navAgent.destination != _spawnPosition)
+                if (IsNavAgentReady() && navAgent.destination != _spawnPosition)
                 {
                     navAgent.isStopped = false;
                     navAgent.stoppingDistance = 0.2f;
@@ -413,11 +479,11 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 if (_repathTimer >= Random.Range(4f, 8f))
                 {
                     _repathTimer = 0f;
-                    if (navAgent != null && navAgent.enabled && !navAgent.hasPath)
+                    if (IsNavAgentReady() && !navAgent.hasPath)
                     {
                         Vector2 randCircle = Random.insideUnitCircle * _guardPatrolRadius;
                         Vector3 dest = _spawnPosition + new Vector3(randCircle.x, 0f, randCircle.y);
-                        if (UnityEngine.AI.NavMesh.SamplePosition(dest, out UnityEngine.AI.NavMeshHit hit, 3f, ~2))
+                        if (UnityEngine.AI.NavMesh.SamplePosition(dest, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
                         {
                             navAgent.stoppingDistance = 0.2f;
                             navAgent.isStopped = false;
@@ -472,7 +538,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         if (_repathTimer >= REPATH_INTERVAL || !navAgent.hasPath)
         {
             _repathTimer = 0f;
-            if (navAgent != null && navAgent.enabled)
+            if (IsNavAgentReady())
             {
                 navAgent.isStopped = false;
                 
@@ -482,7 +548,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 float distOffset = Random.Range(1.0f, 3.5f);
                 destinationPos += new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distOffset;
 
-                if (UnityEngine.AI.NavMesh.SamplePosition(destinationPos, out UnityEngine.AI.NavMeshHit hit, 30f, ~2))
+                if (UnityEngine.AI.NavMesh.SamplePosition(destinationPos, out UnityEngine.AI.NavMeshHit hit, 30f, UnityEngine.AI.NavMesh.AllAreas))
                 {
                     destinationPos = hit.position;
                 }
@@ -546,7 +612,7 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         // Kiểm tra xem đã đến đích của hành quân chưa (nhà chính)
         if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
         {
-            if (!navAgent.hasPath || navAgent.velocity.sqrMagnitude == 0f)
+            if (!navAgent.hasPath || navAgent.velocity.sqrMagnitude < 0.25f)
             {
                 _enemyMovingStuckTimer = 0f;
                 ChangeState(CombatState.Idle);
@@ -693,39 +759,53 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
 
     private BaseCombatUnitController ScanForNearestEnemy(float searchRange)
     {
-        int count = Physics.OverlapSphereNonAlloc(transform.position, searchRange, s_overlapCache);
-        BaseCombatUnitController bestTarget = null;
-        int bestPriority = int.MaxValue; // Càng nhỏ càng ưu tiên (1: Lính, 2: Dân làng, 3: Công trình)
-        float minDistance = float.MaxValue;
-
-        for (int i = 0; i < count; i++)
+        using (s_combatScanMarker.Auto())
         {
-            Collider col = s_overlapCache[i];
-            if (col == null) continue;
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnitPerformanceMetrics.CombatScanCount++;
+            #endif
 
-            BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
-            if (unit != null && unit.currentState != CombatState.Dead && unit.faction == UnitFaction.Player)
+            int count = Physics.OverlapSphereNonAlloc(transform.position, searchRange, s_combatOverlapCache, _effectiveCombatTargetLayerMask, QueryTriggerInteraction.Collide);
+            
+            #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (count >= s_combatOverlapCache.Length)
             {
-                int priority = GetTargetPriority(unit);
-                float dist = GetDistanceToTarget(unit);
+                UnitPerformanceMetrics.BufferOverflowCount++;
+            }
+            #endif
 
-                // Độ ưu tiên cao hơn (priority nhỏ hơn) hoặc cùng ưu tiên nhưng khoảng cách gần hơn
-                if (priority < bestPriority)
+            BaseCombatUnitController bestTarget = null;
+            int bestPriority = int.MaxValue; // Càng nhỏ càng ưu tiên (1: Lính, 2: Dân làng, 3: Công trình)
+            float minDistance = float.MaxValue;
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider col = s_combatOverlapCache[i];
+                if (col == null) continue;
+
+                BaseCombatUnitController unit = col.GetComponentInParent<BaseCombatUnitController>();
+                if (unit != null && unit.currentState != CombatState.Dead && unit.faction == UnitFaction.Player)
                 {
-                    bestPriority = priority;
-                    minDistance = dist;
-                    bestTarget = unit;
-                }
-                else if (priority == bestPriority && dist < minDistance)
-                {
-                    minDistance = dist;
-                    bestTarget = unit;
+                    int priority = GetTargetPriority(unit);
+                    float dist = GetDistanceToTarget(unit);
+
+                    // Độ ưu tiên cao hơn (priority nhỏ hơn) hoặc cùng ưu tiên nhưng khoảng cách gần hơn
+                    if (priority < bestPriority)
+                    {
+                        bestPriority = priority;
+                        minDistance = dist;
+                        bestTarget = unit;
+                    }
+                    else if (priority == bestPriority && dist < minDistance)
+                    {
+                        minDistance = dist;
+                        bestTarget = unit;
+                    }
                 }
             }
-        }
 
-        System.Array.Clear(s_overlapCache, 0, count);
-        return bestTarget;
+            return bestTarget;
+        }
     }
 
     private bool TryRetargetToHigherPriorityEnemy()
