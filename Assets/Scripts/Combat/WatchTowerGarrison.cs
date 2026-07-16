@@ -81,7 +81,7 @@ public class WatchTowerGarrison : MonoBehaviour
         VillagerController villager = unit.GetComponent<VillagerController>();
         if (villager != null)
         {
-            villager.CommandMoveTo(destination);
+            villager.MoveToInternal(destination);
         }
         else
         {

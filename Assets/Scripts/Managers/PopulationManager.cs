@@ -31,41 +31,23 @@ public static class PopulationManager
         }
         _cachedCurrentVillagers = currentPop;
 
-        // 2. Quét sức chứa nhà dân từ Registry tĩnh của HouseShelter
+        // 2. Quét sức chứa từ HouseShelter (chỉ công trình có housingCapacity > 0 mới được gắn)
         int capacity = 0;
         for (int i = 0; i < HouseShelter.Registry.Count; i++)
         {
             HouseShelter shelter = HouseShelter.Registry[i];
             if (shelter != null && shelter.gameObject.activeInHierarchy && shelter.IsOperational())
             {
-                bool isHouse = true;
-                if (BuildingManager.Instance != null && BuildingManager.Instance.BuildingDataMap.TryGetValue(shelter.gameObject, out BuildingData data))
-                {
-                    // Chỉ tính sức chứa nếu là nhà dân (Residential) hoặc nhà chính (Main Building)
-                    isHouse = (data.category == BuildingCategory.Residential || 
-                               data.buildingName.ToLower().Contains("main") || 
-                               data.buildingName.ToLower().Contains("townhall"));
-                }
-                else
-                {
-                    // Dự phòng dựa trên tên đối tượng nếu không tìm thấy trong map dữ liệu
-                    string nameLower = shelter.gameObject.name.ToLower();
-                    if (nameLower.Contains("storage") || nameLower.Contains("kho") || nameLower.Contains("ruin") || nameLower.Contains("market") || nameLower.Contains("tower"))
-                    {
-                        // Vẫn cho phép nếu tên chứa "main" (nhà chính)
-                        if (!nameLower.Contains("main"))
-                        {
-                            isHouse = false;
-                        }
-                    }
-                }
-
-                if (isHouse)
-                {
-                    capacity += Mathf.Max(0, shelter.Capacity);
-                }
+                capacity += Mathf.Max(0, shelter.Capacity);
             }
         }
+
+        // Card bonus (nếu có) cộng thêm vào cap
+        if (CardManager.Instance != null)
+        {
+            capacity += Mathf.Max(0, CardManager.Instance.PopulationCapBonus);
+        }
+
         _cachedMaxVillagers = capacity;
 
         // 3. Quét hàng chờ sản xuất lính từ Registry tĩnh của BuildingProduction
@@ -109,6 +91,14 @@ public static class PopulationManager
     }
 
     public static int UsedVillagerSlots => CurrentVillagers + ReservedVillagers;
+
+    /// <summary>
+    /// Buộc tính lại pop cap / reserved ở lần đọc tiếp theo (ví dụ khi nhà mới hoàn thành).
+    /// </summary>
+    public static void InvalidateCache()
+    {
+        _lastRefreshTime = -999f;
+    }
 
     public static bool IsVillagerUnit(UnitData unit)
     {

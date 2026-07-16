@@ -42,6 +42,10 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         public TextMeshProUGUI text;
         public Outline outline;
         public bool isUsed;
+        public Object owner;
+        public string lastText;
+        public Color lastBgColor;
+        public Color lastBorderColor;
 
         public void SetActive(bool active)
         {
@@ -130,6 +134,10 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     private readonly List<GameObject> _keysToRemove = new List<GameObject>();
     private readonly List<SelectableUnit> _unitsToRemove = new List<SelectableUnit>();
 
+    [SerializeField] private float _hungryScanInterval = 0.3f;
+    private readonly List<VillagerController> _hungryVillagersCache = new List<VillagerController>();
+    private float _nextHungryScanTime;
+
     // Cache trạng thái lựa chọn công trình để so sánh tham chiếu cực nhanh
     private BaseCombatUnitController _selectedMainBuildingCombat;
     private BaseCombatUnitController _selectedWatchTowerCombat;
@@ -157,14 +165,14 @@ public class WorldSpaceOverlayManager : MonoBehaviour
         if (_instance != null) return;
         if (FindAnyObjectByType<WorldSpaceOverlayManager>() != null)
         {
-            GameLog.Log("[WorldSpaceOverlayManager] Tìm thấy instance có sẵn trong Scene. Dùng cấu hình tùy biến của Designer.");
+            GameLog.LogVerbose("[WorldSpaceOverlayManager] Tìm thấy instance có sẵn trong Scene. Dùng cấu hình tùy biến của Designer.");
             return;
         }
 
         GameObject go = new GameObject("WorldSpaceOverlayManager");
         _instance = go.AddComponent<WorldSpaceOverlayManager>();
         DontDestroyOnLoad(go);
-        GameLog.Log("[WorldSpaceOverlayManager] Không thấy có sẵn trong Scene. Đã tự động tạo phiên bản mặc định.");
+        GameLog.LogVerbose("[WorldSpaceOverlayManager] Không thấy có sẵn trong Scene. Đã tự động tạo phiên bản mặc định.");
     }
 
 #if UNITY_EDITOR
@@ -271,6 +279,14 @@ public class WorldSpaceOverlayManager : MonoBehaviour
     private void LateUpdate()
     {
         if (_mainCamera == null || _canvasTransform == null) return;
+
+        if (PauseUIController.Instance != null && PauseUIController.Instance.IsPaused)
+        {
+            ResetPools();
+            DeactivateUnusedPoolElements();
+            if (_tooltipElement != null) _tooltipElement.SetActive(false);
+            return;
+        }
 
         ResetPools();
         CacheSelectionsIfNeeded();
@@ -821,7 +837,8 @@ public class WorldSpaceOverlayManager : MonoBehaviour
                 GetCachedHeight(shelter.gameObject, 3.5f) + 0.95f,
                 $"{occupants} / {shelter.Capacity}",
                 new Color(0.08f, 0.09f, 0.12f, 0.88f),
-                new Color(0.25f, 0.75f, 1.0f, 0.6f)
+                new Color(0.25f, 0.75f, 1.0f, 0.6f),
+                shelter
             );
         }
     }
@@ -843,58 +860,92 @@ public class WorldSpaceOverlayManager : MonoBehaviour
                 GetCachedHeight(tower.gameObject, 5.0f) + 0.95f,
                 $"{occupants} / {tower.Capacity}",
                 new Color(0.15f, 0.11f, 0.08f, 0.9f),
-                new Color(1.0f, 0.7f, 0.1f, 0.7f)
+                new Color(1.0f, 0.7f, 0.1f, 0.7f),
+                tower
             );
         }
     }
 
     private void DrawHungryVillagersBadgeUGUI()
     {
-        if (VillagerController.AllVillagers == null) return;
-
-        for (int i = 0; i < VillagerController.AllVillagers.Count; i++)
+        if (Time.unscaledTime >= _nextHungryScanTime)
         {
-            var villager = VillagerController.AllVillagers[i];
-            if (villager == null || !villager.gameObject.activeInHierarchy || villager.CurrentState == VillagerState.Sheltered)
+            _nextHungryScanTime = Time.unscaledTime + _hungryScanInterval;
+            _hungryVillagersCache.Clear();
+
+            if (VillagerController.AllVillagers != null)
+            {
+                for (int i = 0; i < VillagerController.AllVillagers.Count; i++)
+                {
+                    var villager = VillagerController.AllVillagers[i];
+                    if (villager == null || !villager.gameObject.activeInHierarchy || villager.CurrentState == VillagerState.Sheltered)
+                        continue;
+
+                    if (villager.IsHungry)
+                    {
+                        _hungryVillagersCache.Add(villager);
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < _hungryVillagersCache.Count; i++)
+        {
+            var villager = _hungryVillagersCache[i];
+            if (villager == null || !villager.gameObject.activeInHierarchy)
                 continue;
 
-            if (villager.IsHungry)
-            {
-                DrawBadgeUGUI(
-                    villager.transform.position,
-                    GetCachedHeight(villager.gameObject, 2.0f) + 0.65f,
-                    "🍽️ Hungry",
-                    new Color(0.15f, 0.05f, 0.05f, 0.9f),
-                    new Color(1.0f, 0.3f, 0.3f, 0.7f)
-                );
-            }
+            DrawBadgeUGUI(
+                villager.transform.position,
+                GetCachedHeight(villager.gameObject, 2.0f) + 0.65f,
+                "🍽️ Hungry",
+                new Color(0.15f, 0.05f, 0.05f, 0.9f),
+                new Color(1.0f, 0.3f, 0.3f, 0.7f),
+                villager
+            );
         }
     }
 
-    private void DrawBadgeUGUI(Vector3 position, float heightOffset, string text, Color bgColor, Color borderColor)
+    private const float MaxOverlayDrawDistanceSqr = 120f * 120f;
+
+    private void DrawBadgeUGUI(Vector3 position, float heightOffset, string text, Color bgColor, Color borderColor, Object owner)
     {
         Vector3 worldPos = position + Vector3.up * heightOffset;
+
+        if (_mainCamera != null)
+        {
+            float distSqr = (_mainCamera.transform.position - worldPos).sqrMagnitude;
+            if (distSqr > MaxOverlayDrawDistanceSqr)
+            {
+                return;
+            }
+        }
+
         Vector3 screenPos = _mainCamera.WorldToScreenPoint(worldPos);
 
         if (screenPos.z <= 0) return;
 
         var badge = GetBadgeFromPool();
         badge.rectTransform.anchoredPosition = new Vector2(screenPos.x, screenPos.y);
-        
-        if (badge.backgroundImage != null && _badgePrefab == null)
+
+        if (badge.backgroundImage != null && _badgePrefab == null && badge.lastBgColor != bgColor)
         {
             badge.backgroundImage.color = bgColor;
+            badge.lastBgColor = bgColor;
         }
 
-        if (badge.outline != null && _badgePrefab == null)
+        if (badge.outline != null && _badgePrefab == null && badge.lastBorderColor != borderColor)
         {
             badge.outline.effectColor = borderColor;
+            badge.lastBorderColor = borderColor;
         }
 
-        if (badge.text != null)
+        if (badge.text != null && (badge.owner != owner || badge.lastText != text))
         {
             badge.text.text = text;
+            badge.lastText = text;
         }
+        badge.owner = owner;
 
         if (_badgePrefab == null)
         {

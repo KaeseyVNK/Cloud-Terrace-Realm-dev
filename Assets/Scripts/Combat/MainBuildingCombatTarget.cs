@@ -34,6 +34,7 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
 
         HouseShelter.IsEmergencyShelterActive = true;
         GameLog.Log("[MainBuilding] Yêu cầu toàn bộ dân làng trú ẩn khẩn cấp!");
+        HouseShelter.RefreshAutoEjectAll();
     }
 
     /// <summary>
@@ -45,8 +46,9 @@ public class MainBuildingCombatTarget : BaseCombatUnitController
 
         HouseShelter.IsEmergencyShelterActive = false;
         GameLog.Log("[MainBuilding] Yêu cầu toàn bộ dân làng ra ngoài khẩn cấp!");
+        HouseShelter.RefreshAutoEjectAll();
 
-        // Set cờ override cho tất cả dân làng để họ không chạy ngay vào nhà nếu trời đang mưa/đêm
+        // Set cờ override cho tất cả dân làng để họ không chạy ngay vào nhà nếu ban đêm + toggle trú ẩn đang bật
         var villagers = VillagerController.AllVillagers;
         for (int i = 0; i < villagers.Count; i++)
         {

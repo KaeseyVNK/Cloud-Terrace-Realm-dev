@@ -14,16 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   buildingName: Warehouse
   description: Increases overall resource storage limit by 1000 units.
-  category: 0
+  category: 2
   icon: {fileID: 487509259, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 3515425848924217150, guid: 63ffdc0151d16b34987314903f0f73a2, type: 3}
   buildingSize: {x: 3, y: 3}
+  placementMode: 0
   buildCosts:
   - resourceType: 0
     amount: 100
   maxHealth: 200
   maxWorkers: 0
   buildTime: 15
+  housingCapacity: 0
   isInstantBuild: 0
   isStorage: 1
   acceptedResources: 00000000010000000200000004000000

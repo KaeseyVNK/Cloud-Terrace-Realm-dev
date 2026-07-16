@@ -119,7 +119,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             _currentProgress = 1f;
         }
 
-        GameLog.Log($"[ConstructibleBuilding] Khởi tạo trên {gameObject.name}. Số lượng đối tượng con gốc: {transform.childCount}");
+        GameLog.LogVerbose($"[ConstructibleBuilding] Khởi tạo trên {gameObject.name}. Số lượng đối tượng con gốc: {transform.childCount}");
 
         // 1. Kiểm tra và trích xuất Mesh ở ROOT (nếu có) sang đối tượng con phụ
         // Điều này cực kỳ quan trọng cho các Prefab phẳng có MeshFilter và MeshRenderer nằm ngay trên Parent thay vì ở các con.
@@ -127,7 +127,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
         MeshRenderer rootMeshRenderer = GetComponent<MeshRenderer>();
         if (rootMeshFilter != null && rootMeshRenderer != null)
         {
-            GameLog.Log($"   -> Phát hiện Mesh trực tiếp trên ROOT của {gameObject.name}. Đang trích xuất xuống con...");
+            GameLog.LogVerbose($"   -> Phát hiện Mesh trực tiếp trên ROOT của {gameObject.name}. Đang trích xuất xuống con...");
             
             GameObject rootVisualCopy = new GameObject("_RootVisualCopy");
             rootVisualCopy.transform.SetParent(transform);
@@ -147,7 +147,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             Destroy(rootMeshRenderer);
             Destroy(rootMeshFilter);
 
-            GameLog.Log("   -> Đã trích xuất xong Mesh từ ROOT xuống con.");
+            GameLog.LogVerbose("   -> Đã trích xuất xong Mesh từ ROOT xuống con.");
         }
 
         // 2. Thu thập danh sách con nguyên bản TRƯỚC KHI tạo bất kỳ con mới nào
@@ -164,7 +164,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             }
 
             childrenToMove.Add(child);
-            GameLog.Log($"   -> Đã thu thập đối tượng con: {child.name} (Static đã tắt)");
+            GameLog.LogVerbose($"   -> Đã thu thập đối tượng con: {child.name} (Static đã tắt)");
         }
 
         // 3. Tính toán chiều cao thực tế của công trình dựa vào Bounding Box của toàn bộ Mesh Renderer
@@ -188,7 +188,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
         float tipOffset = 0.6f;
         // Độ lún = Chiều cao nhà trừ đi chiều cao chóp (đảm bảo không lún ngược lên trên nếu nhà quá thấp)
         _initialSunkHeight = -Mathf.Max(0.5f, boundsHeight - tipOffset);
-        GameLog.Log($"[ConstructibleBuilding] Chiều cao ngôi nhà: {boundsHeight}m. Lún xuống: {_initialSunkHeight}m để chừa lại chóp nhô lên: {tipOffset}m");
+        GameLog.LogVerbose($"[ConstructibleBuilding] Chiều cao ngôi nhà: {boundsHeight}m. Lún xuống: {_initialSunkHeight}m để chừa lại chóp nhô lên: {tipOffset}m");
 
         // 4. Tạo một Visual Container động bằng code để gom toàn bộ mesh và vật thể con
         GameObject containerObj = new GameObject("_VisualContainer");
@@ -211,12 +211,12 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             if (_isInstantBuild)
             {
                 _navObstacle.enabled = true;
-                GameLog.Log($"   -> Giữ nguyên NavMeshObstacle bật cho công trình xây ngay trên {gameObject.name}");
+                GameLog.LogVerbose($"   -> Giữ nguyên NavMeshObstacle bật cho công trình xây ngay trên {gameObject.name}");
             }
             else
             {
                 _navObstacle.enabled = false;
-                GameLog.Log($"   -> Đã tạm thời tắt NavMeshObstacle trên {gameObject.name}");
+                GameLog.LogVerbose($"   -> Đã tạm thời tắt NavMeshObstacle trên {gameObject.name}");
             }
         }
 
@@ -228,7 +228,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
         else
         {
             _visualContainer.localPosition = new Vector3(0f, _initialSunkHeight, 0f);
-            GameLog.Log($"   -> Đã lún _VisualContainer xuống Y = {_initialSunkHeight}. Vị trí cục bộ mới: {_visualContainer.localPosition}");
+            GameLog.LogVerbose($"   -> Đã lún _VisualContainer xuống Y = {_initialSunkHeight}. Vị trí cục bộ mới: {_visualContainer.localPosition}");
         }
     }
 
@@ -245,7 +245,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Building/mongsnhaf.prefab");
             if (_constructionFencePrefab != null)
             {
-                GameLog.Log($"[ConstructibleBuilding] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
+                GameLog.LogVerbose($"[ConstructibleBuilding] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
             }
             #endif
         }
@@ -317,7 +317,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             _constructionFenceInstance.transform.Rotate(-90, 0, 0);
             _constructionFenceInstance.transform.localScale = new Vector3(scaleX, scaleX, 17);
             
-            GameLog.Log($"[ConstructibleBuilding] Khởi tạo hàng rào xây dựng cho {gameObject.name}. ParentScale: {parentScaleX}, GridSize: {buildingGridSize}, CellSize: {cellSize}, TargetSize: {targetSizeX}x{targetSizeZ}, LocalFenceSize: {fenceSizeX:F2}x{fenceSizeZ:F2}, FinalLocalScale: {scaleX:F2}");
+            GameLog.LogVerbose($"[ConstructibleBuilding] Khởi tạo hàng rào xây dựng cho {gameObject.name}. ParentScale: {parentScaleX}, GridSize: {buildingGridSize}, CellSize: {cellSize}, TargetSize: {targetSizeX}x{targetSizeZ}, LocalFenceSize: {fenceSizeX:F2}x{fenceSizeZ:F2}, FinalLocalScale: {scaleX:F2}");
         }
         else
         {
@@ -356,7 +356,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
         {
             Destroy(_constructionFenceInstance);
             _constructionFenceInstance = null;
-            GameLog.Log($"[ConstructibleBuilding] Đã hủy hàng rào xây dựng của {gameObject.name}");
+            GameLog.LogVerbose($"[ConstructibleBuilding] Đã hủy hàng rào xây dựng của {gameObject.name}");
         }
 
         // Bật lại đục lưới NavMesh để các Unit khác đi vòng tránh công trình đã hoàn thành
@@ -371,7 +371,7 @@ public class ConstructibleBuilding : MonoBehaviour, CloudTerraceRealm.SaveSystem
             BuildingManager.Instance.OnBuildingCompleted(this);
         }
 
-        GameLog.Log($"[ConstructibleBuilding] '{gameObject.name}' đã hoàn tất xây dựng và đi vào hoạt động!");
+        GameLog.LogVerbose($"[ConstructibleBuilding] '{gameObject.name}' đã hoàn tất xây dựng và đi vào hoạt động!");
     }
 
     [System.Serializable]

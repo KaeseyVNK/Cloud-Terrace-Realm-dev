@@ -130,6 +130,8 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     private bool _hasInteractTypeParam;
     private bool _hasIsAimingParam;
     private bool _hasAttackTriggerParam;
+    private bool _hasIsDeadParam;
+    private bool _isDead;
 
     private WildAnimalController _huntTarget;
     private float _nextHuntRepathTime = 0f;
@@ -162,7 +164,12 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     private bool _overrideShelter = false;
     private float _shelterSearchTimer = 0f;
     private const float ShelterSearchCooldown = 1.5f;
+    private float _nextShelterRepathTime = 0f;
+    private const float ShelterRepathCooldown = 0.75f;
+    private float _nextShelterCheckTime = 0f;
+    private const float ShelterCheckInterval = 0.1f;
     private float _dangerTimer = 0f;
+    private SelectableUnit _selectableUnit;
 
     // Cache to restore previous work
     private VillagerState _preShelterState = VillagerState.Idle;
@@ -422,6 +429,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             _hasInteractTypeParam = HasParameter("InteractType");
             _hasIsAimingParam = HasParameter("isAiming");
             _hasAttackTriggerParam = HasParameter("Attack");
+            _hasIsDeadParam = HasParameter("IsDead");
         }
 
         _carryVisuals = GetComponent<VillagerCarryVisuals>();
@@ -429,6 +437,8 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         {
             _carryVisuals = gameObject.AddComponent<VillagerCarryVisuals>();
         }
+
+        _selectableUnit = GetComponent<SelectableUnit>();
     }
 
     private void Start()
@@ -494,7 +504,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             return;
         }
 
-        SelectableUnit selectable = GetComponent<SelectableUnit>();
+        SelectableUnit selectable = _selectableUnit;
         if (selectable != null)
         {
             _assignedGarrison.CancelReservation(selectable);
@@ -671,6 +681,8 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
     private void Update()
     {
+        if (_isDead) return;
+
         UpdateSlopeMovementSpeed();
         // Cập nhật trạng thái nguy hiểm
         if (_dangerTimer > 0f)
@@ -678,38 +690,69 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             _dangerTimer -= Time.deltaTime;
         }
 
-        // Kiểm tra nhu cầu trú ẩn (mưa, đêm, lệnh khẩn cấp, hoặc đang bị đe dọa)
+        // Kiểm tra nhu cầu trú ẩn (đêm + toggle nhà chính, lệnh khẩn cấp, hoặc đang bị đe dọa)
         bool needsShelter = !_overrideShelter && (
                                 HouseShelter.IsEmergencyShelterActive || 
                                 _dangerTimer > 0f ||
-                                (ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight) || 
-                                (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain)
+                                (ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight)
                             );
 
-        // Reset cờ override khi thời tiết và thời gian đã trở lại bình thường
-        bool isEnvironmentShelterNeeded = (ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight) || 
-                                          (WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather == WeatherState.Rain);
+        // Reset cờ override khi ban đêm đã qua và không còn nguy hiểm
+        bool isEnvironmentShelterNeeded = ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight;
         if (!isEnvironmentShelterNeeded && _dangerTimer <= 0f)
         {
             _overrideShelter = false;
         }
 
-        if (needsShelter && _currentState != VillagerState.Sheltered)
+        if (Time.time >= _nextShelterCheckTime)
         {
-            bool isEmergencyShelter = HouseShelter.IsEmergencyShelterActive || _dangerTimer > 0f;
-            bool shouldUseHouseShelter = true;
+            _nextShelterCheckTime = Time.time + ShelterCheckInterval;
 
-            if (isEmergencyShelter)
+            if (needsShelter && _currentState != VillagerState.Sheltered)
             {
-                SelectableUnit selectable = GetComponent<SelectableUnit>();
-                if (_assignedGarrison != null && (!_assignedGarrison.IsOperational() || !_assignedGarrison.IsTrackingUnit(selectable)))
+                bool isEmergencyShelter = HouseShelter.IsEmergencyShelterActive || _dangerTimer > 0f;
+                bool shouldUseHouseShelter = true;
+
+                if (isEmergencyShelter)
                 {
-                    _assignedGarrison = null;
+                    SelectableUnit selectable = _selectableUnit;
+                    if (_assignedGarrison != null && (!_assignedGarrison.IsOperational() || !_assignedGarrison.IsTrackingUnit(selectable)))
+                    {
+                        _assignedGarrison = null;
+                    }
+
+                    shouldUseHouseShelter = _assignedGarrison == null;
+                    if (_assignedGarrison == null)
+                    {
+                        _shelterSearchTimer += Time.deltaTime;
+                        float initialStagger = (GetHashCode() % 10) * 0.05f;
+                        float cooldown = (_shelterSearchTimer <= Time.deltaTime + 0.0001f) ? initialStagger : ShelterSearchCooldown;
+
+                        if (_shelterSearchTimer >= cooldown)
+                        {
+                            _shelterSearchTimer = 0f;
+                            WatchTowerGarrison closestGarrison = FindClosestAvailableGarrison();
+                            if (closestGarrison != null && selectable != null)
+                            {
+                                CachePreShelterWorkIfNeeded();
+                                if (closestGarrison.TrySendToGarrison(selectable))
+                                {
+                                    _assignedGarrison = closestGarrison;
+                                    shouldUseHouseShelter = false;
+                                }
+                            }
+                        }
+                    }
                 }
 
-                shouldUseHouseShelter = _assignedGarrison == null;
-                if (_assignedGarrison == null)
+                if (shouldUseHouseShelter && (_assignedShelter == null || !_assignedShelter.HasSpace || !_assignedShelter.IsOperational()))
                 {
+                    if (_assignedShelter != null)
+                    {
+                        _assignedShelter.CancelReservation(this);
+                        _assignedShelter = null;
+                    }
+
                     _shelterSearchTimer += Time.deltaTime;
                     float initialStagger = (GetHashCode() % 10) * 0.05f;
                     float cooldown = (_shelterSearchTimer <= Time.deltaTime + 0.0001f) ? initialStagger : ShelterSearchCooldown;
@@ -717,41 +760,24 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
                     if (_shelterSearchTimer >= cooldown)
                     {
                         _shelterSearchTimer = 0f;
-                        WatchTowerGarrison closestGarrison = FindClosestAvailableGarrison();
-                        if (closestGarrison != null && selectable != null)
+                        HouseShelter closestShelter = FindClosestAvailableShelter();
+                        if (closestShelter != null)
                         {
                             CachePreShelterWorkIfNeeded();
-                            if (closestGarrison.TrySendToGarrison(selectable))
+                            _assignedShelter = closestShelter;
+                            _assignedShelter.TryReserveSpot(this);
+                            if (SetPathToTarget(_assignedShelter.transform.position))
                             {
-                                _assignedGarrison = closestGarrison;
-                                shouldUseHouseShelter = false;
+                                ChangeState(VillagerState.Moving);
                             }
                         }
                     }
                 }
-            }
-
-            if (shouldUseHouseShelter && (_assignedShelter == null || !_assignedShelter.HasSpace || !_assignedShelter.IsOperational()))
-            {
-                if (_assignedShelter != null)
+                else if (shouldUseHouseShelter)
                 {
-                    _assignedShelter.CancelReservation(this);
-                    _assignedShelter = null;
-                }
-
-                _shelterSearchTimer += Time.deltaTime;
-                float initialStagger = (GetHashCode() % 10) * 0.05f;
-                float cooldown = (_shelterSearchTimer <= Time.deltaTime + 0.0001f) ? initialStagger : ShelterSearchCooldown;
-
-                if (_shelterSearchTimer >= cooldown)
-                {
-                    _shelterSearchTimer = 0f;
-                    HouseShelter closestShelter = FindClosestAvailableShelter();
-                    if (closestShelter != null)
+                    if (_currentState != VillagerState.Moving && Time.time >= _nextShelterRepathTime)
                     {
-                        CachePreShelterWorkIfNeeded();
-                        _assignedShelter = closestShelter;
-                        _assignedShelter.TryReserveSpot(this);
+                        _nextShelterRepathTime = Time.time + ShelterRepathCooldown;
                         if (SetPathToTarget(_assignedShelter.transform.position))
                         {
                             ChangeState(VillagerState.Moving);
@@ -759,27 +785,17 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
                     }
                 }
             }
-            else if (shouldUseHouseShelter)
+            else if (!needsShelter && _assignedShelter != null)
             {
-                if (_currentState != VillagerState.Moving)
-                {
-                    if (SetPathToTarget(_assignedShelter.transform.position))
-                    {
-                        ChangeState(VillagerState.Moving);
-                    }
-                }
+                _assignedShelter.CancelReservation(this);
+                _assignedShelter = null;
+                ResumePostShelterState();
             }
-        }
-        else if (!needsShelter && _assignedShelter != null)
-        {
-            _assignedShelter.CancelReservation(this);
-            _assignedShelter = null;
-            ResumePostShelterState();
-        }
-        else if (!needsShelter && _assignedGarrison != null)
-        {
-            CancelAssignedGarrison();
-            ResumePostShelterState();
+            else if (!needsShelter && _assignedGarrison != null)
+            {
+                CancelAssignedGarrison();
+                ResumePostShelterState();
+            }
         }
 
         switch (_currentState)
@@ -1125,8 +1141,8 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             return true;
         }
 
-        // Dự phòng: Lấy điểm gần nhất trên NavMesh trong phạm vi 20 mét
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 20.0f, ~2))
+        // Dự phòng: Lấy điểm gần nhất trên NavMesh trong phạm vi rộng (100 mét)
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 100.0f, ~2))
         {
             if (_navAgent.SetDestination(hit.position))
             {
@@ -2525,35 +2541,53 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     }
 
     /// <summary>
+    /// Di chuyển nội bộ — dùng cho AI trú ẩn/flee (không popup). Player command dùng CommandMoveTo.
+    /// </summary>
+    public bool MoveToInternal(Vector3 destination, bool showFloatingText = false, bool isPlayerCommand = false)
+    {
+        if (isPlayerCommand)
+        {
+            _overrideShelter = true;
+            CancelAssignedGarrison();
+            if (_assignedShelter != null)
+            {
+                _assignedShelter.CancelReservation(this);
+                _assignedShelter = null;
+            }
+
+            _autoGatherBuildingAfterDeposit = null;
+            ReleaseReservedSlot();
+
+            TargetBuilding = null;
+            _currentJob = null;
+            _repairTarget = null;
+            _huntTarget = null;
+            _isManualMove = true;
+            _wasFarmingWildAnimals = false;
+            _targetRiceField = null;
+        }
+
+        _pathRetryCount = 0;
+
+        if (SetPathToTarget(destination))
+        {
+            ChangeState(VillagerState.Moving);
+            if (showFloatingText)
+            {
+                MyGame.UI.FloatingText.Spawn(transform.position, "Di Chuyển", Color.green);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Cưỡng chế dân di chuyển đến một tọa độ tự do.
     /// </summary>
     public void CommandMoveTo(Vector3 destination)
     {
-        _overrideShelter = true;
-        CancelAssignedGarrison();
-        if (_assignedShelter != null)
-        {
-            _assignedShelter.CancelReservation(this);
-            _assignedShelter = null;
-        }
-
-        _autoGatherBuildingAfterDeposit = null;
-        _pathRetryCount = 0;
-        ReleaseReservedSlot();
-        
-        TargetBuilding = null;
-        _currentJob = null;
-        _repairTarget = null;
-        _huntTarget = null;
-        _isManualMove = true;
-        _wasFarmingWildAnimals = false;
-        _targetRiceField = null;
-        
-        if (SetPathToTarget(destination))
-        {
-            ChangeState(VillagerState.Moving);
-            MyGame.UI.FloatingText.Spawn(transform.position, "Di Chuyển", Color.green);
-        }
+        MoveToInternal(destination, showFloatingText: true, isPlayerCommand: true);
     }
 
     /// <summary>
@@ -3153,7 +3187,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
     private void UpdateAnimationState()
     {
-        if (_animator == null) return;
+        if (_animator == null || _isDead) return;
 
         if (_hasIdleParam) _animator.SetBool("IsIdle", _currentState == VillagerState.Idle);
         if (_hasMovingParam) _animator.SetBool("IsMoving", _currentState == VillagerState.Moving);
@@ -3314,12 +3348,16 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     public void NotifyUnderAttack(BaseCombatUnitController attacker)
     {
         if (attacker == null || _currentState == VillagerState.Sheltered) return;
-        
-        _dangerTimer = 12f; // Bắt đầu trạng thái nguy hiểm trong 12 giây
-        _overrideShelter = false; // Hủy bỏ override di chuyển tự do để bắt buộc đi lánh nạn
 
-        // Ưu tiên tìm tháp canh gần nhất còn chỗ trống
-        SelectableUnit selectable = GetComponent<SelectableUnit>();
+        _dangerTimer = 12f;
+        _overrideShelter = false;
+
+        if (_assignedGarrison != null || _assignedShelter != null)
+        {
+            return;
+        }
+
+        SelectableUnit selectable = _selectableUnit;
         WatchTowerGarrison closestGarrison = FindClosestAvailableGarrison();
         if (closestGarrison != null && selectable != null)
         {
@@ -3327,20 +3365,23 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             if (closestGarrison.TrySendToGarrison(selectable))
             {
                 _assignedGarrison = closestGarrison;
-                ChangeState(VillagerState.Moving);
                 return;
             }
         }
 
-        // Nếu không có tháp canh, tìm nhà trú ẩn gần nhất hoặc nhà chính
         HouseShelter shelter = FindClosestAvailableShelter();
-        Vector3 escapeTarget = shelter != null ? shelter.transform.position : 
-            (BuildingManager.Instance != null && BuildingManager.Instance.MainBuildingInstance != null ? 
-             BuildingManager.Instance.MainBuildingInstance.transform.position : Vector3.zero);
-             
-        if (escapeTarget != Vector3.zero)
+        if (shelter != null)
         {
-            CommandMoveTo(escapeTarget);
+            CachePreShelterWorkIfNeeded();
+            _assignedShelter = shelter;
+            _assignedShelter.TryReserveSpot(this);
+            MoveToInternal(shelter.transform.position);
+            return;
+        }
+
+        if (BuildingManager.Instance != null && BuildingManager.Instance.MainBuildingInstance != null)
+        {
+            MoveToInternal(BuildingManager.Instance.MainBuildingInstance.transform.position);
         }
     }
 
@@ -3477,6 +3518,25 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
     /// </summary>
     public void HandleDeath()
     {
+        if (_isDead) return;
+        _isDead = true;
+
+        if (_assignedShelter != null)
+        {
+            _assignedShelter.CancelReservation(this);
+            _assignedShelter = null;
+        }
+
+        CancelAssignedGarrison();
+        ReleaseReservedSlot();
+
+        if (_navAgent != null)
+        {
+            _navAgent.isStopped = true;
+            _navAgent.ResetPath();
+            _navAgent.enabled = false;
+        }
+
         if (_woodTool != null) _woodTool.SetActive(false);
         if (_miningTool != null) _miningTool.SetActive(false);
         if (_bowTool != null) _bowTool.SetActive(false);
@@ -3487,6 +3547,11 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             _carryVisuals.Hide();
         }
 
+        if (_selectableUnit != null)
+        {
+            _selectableUnit.enabled = false;
+        }
+
         if (_animator != null)
         {
             if (_hasIdleParam) _animator.SetBool("IsIdle", false);
@@ -3495,6 +3560,7 @@ public class VillagerController : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             if (_hasGatheringParam) _animator.SetBool("IsGathering", false);
             if (_hasDepositingParam) _animator.SetBool("IsDepositing", false);
             if (_hasIsAimingParam) _animator.SetBool("isAiming", false);
+            if (_hasIsDeadParam) _animator.SetBool("IsDead", true);
         }
 
         enabled = false;

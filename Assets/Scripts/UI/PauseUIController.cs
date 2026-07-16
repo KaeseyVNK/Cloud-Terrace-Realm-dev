@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using CloudTerraceRealm.SaveSystem;
+using CloudTerraceRealm.UI;
 
 /// <summary>
 /// Controller for the Pause Menu UGUI panel.
@@ -188,6 +189,7 @@ public class PauseUIController : MonoBehaviour
         _isPaused = false;
 
         GameLog.Log("[PauseUI] Returning to Main Menu...");
+        MainMenuUI.CleanupGameSingletons();
         SceneManager.LoadScene("MainMenuScene");
     }
 

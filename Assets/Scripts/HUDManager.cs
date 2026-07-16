@@ -50,6 +50,7 @@ public class HUDManager : MonoBehaviour
     private int _prevReserved = -1;
     private int _prevMax = -1;
     private int _prevCapacity = -1;
+    private int _prevMaxCapacity = -1;
     private bool _wasFoodShortage = false;
     private Coroutine _foodWarningCoroutine;
     private Vector3 _originalWarningPos;
@@ -325,7 +326,7 @@ public class HUDManager : MonoBehaviour
                 ? $"{current}+{reserved}/{max}"
                 : $"{current}/{max}";
 
-            if (_prevPopulation != -1 && _prevPopulation != current)
+            if (_prevPopulation != -1 && (_prevPopulation != current || _prevMax != max))
             {
                 TriggerPunchScale(_populationText);
             }
@@ -581,12 +582,29 @@ public class HUDManager : MonoBehaviour
         {
             _capacityText.text = $"Kho: {current}/{max}";
             _capacityText.color = current >= max ? Color.red : Color.white;
-            if (_prevCapacity != -1 && _prevCapacity != current)
+            if (_prevCapacity != -1 && (_prevCapacity != current || _prevMaxCapacity != max))
             {
                 TriggerPunchScale(_capacityText);
             }
             _prevCapacity = current;
+            _prevMaxCapacity = max;
         }
+    }
+
+    /// <summary>
+    /// Cập nhật ngay HUD kho + pop sau khi công trình hoàn thành (không chờ nộp tài nguyên).
+    /// </summary>
+    public void RefreshCapacityAndPopulationUI()
+    {
+        PopulationManager.InvalidateCache();
+        if (ResourceManager.Instance != null)
+        {
+            UpdateCapacityUI(
+                ResourceManager.Instance.GetTotalPrimaryResources(),
+                ResourceManager.Instance.GetMaxResourceCapacity());
+        }
+
+        UpdatePopulationUI();
     }
 
     // Các phương thức trợ giúp tạo hiệu ứng Animation cho HUD

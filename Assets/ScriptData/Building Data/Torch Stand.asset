@@ -15,16 +15,18 @@ MonoBehaviour:
   buildingName: Torch Stand
   description: Illuminates surrounding areas at night or during rain, making it easier
     to manage resources and spot enemies.
-  category: 0
+  category: 7
   icon: {fileID: -1102286902, guid: 67bf4452217c73445a5c0c71710dd8d0, type: 3}
   buildingPrefab: {fileID: 6055428234873679010, guid: fa1d46f41a3258745bb511239d2e92d3, type: 3}
   buildingSize: {x: 1, y: 1}
+  placementMode: 1
   buildCosts:
   - resourceType: 0
     amount: 10
   maxHealth: 150
   maxWorkers: 0
   buildTime: 8
+  housingCapacity: 0
   isInstantBuild: 0
   isStorage: 0
   acceptedResources: 

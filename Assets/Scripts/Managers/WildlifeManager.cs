@@ -54,16 +54,34 @@ public class WildlifeManager : MonoBehaviour
         _foodPrefab = food;
     }
 
-    private void Start()
+    private IEnumerator Start()
     {
         // Tự động tìm nạp các prefab từ Resources nếu chưa gán trong Inspector để chạy mượt
         EnsurePrefabsLoaded();
+
+        // Đợi NavMesh được bake (GameManager.InitGame / GridSystem) trước khi spawn agent
+        float waitDeadline = Time.realtimeSinceStartup + 30f;
+        while (!HasValidNavMesh() && Time.realtimeSinceStartup < waitDeadline)
+        {
+            yield return null;
+        }
+
+        if (!HasValidNavMesh())
+        {
+            Debug.LogWarning("[WildlifeManager] NavMesh chưa sẵn sàng sau 30s — vẫn spawn thú (có thể gây lỗi agent).");
+        }
 
         // Spawn khởi đầu ngay khi vào game
         SpawnInitialWildlife();
 
         // Chạy Coroutine spawn bù định kỳ
         StartCoroutine(SpawnRoutine());
+    }
+
+    private static bool HasValidNavMesh()
+    {
+        var triangulation = NavMesh.CalculateTriangulation();
+        return triangulation.vertices != null && triangulation.vertices.Length > 0;
     }
 
     private void EnsurePrefabsLoaded()

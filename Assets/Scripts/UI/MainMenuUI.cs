@@ -21,29 +21,38 @@ namespace CloudTerraceRealm.UI
         {
             // Đảm bảo TimeScale trở lại bình thường khi ở Main Menu
             Time.timeScale = 1f;
+            CleanupGameSingletons();
+        }
 
-            // Dọn dẹp các singleton game cũ trong scene DontDestroyOnLoad để tránh mang trạng thái sang ván mới,
-            // giữ lại AudioManager để tránh ngắt nhạc nền và SaveGameRuntime cho tự động lưu.
+        /// <summary>
+        /// Dọn singleton game trong DontDestroyOnLoad trước khi về Main Menu / bắt đầu ván mới.
+        /// Giữ AudioManager và SaveGameRuntime.
+        /// </summary>
+        public static void CleanupGameSingletons()
+        {
             GameObject tempObj = new GameObject();
             DontDestroyOnLoad(tempObj);
-            UnityEngine.SceneManagement.Scene dontDestroyScene = tempObj.scene;
+            Scene dontDestroyScene = tempObj.scene;
             Destroy(tempObj);
 
             GameObject[] rootObjects = dontDestroyScene.GetRootGameObjects();
             for (int i = 0; i < rootObjects.Length; i++)
             {
                 GameObject obj = rootObjects[i];
-                if (obj != null)
+                if (obj == null)
                 {
-                    if (obj.GetComponent<MyGame.Audio.AudioManager>() != null || 
-                        obj.GetComponentInChildren<MyGame.Audio.AudioManager>() != null ||
-                        obj.GetComponent<SaveGameRuntime>() != null ||
-                        obj.GetComponentInChildren<SaveGameRuntime>() != null)
-                    {
-                        continue;
-                    }
-                    Destroy(obj);
+                    continue;
                 }
+
+                if (obj.GetComponent<MyGame.Audio.AudioManager>() != null ||
+                    obj.GetComponentInChildren<MyGame.Audio.AudioManager>() != null ||
+                    obj.GetComponent<SaveGameRuntime>() != null ||
+                    obj.GetComponentInChildren<SaveGameRuntime>() != null)
+                {
+                    continue;
+                }
+
+                Destroy(obj);
             }
         }
 

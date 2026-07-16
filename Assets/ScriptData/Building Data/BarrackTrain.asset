@@ -23,6 +23,7 @@ MonoBehaviour:
   icon: {fileID: -1252907030, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 5987755191451098744, guid: 019aa01d4d4eb4e4687fe6c9a58095b3, type: 3}
   buildingSize: {x: 3, y: 3}
+  placementMode: 0
   buildCosts:
   - resourceType: 0
     amount: 50
@@ -31,6 +32,7 @@ MonoBehaviour:
   maxHealth: 100
   maxWorkers: 0
   buildTime: 20
+  housingCapacity: 0
   isInstantBuild: 0
   isStorage: 0
   acceptedResources: 

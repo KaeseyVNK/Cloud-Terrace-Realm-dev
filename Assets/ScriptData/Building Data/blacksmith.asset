@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   buildingName: Blacksmith
   description: Technology research facility to unlock and upgrade military units.
-  category: 0
+  category: 1
   icon: {fileID: -1003710582, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 206308313772535697, guid: 422ecfafbeebc154082c7f245e5e95e1, type: 3}
   buildingSize: {x: 3, y: 3}
+  placementMode: 0
   buildCosts:
   - resourceType: 0
     amount: 120
@@ -26,6 +27,7 @@ MonoBehaviour:
   maxHealth: 400
   maxWorkers: 0
   buildTime: 25
+  housingCapacity: 0
   isInstantBuild: 0
   isStorage: 0
   acceptedResources: 

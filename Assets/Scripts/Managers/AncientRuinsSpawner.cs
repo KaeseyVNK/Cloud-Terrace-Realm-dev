@@ -126,7 +126,7 @@ public class AncientRuinsSpawner : MonoBehaviour
             }
         }
 
-        GameLog.Log($"[AncientRuinsSpawner] Đã spawn thành công {spawnedCount}/{_initialRuinsCount} phế tích cổ khởi tạo.");
+        GameLog.LogVerbose($"[AncientRuinsSpawner] Đã spawn thành công {spawnedCount}/{_initialRuinsCount} phế tích cổ khởi tạo.");
     }
 
     /// <summary>
@@ -359,7 +359,7 @@ public class AncientRuinsSpawner : MonoBehaviour
         if (_activeRuins.Contains(ruin))
         {
             _activeRuins.Remove(ruin);
-            GameLog.Log($"[AncientRuinsSpawner] Đã xóa {ruin.gameObject.name} khỏi danh sách phế tích hoạt động.");
+            GameLog.LogVerbose($"[AncientRuinsSpawner] Đã xóa {ruin.gameObject.name} khỏi danh sách phế tích hoạt động.");
         }
     }
 }

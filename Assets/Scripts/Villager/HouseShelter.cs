@@ -22,6 +22,7 @@ public class HouseShelter : MonoBehaviour
     private readonly List<VillagerController> _shelteredVillagers = new();
     private readonly List<VillagerController> _incomingVillagers = new();
     private ConstructibleBuilding _constructibleBuilding;
+    private bool _isSubscribedToDayNight;
 
     #endregion
 
@@ -60,6 +61,57 @@ public class HouseShelter : MonoBehaviour
     private void OnEnable()
     {
         Registry.Add(this);
+        TrySubscribeDayNight();
+    }
+
+    private void Start()
+    {
+        TrySubscribeDayNight();
+    }
+
+    private void TrySubscribeDayNight()
+    {
+        if (_isSubscribedToDayNight || TimeManager.Instance == null)
+        {
+            return;
+        }
+
+        TimeManager.Instance.OnDayNightChanged += HandleDayNightChanged;
+        _isSubscribedToDayNight = true;
+    }
+
+    private void HandleDayNightChanged(bool isNight)
+    {
+        TryAutoEjectIfNeeded();
+    }
+
+    /// <summary>
+    /// Re-evaluate auto-eject on all shelters (emergency off, night toggle, dawn).
+    /// </summary>
+    public static void RefreshAutoEjectAll()
+    {
+        for (int i = 0; i < Registry.Count; i++)
+        {
+            HouseShelter shelter = Registry[i];
+            if (shelter != null)
+            {
+                shelter.TryAutoEjectIfNeeded();
+            }
+        }
+    }
+
+    private void TryAutoEjectIfNeeded()
+    {
+        if (!IsOperational())
+        {
+            return;
+        }
+
+        bool isNightShelterNeeded = VillagerController.ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight;
+        if (!IsEmergencyShelterActive && !isNightShelterNeeded && _shelteredVillagers.Count > 0)
+        {
+            EjectAll();
+        }
     }
 
     private void Awake()
@@ -70,18 +122,6 @@ public class HouseShelter : MonoBehaviour
     private void Update()
     {
         if (!IsOperational()) return;
-
-        // Auto-eject villagers if weather/night is clear and emergency is not active
-        bool isNightShelterNeeded = VillagerController.ShouldShelterAtNight && TimeManager.Instance != null && TimeManager.Instance.IsNight;
-        if (!IsEmergencyShelterActive && 
-            !isNightShelterNeeded && 
-            WeatherManager.Instance != null && WeatherManager.Instance.CurrentWeather != WeatherState.Rain)
-        {
-            if (_shelteredVillagers.Count > 0)
-            {
-                EjectAll();
-            }
-        }
 
         // Process incoming reserved villagers
         float enterDistanceSqr = _enterDistance * _enterDistance;
@@ -105,6 +145,12 @@ public class HouseShelter : MonoBehaviour
 
     private void OnDisable()
     {
+        if (_isSubscribedToDayNight && TimeManager.Instance != null)
+        {
+            TimeManager.Instance.OnDayNightChanged -= HandleDayNightChanged;
+            _isSubscribedToDayNight = false;
+        }
+
         Registry.Remove(this);
         EjectAll();
     }

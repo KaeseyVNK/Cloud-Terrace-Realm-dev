@@ -18,6 +18,7 @@ public class MinimapUIController : MonoBehaviour, IPointerDownHandler, IDragHand
     [SerializeField] private RectTransform _markerRoot;
     [SerializeField] private CameraControls _cameraControls;
     [SerializeField] private Camera _mainCamera;
+    [SerializeField] private Camera _minimapCamera;
 
     [Header("Fog of War")]
     [SerializeField] private RawImage _fogOverlay;
@@ -72,6 +73,7 @@ public class MinimapUIController : MonoBehaviour, IPointerDownHandler, IDragHand
     private readonly List<Image> _markerPool = new List<Image>();
     private readonly HashSet<Transform> _drawnTargets = new HashSet<Transform>();
     private float _nextMarkerRefreshTime;
+    private bool _fogBoundsRefreshed;
 
     // --- Camera Frustum lines (4 cạnh khung nhìn) ---
     private RectTransform _frustumRoot;
@@ -642,6 +644,7 @@ public class MinimapUIController : MonoBehaviour, IPointerDownHandler, IDragHand
         }
         if (_mainCamera == null) _mainCamera = Camera.main;
         if (_cameraControls == null) _cameraControls = FindAnyObjectByType<CameraControls>();
+        EnsureMinimapCamera();
     }
 
     private void RefreshMapBounds()
@@ -656,17 +659,71 @@ public class MinimapUIController : MonoBehaviour, IPointerDownHandler, IDragHand
         Vector3 terrainSize = terrain.terrainData.size;
         _worldMin = new Vector2(terrainPosition.x, terrainPosition.z);
         _worldMax = new Vector2(terrainPosition.x + terrainSize.x, terrainPosition.z + terrainSize.z);
+
+        SyncMinimapCamera(terrainPosition, terrainSize);
+
+        if (!_fogBoundsRefreshed && AOSFogOfWarBridge.Instance != null)
+        {
+            AOSFogOfWarBridge.Instance.RefreshFogBounds();
+            _fogBoundsRefreshed = true;
+        }
     }
 
-    private Vector2 WorldToMinimapPosition(Vector3 worldPosition)
+    private void EnsureMinimapCamera()
     {
-        Rect rect = _markerRoot.rect;
+        if (_minimapCamera != null)
+        {
+            return;
+        }
+
+        GameObject minimapCameraObject = GameObject.Find("Minimap Camera");
+        if (minimapCameraObject != null)
+        {
+            _minimapCamera = minimapCameraObject.GetComponent<Camera>();
+        }
+    }
+
+    private void SyncMinimapCamera(Vector3 terrainPosition, Vector3 terrainSize)
+    {
+        EnsureMinimapCamera();
+        if (_minimapCamera == null)
+        {
+            return;
+        }
+
+        float centerX = terrainPosition.x + terrainSize.x * 0.5f;
+        float centerZ = terrainPosition.z + terrainSize.z * 0.5f;
+        Vector3 cameraPosition = _minimapCamera.transform.position;
+        _minimapCamera.transform.position = new Vector3(centerX, cameraPosition.y, centerZ);
+        _minimapCamera.orthographicSize = terrainSize.z * 0.5f;
+    }
+
+    private Vector2 WorldToMapLocalPosition(Vector3 worldPosition)
+    {
+        if (_mapRect == null)
+        {
+            return Vector2.zero;
+        }
+
+        Rect rect = _mapRect.rect;
         float normalizedX = Mathf.InverseLerp(_worldMin.x, _worldMax.x, worldPosition.x);
         float normalizedY = Mathf.InverseLerp(_worldMin.y, _worldMax.y, worldPosition.z);
 
         return new Vector2(
             Mathf.Lerp(rect.xMin, rect.xMax, normalizedX),
             Mathf.Lerp(rect.yMin, rect.yMax, normalizedY));
+    }
+
+    private Vector2 WorldToMinimapPosition(Vector3 worldPosition)
+    {
+        Vector2 mapLocal = WorldToMapLocalPosition(worldPosition);
+        if (_markerRoot != null && _mapRect != null && _markerRoot != _mapRect)
+        {
+            Vector3 worldPoint = _mapRect.TransformPoint(mapLocal);
+            return _markerRoot.InverseTransformPoint(worldPoint);
+        }
+
+        return mapLocal;
     }
 
     private Vector3 MinimapToWorldPosition(Vector2 localPoint)

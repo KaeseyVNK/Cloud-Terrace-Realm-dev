@@ -559,20 +559,10 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 // Nếu sau khi set path, NavMesh agent báo không có đường đi hoặc đường đi bị chặn (PathPartial)
                 if (navAgent.pathStatus == NavMeshPathStatus.PathPartial || !navAgent.hasPath)
                 {
-                    // Quét các công trình/bức tường cản trở trong phạm vi 15 mét và tấn công phá hủy chúng trước
-                    BaseCombatUnitController blockingWall = null;
-                    float wallMinDist = float.MaxValue;
-                    foreach (var t in buildingTargets)
+                    BaseCombatUnitController blockingWall = FindBlockingStructureOnPath(15f);
+                    if (blockingWall == null)
                     {
-                        if (t != null && t.currentState != CombatState.Dead)
-                        {
-                            float d = Vector3.Distance(transform.position, t.transform.position);
-                            if (d <= 15f && d < wallMinDist)
-                            {
-                                wallMinDist = d;
-                                blockingWall = t;
-                            }
-                        }
+                        blockingWall = FindNearestBlockingBuilding(15f, buildingTargets);
                     }
                     if (blockingWall != null)
                     {
@@ -609,6 +599,19 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             }
         }
 
+        if (_targetRole == EnemyTargetRole.SiegeBreaker && TryAttackBlockingStructureOnPath(25f))
+        {
+            return;
+        }
+
+        if (navAgent.hasPath
+            && !navAgent.pathPending
+            && navAgent.pathStatus == NavMeshPathStatus.PathPartial
+            && TryAttackBlockingStructureOnPath(20f))
+        {
+            return;
+        }
+
         // Kiểm tra xem đã đến đích của hành quân chưa (nhà chính)
         if (!navAgent.pathPending && navAgent.remainingDistance <= navAgent.stoppingDistance)
         {
@@ -636,21 +639,11 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
             _enemyMovingStuckTimer += Time.deltaTime;
             if (_enemyMovingStuckTimer >= 1.0f)
             {
-                // Quét tìm công trình/tường rào/cổng của người chơi gần nhất trong phạm vi 20 mét
                 List<BaseCombatUnitController> buildingTargets = GetCachedPlayerBuildingTargets();
-                BaseCombatUnitController blockingBuilding = null;
-                float wallMinDist = float.MaxValue;
-                foreach (var t in buildingTargets)
+                BaseCombatUnitController blockingBuilding = FindBlockingStructureOnPath(20f);
+                if (blockingBuilding == null)
                 {
-                    if (t != null && t.currentState != CombatState.Dead)
-                    {
-                        float d = Vector3.Distance(transform.position, t.transform.position);
-                        if (d <= 20f && d < wallMinDist)
-                        {
-                            wallMinDist = d;
-                            blockingBuilding = t;
-                        }
-                    }
+                    blockingBuilding = FindNearestBlockingBuilding(20f, buildingTargets);
                 }
 
                 if (blockingBuilding != null)
@@ -704,21 +697,11 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
                 _enemyMovingStuckTimer += Time.deltaTime;
                 if (_enemyMovingStuckTimer >= 1.0f)
                 {
-                    // Quét tìm công trình/tường rào/cửa cổng gần nhất của người chơi trong phạm vi 4.0 mét
                     List<BaseCombatUnitController> buildingTargets = GetCachedPlayerBuildingTargets();
-                    BaseCombatUnitController blockingBuilding = null;
-                    float wallMinDist = float.MaxValue;
-                    foreach (var t in buildingTargets)
+                    BaseCombatUnitController blockingBuilding = FindBlockingStructureOnPath(4f);
+                    if (blockingBuilding == null)
                     {
-                        if (t != null && t.currentState != CombatState.Dead)
-                        {
-                            float d = Vector3.Distance(transform.position, t.transform.position);
-                            if (d <= 4.0f && d < wallMinDist)
-                            {
-                                wallMinDist = d;
-                                blockingBuilding = t;
-                            }
-                        }
+                        blockingBuilding = FindNearestBlockingBuilding(4f, buildingTargets);
                     }
 
                     if (blockingBuilding != null)
@@ -992,6 +975,181 @@ public class EnemyUnitController : BaseCombatUnitController, IPoolable
         {
             AttackTarget(attacker);
         }
+    }
+
+    private bool TryAttackBlockingStructureOnPath(float maxSearchDistance)
+    {
+        BaseCombatUnitController blocker = FindBlockingStructureOnPath(maxSearchDistance);
+        if (blocker == null)
+        {
+            return false;
+        }
+
+        AttackTarget(blocker);
+        return true;
+    }
+
+    private BaseCombatUnitController FindBlockingStructureOnPath(float maxSearchDistance)
+    {
+        if (!IsNavAgentReady())
+        {
+            return null;
+        }
+
+        Vector3 origin = transform.position;
+        Vector3 destination = navAgent.hasPath && navAgent.path.corners.Length > 0
+            ? navAgent.path.corners[navAgent.path.corners.Length - 1]
+            : navAgent.destination;
+
+        if (navAgent.hasPath && navAgent.path.corners.Length >= 2)
+        {
+            Vector3[] corners = navAgent.path.corners;
+            for (int i = 0; i < corners.Length - 1; i++)
+            {
+                Vector3 from = i == 0 ? origin : corners[i];
+                Vector3 to = corners[i + 1];
+                Vector3 segment = to - from;
+                float segmentLength = segment.magnitude;
+                if (segmentLength < 0.05f)
+                {
+                    continue;
+                }
+
+                if (NavMesh.Raycast(from, to, out NavMeshHit navHit, NavMesh.AllAreas))
+                {
+                    BaseCombatUnitController navBlocker = FindNearestPlayerBuildingAt(navHit.position, 3.5f);
+                    if (navBlocker != null)
+                    {
+                        return navBlocker;
+                    }
+                }
+
+                Vector3 rayOrigin = from + Vector3.up * 0.75f;
+                if (Physics.Raycast(rayOrigin, segment / segmentLength, out RaycastHit hit, segmentLength, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                {
+                    BaseCombatUnitController physicsBlocker = hit.collider.GetComponentInParent<BuildingCombatTarget>();
+                    if (physicsBlocker != null && physicsBlocker.currentState != CombatState.Dead && physicsBlocker.faction == UnitFaction.Player)
+                    {
+                        return physicsBlocker;
+                    }
+                }
+            }
+        }
+
+        Vector3 toDestination = destination - origin;
+        toDestination.y = 0f;
+        float destinationDistance = Mathf.Min(toDestination.magnitude, maxSearchDistance);
+        if (destinationDistance > 0.5f)
+        {
+            Vector3 rayOrigin = origin + Vector3.up * 0.75f;
+            if (Physics.Raycast(rayOrigin, toDestination.normalized, out RaycastHit hit, destinationDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                BaseCombatUnitController physicsBlocker = hit.collider.GetComponentInParent<BuildingCombatTarget>();
+                if (physicsBlocker != null && physicsBlocker.currentState != CombatState.Dead && physicsBlocker.faction == UnitFaction.Player)
+                {
+                    return physicsBlocker;
+                }
+            }
+        }
+
+        return FindBlockingStructureAlongDirection(destination, maxSearchDistance);
+    }
+
+    private BaseCombatUnitController FindNearestPlayerBuildingAt(Vector3 position, float radius)
+    {
+        List<BaseCombatUnitController> buildings = GetCachedPlayerBuildingTargets();
+        BaseCombatUnitController best = null;
+        float bestDistance = radius;
+        for (int i = 0; i < buildings.Count; i++)
+        {
+            BaseCombatUnitController building = buildings[i];
+            if (building == null || building.currentState == CombatState.Dead)
+            {
+                continue;
+            }
+
+            float distance = Vector3.Distance(position, building.transform.position);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = building;
+            }
+        }
+
+        return best;
+    }
+
+    private BaseCombatUnitController FindBlockingStructureAlongDirection(Vector3 destination, float maxDistance)
+    {
+        Vector3 origin = transform.position;
+        Vector3 toDestination = destination - origin;
+        toDestination.y = 0f;
+        float destinationDistance = toDestination.magnitude;
+        if (destinationDistance < 0.01f)
+        {
+            return null;
+        }
+
+        Vector3 direction = toDestination / destinationDistance;
+        float searchDistance = Mathf.Min(destinationDistance + 2f, maxDistance);
+        List<BaseCombatUnitController> buildings = GetCachedPlayerBuildingTargets();
+        BaseCombatUnitController best = null;
+        float bestAlongDistance = float.MaxValue;
+
+        for (int i = 0; i < buildings.Count; i++)
+        {
+            BaseCombatUnitController building = buildings[i];
+            if (building == null || building.currentState == CombatState.Dead)
+            {
+                continue;
+            }
+
+            Vector3 toBuilding = building.transform.position - origin;
+            toBuilding.y = 0f;
+            float along = Vector3.Dot(toBuilding, direction);
+            if (along <= 0f || along > searchDistance)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = origin + direction * along;
+            float lateralDistance = Vector3.Distance(closestPoint, building.transform.position);
+            if (lateralDistance > 3.5f)
+            {
+                continue;
+            }
+
+            if (along < bestAlongDistance)
+            {
+                bestAlongDistance = along;
+                best = building;
+            }
+        }
+
+        return best;
+    }
+
+    private BaseCombatUnitController FindNearestBlockingBuilding(float radius, List<BaseCombatUnitController> buildingTargets)
+    {
+        BaseCombatUnitController nearest = null;
+        float nearestDistance = float.MaxValue;
+        for (int i = 0; i < buildingTargets.Count; i++)
+        {
+            BaseCombatUnitController building = buildingTargets[i];
+            if (building == null || building.currentState == CombatState.Dead)
+            {
+                continue;
+            }
+
+            float distance = Vector3.Distance(transform.position, building.transform.position);
+            if (distance <= radius && distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = building;
+            }
+        }
+
+        return nearest;
     }
 
     private static List<BaseCombatUnitController> GetCachedPlayerBuildingTargets()

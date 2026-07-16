@@ -65,6 +65,7 @@ public class BuildingManager : MonoBehaviour
     
     [UnityEngine.Serialization.FormerlySerializedAs("ghostMaterial")]
     [SerializeField] private Material _ghostMaterial;
+    [SerializeField] private float _ghostHeightOffset = 0.15f;
 
     [Header("Fog Of War")]
     [Tooltip("Only allow placing buildings inside currently visible fog of war areas.")]
@@ -271,7 +272,7 @@ public class BuildingManager : MonoBehaviour
         _ghostBuilding = null;
         _isBuildMode = false;
         _isDeleteMode = false;
-        GameLog.Log($"[BuildingManager] Scene loaded: {scene.name}. Refreshed references and cleared dictionaries.");
+        GameLog.LogVerbose($"[BuildingManager] Scene loaded: {scene.name}. Refreshed references and cleared dictionaries.");
     }
 
     void Start()
@@ -285,7 +286,7 @@ public class BuildingManager : MonoBehaviour
             _constructionFencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Building/mongsnhaf.prefab");
             if (_constructionFencePrefab != null)
             {
-                GameLog.Log($"[BuildingManager] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
+                GameLog.LogVerbose($"[BuildingManager] Tự động tải thành công prefab hàng rào: {_constructionFencePrefab.name}");
             }
         }
 #endif
@@ -372,6 +373,8 @@ public class BuildingManager : MonoBehaviour
         cb.CurrentProgress = 1f;
         cb.RefreshVisualPosition();
 
+        EnsureHousingComponent(building, data);
+
         OnBuildingCompleted(cb);
     }
 
@@ -436,12 +439,12 @@ public class BuildingManager : MonoBehaviour
                     SelectBuilding(CurrentSelectedBuilding);
                 }
                 SetBuildingMenuVisible(true);
-                GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT");
+                GameLog.LogVerbose("CHẾ ĐỘ XÂY DỰNG: Đã BẬT");
             }
             else
             {
                 CancelBuildMode();
-                GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT");
+                GameLog.LogVerbose("CHẾ ĐỘ XÂY DỰNG: Đã TẮT");
             }
         }    
 
@@ -459,11 +462,11 @@ public class BuildingManager : MonoBehaviour
                 }
                 _currentSelectedBuilding = null;
                 SetBuildingMenuVisible(false);
-                GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT");
+                GameLog.LogVerbose("CHẾ ĐỘ PHÁ HỦY: Đã BẬT");
             }
             else
             {
-                GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã TẮT");
+                GameLog.LogVerbose("CHẾ ĐỘ PHÁ HỦY: Đã TẮT");
             }
         }
 
@@ -474,28 +477,28 @@ public class BuildingManager : MonoBehaviour
             if (Keyboard.current.rKey.wasPressedThisFrame)
             {
                 _currentRotationIndex = (_currentRotationIndex + 1) % 4;
-                GameLog.Log($"Xoay công trình: {_currentRotationIndex * 90} độ");
+                GameLog.LogVerbose($"Xoay công trình: {_currentRotationIndex * 90} độ");
             }
 
             if (Keyboard.current.digit1Key.wasPressedThisFrame && AvailableBuildings.Count > 0)
             {
                 SelectBuilding(AvailableBuildings[0]);
-                GameLog.Log($"Đã chọn: {AvailableBuildings[0].buildingName}");
+                GameLog.LogVerbose($"Đã chọn: {AvailableBuildings[0].buildingName}");
             }
             if (Keyboard.current.digit2Key.wasPressedThisFrame && AvailableBuildings.Count > 1)
             {
                 SelectBuilding(AvailableBuildings[1]);
-                GameLog.Log($"Đã chọn: {AvailableBuildings[1].buildingName}");
+                GameLog.LogVerbose($"Đã chọn: {AvailableBuildings[1].buildingName}");
             }
             if (Keyboard.current.digit3Key.wasPressedThisFrame && AvailableBuildings.Count > 2)
             {
                 SelectBuilding(AvailableBuildings[2]);
-                GameLog.Log($"Đã chọn: {AvailableBuildings[2].buildingName}");
+                GameLog.LogVerbose($"Đã chọn: {AvailableBuildings[2].buildingName}");
             }
             if (Keyboard.current.digit4Key.wasPressedThisFrame && AvailableBuildings.Count > 3)
             {
                 SelectBuilding(AvailableBuildings[3]);
-                GameLog.Log($"Đã chọn: {AvailableBuildings[3].buildingName}");
+                GameLog.LogVerbose($"Đã chọn: {AvailableBuildings[3].buildingName}");
             }
         }
     }
@@ -600,12 +603,13 @@ public class BuildingManager : MonoBehaviour
                     int startX = gridX - size.x / 2;
                     int startZ = gridZ - size.y / 2;
 
-                    bool canBuild = CheckBuildingArea(startX, startZ, size, out List<GridCell> cellsToOccupy);
+                    bool canBuild = CheckBuildingArea(startX, startZ, size, CurrentSelectedBuilding, out List<GridCell> cellsToOccupy)
+                        && CanAffordBuilding(CurrentSelectedBuilding)
+                        && MeetsBuildingRequirements(CurrentSelectedBuilding);
 
-                    // Đổi màu Ghost để báo hiệu (Xanh = Phù hợp, Đỏ = Trái phép / Có vật cản)
                     SetGhostColor(canBuild ? new Color(0, 1, 0, 0.5f) : new Color(1, 0, 0, 0.5f));
 
-                    Vector3 centerPos = CalculateBuildingCenter(startX, startZ, centerCell.elevation, size);
+                    Vector3 centerPos = GetBuildingCenterForPreview(startX, startZ, size, CurrentSelectedBuilding);
                     if (_ghostBuilding != null)
                     {
                         _ghostBuilding.transform.position = centerPos;
@@ -627,7 +631,7 @@ public class BuildingManager : MonoBehaviour
                                 _lastPreviewX = gridX;
                                 _lastPreviewZ = gridZ;
                                 _lastPreviewRotation = _currentRotationIndex;
-                                GameLog.Log($"[BuildingManager] Touch preview placed at ({gridX}, {gridZ}). Tap again on same tile to construct.");
+                                GameLog.LogVerbose($"[BuildingManager] Touch preview placed at ({gridX}, {gridZ}). Tap again on same tile to construct.");
                             }
                         }
                         else
@@ -652,86 +656,189 @@ public class BuildingManager : MonoBehaviour
         }
     }
 
+    private PointerEventData _pointerEventDataCache;
+    private readonly List<RaycastResult> _raycastResultsCache = new List<RaycastResult>();
+
     private bool IsPointerOverUI(Vector2 screenPos)
     {
         if (EventSystem.current == null) return false;
-        PointerEventData eventData = new PointerEventData(EventSystem.current);
-        eventData.position = screenPos;
-        List<RaycastResult> results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(eventData, results);
-        bool isOverUGUI = results.Count > 0;
+        if (_pointerEventDataCache == null) _pointerEventDataCache = new PointerEventData(EventSystem.current);
+        _pointerEventDataCache.position = screenPos;
+        _raycastResultsCache.Clear();
+        EventSystem.current.RaycastAll(_pointerEventDataCache, _raycastResultsCache);
+        bool isOverUGUI = _raycastResultsCache.Count > 0;
         bool isOverIMGUI = BuildingSelectionUI.Instance != null && BuildingSelectionUI.Instance.IsMouseOverUI();
         return isOverUGUI || isOverIMGUI;
     }
 
-    private Vector3 CalculateBuildingCenter(int startX, int startZ, int elevation, Vector2Int size)
+    private Vector3 CalculateBuildingCenter(int startX, int startZ, Vector2Int size, BuildingData data)
     {
-        // Tính toán độ lệch (Offset) để lấy điểm chính giữa Tâm của công trình (nhiều ô)
-        Vector3 startPos = _gridSystem.GetWorldPosition(startX, startZ, elevation);
-        float offset_x = size.x * _gridSystem.GetCellSize() / 2f;
-        float offset_z = size.y * _gridSystem.GetCellSize() / 2f;
-        
-        // Không nâng Y lên nữa vì hệ thống đang dùng Unity Terrain, mặt đất đã chính xác
-        return startPos + new Vector3(offset_x, 0f, offset_z);
+        float cell = _gridSystem.GetCellSize();
+        float centerX = (startX + size.x * 0.5f) * cell;
+        float centerZ = (startZ + size.y * 0.5f) * cell;
+        BuildingPlacementMode mode = data != null ? data.placementMode : BuildingPlacementMode.FlattenFootprint;
+        float y = _gridSystem.GetFootprintHeight(startX, startZ, size.x, size.y, mode);
+        return new Vector3(centerX, y, centerZ);
     }
 
-    private bool CheckBuildingArea(int startX, int startZ, Vector2Int size, out List<GridCell> cells)
+    private Vector3 GetBuildingCenterForPreview(int startX, int startZ, Vector2Int size, BuildingData data)
+    {
+        Vector3 center = CalculateBuildingCenter(startX, startZ, size, data);
+        center.y += _ghostHeightOffset;
+        return center;
+    }
+
+    public bool CanAffordSelectedBuilding()
+    {
+        return CanAffordBuilding(_currentSelectedBuilding);
+    }
+
+    public bool MeetsSelectedBuildingRequirements()
+    {
+        return MeetsBuildingRequirements(_currentSelectedBuilding);
+    }
+
+    public bool CanAffordBuilding(BuildingData data)
+    {
+        if (data == null)
+        {
+            return false;
+        }
+
+        return ResourceManager.Instance != null && ResourceManager.Instance.CanAfford(data.buildCosts);
+    }
+
+    public bool MeetsBuildingRequirements(BuildingData data)
+    {
+        if (data == null || data.requiredBuildings == null || data.requiredBuildings.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (BuildingData reqBuilding in data.requiredBuildings)
+        {
+            if (!_builtBuildingCounts.ContainsKey(reqBuilding) || _builtBuildingCounts[reqBuilding] <= 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public bool CanPreviewBuildAt(int startX, int startZ, Vector2Int size, BuildingData data)
+    {
+        if (data == null)
+        {
+            return false;
+        }
+
+        if (!CheckBuildingArea(startX, startZ, size, data, out _))
+        {
+            return false;
+        }
+
+        if (!CanAffordBuilding(data))
+        {
+            return false;
+        }
+
+        return MeetsBuildingRequirements(data);
+    }
+
+    public bool IsCellEligibleForGrid(int x, int z, BuildingData data)
+    {
+        if (_gridSystem == null)
+        {
+            return false;
+        }
+
+        GridCell cell = _gridSystem.GetCell(x, z);
+        if (cell == null || cell.hasResource || _builtStructures.ContainsKey(cell))
+        {
+            return false;
+        }
+
+        if (!IsBuildCellVisible(x, z))
+        {
+            return false;
+        }
+
+        if (cell.isBuildable)
+        {
+            return true;
+        }
+
+        return AllowsWaterPlacement(data) && IsCellWater(x, z);
+    }
+
+    private static bool AllowsWaterPlacement(BuildingData data)
+    {
+        return data != null && !data.FlattensTerrain;
+    }
+
+    private bool IsCellWater(int gridX, int gridZ)
+    {
+        if (Terrain.activeTerrain == null || _gridSystem == null)
+        {
+            return false;
+        }
+
+        float cellSize = _gridSystem.GetCellSize();
+        float worldX = gridX * cellSize;
+        float worldZ = gridZ * cellSize;
+        float h = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+        return h < _gridSystem.WaterHeight;
+    }
+
+    private bool IsCellValidForFootprint(int gridX, int gridZ, BuildingData data)
+    {
+        GridCell cell = _gridSystem.GetCell(gridX, gridZ);
+        if (cell == null)
+        {
+            return false;
+        }
+
+        if (cell.hasResource || _builtStructures.ContainsKey(cell))
+        {
+            return false;
+        }
+
+        if (!IsBuildCellVisible(gridX, gridZ))
+        {
+            return false;
+        }
+
+        if (cell.isBuildable)
+        {
+            return true;
+        }
+
+        return AllowsWaterPlacement(data) && IsCellWater(gridX, gridZ);
+    }
+
+    private bool CheckBuildingArea(int startX, int startZ, Vector2Int size, BuildingData data, out List<GridCell> cells)
     {
         cells = new List<GridCell>();
         float minY = float.MaxValue;
         float maxY = float.MinValue;
 
-        bool isBridge = (_currentSelectedBuilding != null && _currentSelectedBuilding.buildingName == "Bridge");
-
         for (int x = 0; x < size.x; x++)
         {
             for (int z = 0; z < size.y; z++)
             {
-                GridCell cell = _gridSystem.GetCell(startX + x, startZ + z);
-                
-                // 1. Ô lưới phải hợp lệ
-                if (cell == null)
+                int gridX = startX + x;
+                int gridZ = startZ + z;
+
+                if (!IsCellValidForFootprint(gridX, gridZ, data))
                 {
                     return false;
                 }
 
-                if (!cell.isBuildable)
-                {
-                    // Ngoại lệ đối với cầu: Cho phép xây trên mặt nước sông
-                    bool isWater = false;
-                    if (Terrain.activeTerrain != null)
-                    {
-                        float worldX = (startX + x) * _gridSystem.GetCellSize();
-                        float worldZ = (startZ + z) * _gridSystem.GetCellSize();
-                        float h = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
-                        if (h < _gridSystem.WaterHeight)
-                        {
-                            isWater = true;
-                        }
-                    }
-
-                    if (!isBridge || !isWater || cell.hasResource || _builtStructures.ContainsKey(cell))
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    if (cell.hasResource || _builtStructures.ContainsKey(cell))
-                    {
-                        return false;
-                    }
-                }
-
-                if (!IsBuildCellVisible(startX + x, startZ + z))
-                {
-                    return false;
-                }
-                
-                // 2. Lấy độ cao thực tế từ Terrain
+                GridCell cell = _gridSystem.GetCell(gridX, gridZ);
                 if (Terrain.activeTerrain != null)
                 {
-                    float h = Terrain.activeTerrain.SampleHeight(_gridSystem.GetWorldPosition(startX + x, startZ + z));
+                    float h = _gridSystem.GetWorldPosition(gridX, gridZ).y;
                     if (h < minY) minY = h;
                     if (h > maxY) maxY = h;
                 }
@@ -739,11 +846,11 @@ public class BuildingManager : MonoBehaviour
                 cells.Add(cell);
             }
         }
-        
-        // KHÔNG CHO XÂY NẾU ĐẤT QUÁ DỐC (Chênh lệch độ cao > 2.5m) - Ngoại lệ đối với cầu gỗ
-        if (!isBridge && Terrain.activeTerrain != null && (maxY - minY > 2.5f))
+
+        bool requiresFlatTerrain = data == null || data.FlattensTerrain;
+        if (requiresFlatTerrain && Terrain.activeTerrain != null && (maxY - minY > 2.5f))
         {
-            return false; // Báo đỏ, không cho xây trên vách núi dựng đứng
+            return false;
         }
 
         return true;
@@ -895,7 +1002,13 @@ public class BuildingManager : MonoBehaviour
             Material[] materials = ghostRenderer.materials;
             for (int i = 0; i < materials.Length; i++)
             {
-                materials[i] = new Material(_ghostMaterial);
+                Material ghostMat = new Material(_ghostMaterial);
+                ghostMat.renderQueue = 3100;
+                if (ghostMat.HasProperty("_ZWrite"))
+                {
+                    ghostMat.SetInt("_ZWrite", 0);
+                }
+                materials[i] = ghostMat;
             }
             ghostRenderer.materials = materials;
         }
@@ -971,21 +1084,13 @@ public class BuildingManager : MonoBehaviour
             size = new Vector2Int(size.y, size.x);
         }
         
-        // KIỂM TRA ĐIỀU KIỆN CÔNG TRÌNH YÊU CẦU
-        if (data.requiredBuildings != null && data.requiredBuildings.Count > 0)
+        if (!MeetsBuildingRequirements(data))
         {
-            foreach (var reqBuilding in data.requiredBuildings)
-            {
-                if (!_builtBuildingCounts.ContainsKey(reqBuilding) || _builtBuildingCounts[reqBuilding] <= 0)
-                {
-                    GameLog.LogWarning($"Không thể xây! Bạn cần phải xây '{reqBuilding.buildingName}' trước.");
-                    return; // Bắt buộc phải có công trình yêu cầu
-                }
-            }
+            GameLog.LogWarning("Không thể xây! Thiếu công trình yêu cầu.");
+            return;
         }
 
-        // KIỂM TRA VÀ TRỪ TÀI NGUYÊN
-        if (!ResourceManager.Instance.CanAfford(data.buildCosts))
+        if (!CanAffordBuilding(data))
         {
             GameLog.LogWarning("Không thể xây ở đây: Không đủ tài nguyên!");
             return;
@@ -993,14 +1098,13 @@ public class BuildingManager : MonoBehaviour
 
         ResourceManager.Instance.ConsumeCosts(data.buildCosts);
         
-        // BƯỚC QUAN TRỌNG: ỦI PHẲNG MẶT ĐẤT! (Ngoại trừ cầu gỗ)
-        if (data.buildingName != "Bridge")
+        // BƯỚC QUAN TRỌNG: ỦI PHẲNG MẶT ĐẤT! (chỉ công trình FlattenFootprint)
+        if (data.FlattensTerrain)
         {
             _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
         }
 
-        // Đợi 1 chút xíu hoặc tính toán trực tiếp CenterPos lại vì mặt đất vừa bị lún xuống/nâng lên
-        Vector3 finalCenterPos = CalculateBuildingCenter(startX, startZ, 0, size);
+        Vector3 finalCenterPos = CalculateBuildingCenter(startX, startZ, size, data);
         
         GameObject newBuilding = Instantiate(data.buildingPrefab, finalCenterPos, Quaternion.Euler(0, _currentRotationIndex * 90f, 0));
         _buildingDataMap[newBuilding] = data;
@@ -1053,11 +1157,20 @@ public class BuildingManager : MonoBehaviour
                 visualContainer.localPosition = Vector3.zero;
             }
 
-            // Đảm bảo NavMeshObstacle được bật ngay lập tức
-            UnityEngine.AI.NavMeshObstacle obstacle = newBuilding.GetComponentInChildren<UnityEngine.AI.NavMeshObstacle>();
-            if (obstacle != null)
+            // Đảm bảo mọi NavMeshObstacle được bật ngay lập tức (cổng rào có nhiều obstacle con + root)
+            UnityEngine.AI.NavMeshObstacle[] obstacles = newBuilding.GetComponentsInChildren<UnityEngine.AI.NavMeshObstacle>(true);
+            for (int o = 0; o < obstacles.Length; o++)
             {
-                obstacle.enabled = true;
+                if (obstacles[o] != null)
+                {
+                    obstacles[o].enabled = true;
+                }
+            }
+
+            WoodGateController gateController = newBuilding.GetComponent<WoodGateController>();
+            if (gateController != null)
+            {
+                gateController.ForceClosedState();
             }
         }
 
@@ -1075,18 +1188,18 @@ public class BuildingManager : MonoBehaviour
         combatTarget.scanRange = 0f;
         combatTarget.autoAggroDuringMove = false;
 
-        AddShelterComponentIfHouse(newBuilding, data);
+        EnsureHousingComponent(newBuilding, data);
 
-        bool isBridge = (data.buildingName == "Bridge");
+        bool actsAsBridge = data.ActsAsBridge;
         foreach (var cell in cellsToOccupy)
         {
             _builtStructures[cell] = newBuilding;     // Lưu chung 1 ngôi nhà duy nhất cho tất cả các ô nó chiếm
             cell.isBuildable = false;
-            cell.isWalkable = isBridge ? true : false; // Cầu gỗ thì cho phép đi bộ qua
-            cell.hasBridge = isBridge;
+            cell.isWalkable = actsAsBridge ? true : false;
+            cell.hasBridge = actsAsBridge;
         }
 
-        if (isBridge)
+        if (actsAsBridge)
         {
             int centerX = startX + size.x / 2;
             int centerZ = startZ + size.y / 2;
@@ -1098,12 +1211,12 @@ public class BuildingManager : MonoBehaviour
         if (isInstant)
         {
             OnBuildingCompleted(cb);
-            GameLog.Log($"[BuildingManager] Xây dựng xong ngay lập tức công trình {data.buildingName} tại [{startX}, {startZ}]!");
+            GameLog.LogVerbose($"[BuildingManager] Xây dựng xong ngay lập tức công trình {data.buildingName} tại [{startX}, {startZ}]!");
         }
         else
         {
             // Ghi nhận nhà đã bắt đầu đặt móng (chưa tăng builtBuildingCounts vì chưa hoàn thành)
-            GameLog.Log($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
+            GameLog.LogVerbose($"Đặt móng xây {data.buildingName} thành công tại [{startX}, {startZ}] - Kích thước {size} (Xoay {_currentRotationIndex * 90} độ). Chờ dân làng đến xây dựng!");
         }
 
         // Sau khi đặt thành công, dọn dẹp ghost và lựa chọn hiện tại để tránh lưu công trình cũ
@@ -1145,14 +1258,14 @@ public class BuildingManager : MonoBehaviour
             dataToDestroy = _buildingDataMap[buildingObj];
         }
 
-        bool isBridge = (dataToDestroy != null && dataToDestroy.buildingName == "Bridge");
+        bool actsAsBridge = dataToDestroy != null && dataToDestroy.ActsAsBridge;
 
         foreach (var cell in cellsToClear)
         {
             _builtStructures.Remove(cell);
             cell.hasBridge = false;
 
-            if (isBridge)
+            if (actsAsBridge)
             {
                 // Khôi phục trạng thái ngập nước nguyên bản của dòng sông
                 float worldX = cell.x * _gridSystem.GetCellSize();
@@ -1176,7 +1289,7 @@ public class BuildingManager : MonoBehaviour
             }
         }
 
-        if (isBridge)
+        if (actsAsBridge)
         {
             int centerX = Mathf.RoundToInt(buildingObj.transform.position.x / _gridSystem.GetCellSize());
             int centerZ = Mathf.RoundToInt(buildingObj.transform.position.z / _gridSystem.GetCellSize());
@@ -1211,7 +1324,7 @@ public class BuildingManager : MonoBehaviour
         }
 
         Destroy(buildingObj);
-        GameLog.Log($"[BuildingManager] Đã phá hủy công trình {buildingObj.name} chiếm {cellsToClear.Count} ô!");
+        GameLog.LogVerbose($"[BuildingManager] Đã phá hủy công trình {buildingObj.name} chiếm {cellsToClear.Count} ô!");
     }
 
     private void DeleteBuilding(GridCell hitCell)
@@ -1222,7 +1335,7 @@ public class BuildingManager : MonoBehaviour
         }
         else
         {
-             GameLog.Log("Không có công trình nào trên ô này để xóa!");
+             GameLog.LogVerbose("Không có công trình nào trên ô này để xóa!");
         }
     }   
 
@@ -1238,8 +1351,6 @@ public class BuildingManager : MonoBehaviour
 
         GridCell centerCell = _gridSystem.GetCell(centerGridX, centerGridZ);
         if (centerCell == null) return;
-
-        int targetElevation = centerCell.elevation;
 
         List<GridCell> cellsToOccupy = new List<GridCell>();
 
@@ -1264,7 +1375,12 @@ public class BuildingManager : MonoBehaviour
             }
         }
 
-        Vector3 centerPos = CalculateBuildingCenter(startX, startZ, targetElevation, size);
+        if (_mainBuildingData.FlattensTerrain)
+        {
+            _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
+        }
+
+        Vector3 centerPos = CalculateBuildingCenter(startX, startZ, size, _mainBuildingData);
         
         GameObject newBuilding = Instantiate(_mainBuildingData.buildingPrefab, centerPos, Quaternion.identity);
         _mainBuildingInstance = newBuilding;
@@ -1287,7 +1403,7 @@ public class BuildingManager : MonoBehaviour
         }
         combatTarget.SetMaxHealth(_mainBuildingData != null ? _mainBuildingData.maxHealth : 500);
 
-        GameLog.Log($"Đã tự động xây {_mainBuildingData.buildingName} tại [{centerGridX}, {centerGridZ}]");
+        GameLog.LogVerbose($"Đã tự động xây {_mainBuildingData.buildingName} tại [{centerGridX}, {centerGridZ}]");
     }
 
     public Vector3 FindNearestDropoff(Vector3 position, ResourceType resourceType)
@@ -1416,29 +1532,33 @@ public class BuildingManager : MonoBehaviour
             }
             _builtBuildingCounts[data]++;
 
-            GameLog.Log($"[BuildingManager] '{data.buildingName}' đã hoàn thành xây dựng! Tổng số lượng: {_builtBuildingCounts[data]}. Kích hoạt yêu cầu công nghệ!");
+            GameLog.LogVerbose($"[BuildingManager] '{data.buildingName}' đã hoàn thành xây dựng! Tổng số lượng: {_builtBuildingCounts[data]}. Kích hoạt yêu cầu công nghệ!");
+        }
+
+        if (HUDManager.Instance != null)
+        {
+            HUDManager.Instance.RefreshCapacityAndPopulationUI();
         }
     }
 
-    private void AddShelterComponentIfHouse(GameObject building, BuildingData data)
+    /// <summary>
+    /// Gắn HouseShelter khi BuildingData.housingCapacity > 0 (data-driven, không dựa category/tên).
+    /// </summary>
+    private void EnsureHousingComponent(GameObject building, BuildingData data)
     {
-        if (data != null && (data.category == BuildingCategory.Residential || building.name.ToLower().Contains("homeblue")))
+        if (building == null || data == null || !data.ProvidesHousing)
         {
-            HouseShelter shelter = building.GetComponent<HouseShelter>();
-            if (shelter == null)
-            {
-                shelter = building.AddComponent<HouseShelter>();
-                
-                int capacity = 5;
-                // Nếu là nhà lớn hơn thì tăng sức chứa
-                if (data.buildingName.ToLower().Contains("large") || data.buildingName.ToLower().Contains("big") || (data.buildingSize.x * data.buildingSize.y > 4))
-                {
-                    capacity = 10;
-                }
-                shelter.SetCapacity(capacity);
-                GameLog.Log($"[BuildingManager] Đã gắn HouseShelter cho {building.name} với sức chứa {capacity} dân.");
-            }
+            return;
         }
+
+        HouseShelter shelter = building.GetComponent<HouseShelter>();
+        if (shelter == null)
+        {
+            shelter = building.AddComponent<HouseShelter>();
+        }
+
+        shelter.SetCapacity(Mathf.Max(0, data.housingCapacity));
+        GameLog.LogVerbose($"[BuildingManager] Housing enabled on {building.name}: capacity={data.housingCapacity}");
     }
 
     /// <summary>
@@ -1479,7 +1599,7 @@ public class BuildingManager : MonoBehaviour
         }
         _currentSelectedBuilding = null;
 
-        GameLog.Log("[BuildingManager] Cancelled build mode.");
+        GameLog.LogVerbose("[BuildingManager] Cancelled build mode.");
         SetBuildingMenuVisible(false);
     }
 
@@ -1503,12 +1623,12 @@ public class BuildingManager : MonoBehaviour
                 SelectBuilding(CurrentSelectedBuilding);
             }
             SetBuildingMenuVisible(true);
-            GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã BẬT (từ UI)");
+            GameLog.LogVerbose("CHẾ ĐỘ XÂY DỰNG: Đã BẬT (từ UI)");
         }
         else
         {
             CancelBuildMode();
-            GameLog.Log("CHẾ ĐỘ XÂY DỰNG: Đã TẮT (từ UI)");
+            GameLog.LogVerbose("CHẾ ĐỘ XÂY DỰNG: Đã TẮT (từ UI)");
         }
     }
 
@@ -1525,11 +1645,11 @@ public class BuildingManager : MonoBehaviour
             }
             _currentSelectedBuilding = null;
             SetBuildingMenuVisible(false);
-            GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã BẬT (từ UI)");
+            GameLog.LogVerbose("CHẾ ĐỘ PHÁ HỦY: Đã BẬT (từ UI)");
         }
         else
         {
-            GameLog.Log("CHẾ ĐỘ PHÁ HỦY: Đã TẮT (từ UI)");
+            GameLog.LogVerbose("CHẾ ĐỘ PHÁ HỦY: Đã TẮT (từ UI)");
         }
     }
 
@@ -1538,7 +1658,7 @@ public class BuildingManager : MonoBehaviour
         if (IsBuildMode)
         {
             _currentRotationIndex = (_currentRotationIndex + 1) % 4;
-            GameLog.Log($"Xoay công trình: {_currentRotationIndex * 90} độ (từ UI)");
+            GameLog.LogVerbose($"Xoay công trình: {_currentRotationIndex * 90} độ (từ UI)");
 
             // Cập nhật ngay lập tức mô hình xem trước (ghost) khi xoay trên Mobile
             if (_ghostBuilding != null && _currentSelectedBuilding != null && _lastPreviewX != -999 && _lastPreviewZ != -999)
@@ -1553,9 +1673,9 @@ public class BuildingManager : MonoBehaviour
                     }
                     int startX = _lastPreviewX - size.x / 2;
                     int startZ = _lastPreviewZ - size.y / 2;
-                    bool canBuild = CheckBuildingArea(startX, startZ, size, out var cellsToOccupy);
+                    bool canBuild = CanPreviewBuildAt(startX, startZ, size, _currentSelectedBuilding);
                     SetGhostColor(canBuild ? new Color(0, 1, 0, 0.5f) : new Color(1, 0, 0, 0.5f));
-                    Vector3 centerPos = CalculateBuildingCenter(startX, startZ, centerCell.elevation, size);
+                    Vector3 centerPos = GetBuildingCenterForPreview(startX, startZ, size, _currentSelectedBuilding);
 
                     _ghostBuilding.transform.position = centerPos;
                     _ghostBuilding.transform.rotation = Quaternion.Euler(0, _currentRotationIndex * 90f, 0);

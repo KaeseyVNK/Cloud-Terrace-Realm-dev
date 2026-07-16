@@ -94,6 +94,12 @@ public class AOSFogOfWarBridge : MonoBehaviour
         EnsureVisibilityTargets();
     }
 
+    public void RefreshFogBounds()
+    {
+        ConfigureFogWar();
+        RefreshRevealers();
+    }
+
     private void ConfigureFogWar()
     {
         if (fogWar == null)

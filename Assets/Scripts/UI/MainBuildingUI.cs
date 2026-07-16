@@ -79,7 +79,6 @@ public class MainBuildingUI : MonoBehaviour
                     }
 
                     SelectMainBuilding(mb);
-                    GameLog.Log("Đã chọn nhà chính: " + clickedBuilding.name);
                     return;
                 }
             }
@@ -128,7 +127,6 @@ public class MainBuildingUI : MonoBehaviour
     /// <param name="mb">The Main Building combat target.</param>
     public void SelectMainBuilding(MainBuildingCombatTarget mb)
     {
-        GameLog.Log("[MainBuildingUI] SelectMainBuilding called for: " + (mb != null ? mb.gameObject.name : "null"));
         _selectedMainBuilding = mb;
 
         if (UnitSelectionManager.Instance != null)
@@ -170,7 +168,6 @@ public class MainBuildingUI : MonoBehaviour
     /// </summary>
     public void DeselectMainBuilding()
     {
-        GameLog.Log("[MainBuildingUI] DeselectMainBuilding called.");
         if (_selectedMainBuilding != null)
         {
             var prod = _selectedMainBuilding.GetComponent<BuildingProduction>() ?? 

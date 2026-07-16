@@ -261,7 +261,7 @@ public class GameManager : MonoBehaviour
             _customCursorTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ThirdAssets/StoneCursorWenrexa/PNG/01.png");
             if (_customCursorTexture != null)
             {
-                GameLog.Log("[GameManager] Tu dong gan texture chuot tuy chinh tu StoneCursorWenrexa.");
+                GameLog.LogVerbose("[GameManager] Tu dong gan texture chuot tuy chinh tu StoneCursorWenrexa.");
             }
         }
 
@@ -319,7 +319,7 @@ public class GameManager : MonoBehaviour
         {
             int newSeed = UnityEngine.Random.Range(1, 1000000);
             _gridSystem.MapSeed = newSeed;
-            GameLog.Log($"[GameManager] New game started. Generated map seed: {newSeed}");
+            GameLog.LogVerbose($"[GameManager] New game started. Generated map seed: {newSeed}");
             
             // Thực hiện sinh bản đồ ngẫu nhiên từ seed mới
             _gridSystem.GenerateFullProceduralMap();
@@ -332,15 +332,10 @@ public class GameManager : MonoBehaviour
         {
             centerX = _gridSystem.StartingSafeZoneCenter.x;
             centerZ = _gridSystem.StartingSafeZoneCenter.y;
-            GameLog.Log($"[GameManager] Spawning base at safe non-river center: {centerX}, {centerZ}");
+            GameLog.LogVerbose($"[GameManager] Spawning base at safe non-river center: {centerX}, {centerZ}");
         }
 
-        // Bake lại NavMesh bằng GridSystem để loại trừ các ô sông hồ ngập nước
         GridCell centerCell = _gridSystem.GetCell(centerX, centerZ);
-        if (centerCell != null)
-        {
-            _gridSystem.BakeNavigationMesh(force: true);
-        }
 
         // Đặt camera vào giữa
         CameraControls camControl = FindAnyObjectByType<CameraControls>();
@@ -353,7 +348,7 @@ public class GameManager : MonoBehaviour
         // Bỏ qua việc sinh thực thể ban đầu nếu là load game
         if (CloudTerraceRealm.SaveSystem.SaveGameSystem.ResumeRequested)
         {
-            GameLog.Log("[GameManager] Resume requested. Skipping initial entity spawning.");
+            GameLog.LogVerbose("[GameManager] Resume requested. Skipping initial entity spawning.");
             return;
         }
 
@@ -438,14 +433,16 @@ public class GameManager : MonoBehaviour
 
             if (canPlace)
             {
-                // Ủi phẳng địa hình khu vực chợ trung lập
-                _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
+                if (_neutralMarketData.FlattensTerrain)
+                {
+                    _gridSystem.FlattenRectArea(startX, startZ, size.x, size.y);
+                }
 
                 float cellSize = _gridSystem.GetCellSize();
-                Vector3 startPos = _gridSystem.GetWorldPosition(startX, startZ, targetElevation);
-                float offsetX = (size.x - 1) * cellSize / 2f;
-                float offsetZ = (size.y - 1) * cellSize / 2f;
-                Vector3 centerPos = startPos + new Vector3(offsetX, 0f, offsetZ);
+                float centerXWorld = (startX + size.x * 0.5f) * cellSize;
+                float centerZWorld = (startZ + size.y * 0.5f) * cellSize;
+                float centerY = _gridSystem.GetFootprintHeight(startX, startZ, size.x, size.y, _neutralMarketData.placementMode);
+                Vector3 centerPos = new Vector3(centerXWorld, centerY, centerZWorld);
 
                 // Sinh GameObject chợ trung lập
                 GameObject marketObj = Instantiate(_neutralMarketData.buildingPrefab, centerPos, Quaternion.identity);
@@ -455,7 +452,7 @@ public class GameManager : MonoBehaviour
                 _buildingManager.RegisterSpawnedBuilding(marketObj, _neutralMarketData, startX, startZ);
 
                 spawnedMarkets++;
-                GameLog.Log($"[GameManager] Đã tự động sinh chợ trung lập {marketObj.name} tại [{startX}, {startZ}]");
+                GameLog.LogVerbose($"[GameManager] Đã tự động sinh chợ trung lập {marketObj.name} tại [{startX}, {startZ}]");
             }
         }
     }
@@ -515,7 +512,7 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        GameLog.Log("[GameManager] Dang khoi dong lai game, dang don dep cac doi tuong DontDestroyOnLoad...");
+        GameLog.LogVerbose("[GameManager] Dang khoi dong lai game, dang don dep cac doi tuong DontDestroyOnLoad...");
 
         // Reset timescale to prevent frozen game on reload
         Time.timeScale = 1f;

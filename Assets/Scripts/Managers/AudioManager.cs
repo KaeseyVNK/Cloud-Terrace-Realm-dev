@@ -249,7 +249,6 @@ namespace MyGame.Audio
                     _playlistBag.Clear();
                     _currentTrackIndex = -1;
                     PlayNextTrack();
-                    GameLog.Log($"[AudioManager] Chuyển đổi nhạc nền sang thể loại: {_currentCategory}");
                 }
                 else
                 {

@@ -68,7 +68,6 @@ public class TestProductionUI : MonoBehaviour
                                     prod.SetRallyFlagVisible(true);
                                 }
                             }
-                            GameLog.Log($"[TestProductionUI] Setting Rally Point for {selectedProductions.Count} selected buildings at {hit.point}");
                         }
                         else
                         {
@@ -81,7 +80,6 @@ public class TestProductionUI : MonoBehaviour
 
                             if (targetProd != null)
                             {
-                                GameLog.Log("[TestProductionUI] Setting Rally Point for: " + targetProd.gameObject.name + " at position " + hit.point);
                                 targetProd.SetRallyFromHit(hit);
                                 targetProd.SetRallyFlagVisible(true);
                             }
@@ -130,14 +128,12 @@ public class TestProductionUI : MonoBehaviour
 
                     if (isDoubleClick)
                     {
-                        GameLog.Log($"[TestProductionUI] Double click building: {prod.gameObject.name}. Selecting all same type on screen.");
                         SelectAllBuildingsOfSameTypeOnScreen(prod);
                     }
                     else
                     {
                         SelectProduction(prod);
                     }
-                    GameLog.Log("Đã chọn công trình để sản xuất: " + clickedBuilding.name);
                     return;
                 }
 
@@ -152,7 +148,6 @@ public class TestProductionUI : MonoBehaviour
                     }
 
                     SelectResearch(research);
-                    GameLog.Log("Đã chọn lò rèn để nghiên cứu: " + clickedResearchBuilding.name);
                     return;
                 }
 
@@ -177,14 +172,12 @@ public class TestProductionUI : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(1))
                 {
-                    GameLog.Log("Không có công trình sản xuất nào đang được chọn để đặt rally point.");
                 }
             }
             else
             {
                 if (Input.GetMouseButtonDown(1))
                 {
-                    GameLog.Log("Chuột phải không trúng bất kỳ Collider nào!");
                 }
             }
         }
@@ -230,7 +223,6 @@ public class TestProductionUI : MonoBehaviour
 
     private void SelectProduction(BuildingProduction production)
     {
-        GameLog.Log("[TestProductionUI] SelectProduction called for: " + (production != null ? production.gameObject.name : "null"));
 
         foreach (var p in selectedProductions)
         {

@@ -296,7 +296,6 @@ namespace CloudTerraceRealm.UI
             if (TestProductionUI.Instance != null)
             {
                 TestProductionUI.Instance.BeginRallyTargeting(GetActiveProductionForRally());
-                GameLog.Log("[UnifiedBuildingMenu] Activated Rally Point targeting mode for selected building.");
             }
         }
 

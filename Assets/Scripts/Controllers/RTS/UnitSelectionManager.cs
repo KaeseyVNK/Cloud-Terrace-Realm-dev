@@ -114,7 +114,6 @@ public class UnitSelectionManager : MonoBehaviour
             if (_isAttackMode || _isGatherMode || _isBuildMode)
             {
                 ClearTargetingModes();
-                GameLog.Log("[RTS] Hủy chế độ ra lệnh chỉ định");
                 return;
             }
         }
@@ -139,7 +138,6 @@ public class UnitSelectionManager : MonoBehaviour
                     ClearTargetingModes();
                     _isAttackMode = true;
                     if (CursorManager.Instance != null) CursorManager.Instance.IsAttackTargetingMode = true;
-                    GameLog.Log("[RTS] Vào chế độ chỉ định Tấn công (Attack targeting mode)");
                 }
             }
             else if (Input.GetKeyDown(KeyCode.G))
@@ -159,7 +157,6 @@ public class UnitSelectionManager : MonoBehaviour
                     ClearTargetingModes();
                     _isGatherMode = true;
                     if (CursorManager.Instance != null) CursorManager.Instance.IsGatherTargetingMode = true;
-                    GameLog.Log("[RTS] Vào chế độ chỉ định Khai thác (Gather targeting mode)");
                 }
             }
             else if (Input.GetKeyDown(KeyCode.B))
@@ -179,7 +176,6 @@ public class UnitSelectionManager : MonoBehaviour
                     ClearTargetingModes();
                     _isBuildMode = true;
                     if (CursorManager.Instance != null) CursorManager.Instance.IsBuildTargetingMode = true;
-                    GameLog.Log("[RTS] Vào chế độ chỉ định Xây dựng (Build targeting mode)");
                 }
             }
         }
@@ -271,7 +267,6 @@ public class UnitSelectionManager : MonoBehaviour
             ClearTargetingModes();
             _isBuildMode = true;
             if (CursorManager.Instance != null) CursorManager.Instance.IsBuildTargetingMode = true;
-            GameLog.Log("[RTS] ActionPanel: Vào chế độ chỉ định Xây dựng (Build)");
         }
     }
 
@@ -292,7 +287,6 @@ public class UnitSelectionManager : MonoBehaviour
             ClearTargetingModes();
             _isAttackMode = true;
             if (CursorManager.Instance != null) CursorManager.Instance.IsAttackTargetingMode = true;
-            GameLog.Log("[RTS] ActionPanel: Vào chế độ chỉ định Tấn công (Attack)");
         }
     }
 
@@ -313,7 +307,6 @@ public class UnitSelectionManager : MonoBehaviour
             ClearTargetingModes();
             _isGatherMode = true;
             if (CursorManager.Instance != null) CursorManager.Instance.IsGatherTargetingMode = true;
-            GameLog.Log("[RTS] ActionPanel: Vào chế độ chỉ định Khai thác/Sửa chữa (Gather/Repair)");
         }
     }
 
@@ -504,7 +497,6 @@ public class UnitSelectionManager : MonoBehaviour
             if (_isAttackMode || _isGatherMode || _isBuildMode)
             {
                 ClearTargetingModes();
-                GameLog.Log("[RTS] Hủy chế độ ra lệnh bằng Chuột Phải");
             }
             else
             {
@@ -566,7 +558,6 @@ public class UnitSelectionManager : MonoBehaviour
                             if (clickedEnemy != null && clickedEnemy.faction != combatUnit.faction)
                             {
                                 combatUnit.CommandAttack(clickedEnemy);
-                                GameLog.Log($"[RTS] Chỉ định tấn công mục tiêu: {clickedEnemy.unitName}");
                             }
                             else
                             {
@@ -598,7 +589,6 @@ public class UnitSelectionManager : MonoBehaviour
                             if (villager != null)
                             {
                                 villager.CommandHunt(animal);
-                                GameLog.Log($"[RTS] Chỉ định dân làng {unit.gameObject.name} săn thú hoang {animal.unitName}");
                             }
                         }
                     }
@@ -633,7 +623,6 @@ public class UnitSelectionManager : MonoBehaviour
                                 if (villager != null)
                                 {
                                     villager.CommandGather(clickedNode, null);
-                                    GameLog.Log($"[RTS] Chỉ định khai thác tài nguyên: {clickedNode.ResourceType}");
                                 }
                             }
                         }
@@ -654,7 +643,6 @@ public class UnitSelectionManager : MonoBehaviour
                                     if (villager != null)
                                     {
                                         villager.CommandBuild(clickedBuilding);
-                                        GameLog.Log($"[RTS] Chỉ định xây dựng (từ GatherMode): {clickedBuilding.gameObject.name}");
                                     }
                                 }
                             }
@@ -671,7 +659,6 @@ public class UnitSelectionManager : MonoBehaviour
                                     if (villager != null)
                                     {
                                         villager.CommandRepair(clickedFriendlyUnit);
-                                        GameLog.Log($"[RTS] Chỉ định sửa chữa (từ GatherMode): {clickedFriendlyUnit.gameObject.name}");
                                     }
                                 }
                             }
@@ -702,14 +689,12 @@ public class UnitSelectionManager : MonoBehaviour
                             if (clickedBuilding != null && !clickedBuilding.IsCompleted)
                             {
                                 villager.CommandBuild(clickedBuilding);
-                                GameLog.Log($"[RTS] Chỉ định xây dựng: {clickedBuilding.gameObject.name}");
                             }
                             else if (clickedFriendlyUnit != null && clickedFriendlyUnit.faction == UnitFaction.Player &&
                                      (clickedFriendlyUnit.GetComponent<BuildingCombatTarget>() != null || clickedFriendlyUnit.GetComponent<MainBuildingCombatTarget>() != null) &&
                                      clickedFriendlyUnit.currentHealth < clickedFriendlyUnit.maxHealth)
                             {
                                 villager.CommandRepair(clickedFriendlyUnit);
-                                GameLog.Log($"[RTS] Chỉ định sửa chữa: {clickedFriendlyUnit.gameObject.name}");
                             }
                         }
                     }
@@ -805,14 +790,12 @@ public class UnitSelectionManager : MonoBehaviour
     {
         if (selectedUnits.Count == 0)
         {
-            GameLog.Log("[RTS] Chưa chọn unit nào, không thể ra lệnh.");
             return;
         }
 
         Ray ray = _mainCamera != null ? _mainCamera.ScreenPointToRay(_commandScreenPos) : Camera.main.ScreenPointToRay(_commandScreenPos);
         if (TryGetCommandHit(ray, out RaycastHit hit))
         {
-            GameLog.Log($"[RTS] Raycast RightClick trúng: {hit.collider.gameObject.name} tại điểm {hit.point}");
 
             // Play movement/order sound
             if (MyGame.Audio.AudioManager.Instance != null && selectedUnits.Count > 0)
@@ -928,7 +911,6 @@ public class UnitSelectionManager : MonoBehaviour
 
                         if (shouldGarrison && clickedWatchTower.TrySendToGarrison(unit))
                         {
-                            GameLog.Log($"[RTS] Da ra lenh {unit.gameObject.name} vao thap canh.");
                             continue;
                         }
 
@@ -948,12 +930,10 @@ public class UnitSelectionManager : MonoBehaviour
                                 }
                                 else if (clickedRuins.IsExplored)
                                 {
-                                    GameLog.Log("[RTS] Phế tích này đã được khai quật xong.");
                                 }
                                 else
                                 {
                                     villager.CommandExplore(clickedRuins);
-                                    GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi khai quật phế tích.");
                                 }
                                 continue;
                             }
@@ -962,7 +942,6 @@ public class UnitSelectionManager : MonoBehaviour
                             if (clickedBuilding != null && !clickedBuilding.IsCompleted)
                             {
                                 villager.CommandBuild(clickedBuilding);
-                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi xây dựng {clickedBuilding.gameObject.name}");
                             }
                             // A.2. Ưu tiên 1.2: Click vào công trình thân thiện bị thương -> Sửa chữa
                             else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Player &&
@@ -970,25 +949,21 @@ public class UnitSelectionManager : MonoBehaviour
                                      clickedEnemy.currentHealth < clickedEnemy.maxHealth)
                             {
                                 villager.CommandRepair(clickedEnemy);
-                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} đi sửa chữa {clickedEnemy.gameObject.name}");
                             }
                             // B. Ưu tiên 2: Click vào mỏ tài nguyên -> Đi khai thác
                             else if (clickedNode != null)
                             {
                                 villager.CommandGather(clickedNode, null);
-                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} khai thác {clickedNode.ResourceType}");
                             }
                             // B.2. Ưu tiên 2.2: Click vào thú hoang dã -> Đi săn
                             else if (clickedEnemy != null && clickedEnemy.faction == UnitFaction.Neutral && clickedEnemy.GetComponent<WildAnimalController>() != null)
                             {
                                 WildAnimalController animal = clickedEnemy.GetComponent<WildAnimalController>();
                                 villager.CommandHunt(animal);
-                                GameLog.Log($"[RTS] Đã ra lệnh cho dân làng {unit.gameObject.name} đi săn thú hoang {clickedEnemy.unitName}");
                             }
                             else if (clickedRiceField != null)
                             {
                                 villager.CommandFarm(clickedRiceField);
-                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} chăm sóc ruộng lúa");
                             }
                             // C. Ưu tiên 3: Click vào đất trống -> Di chuyển
                             else
@@ -1005,7 +980,6 @@ public class UnitSelectionManager : MonoBehaviour
                             if (clickedEnemy != null && clickedEnemy.faction != combatUnit.faction)
                             {
                                 combatUnit.CommandAttack(clickedEnemy);
-                                GameLog.Log($"[RTS] Đã ra lệnh {unit.gameObject.name} tấn công {clickedEnemy.unitName}");
                             }
                             else
                             {
@@ -1021,7 +995,6 @@ public class UnitSelectionManager : MonoBehaviour
         }
         else
         {
-            GameLog.Log("[RTS] Raycast RightClick không trúng mặt đất hoặc object nào có Collider.");
         }
     }
 
@@ -1195,12 +1168,10 @@ public class UnitSelectionManager : MonoBehaviour
             {
                 if (isDoubleClick)
                 {
-                    GameLog.Log($"[RTS] Đúp chuột trúng unit: {unit.gameObject.name}. Chọn tất cả unit cùng loại trên màn hình.");
                     SelectAllUnitsOfSameTypeOnScreen(unit);
                     return;
                 }
 
-                GameLog.Log($"[RTS] Đã click trúng unit: {unit.gameObject.name}");
                 // Nếu giữ phím Shift, thêm vào danh sách đang chọn
                 if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
                 {
@@ -1225,14 +1196,12 @@ public class UnitSelectionManager : MonoBehaviour
             }
             else
             {
-                GameLog.Log("[RTS] Click trúng Collider thuộc Unit LayerMask nhưng không có component SelectableUnit.");
                 // Bấm vào đất hoặc object khác không phải unit -> bỏ chọn hết
                 DeselectAll();
             }
         }
         else
         {
-            GameLog.Log("[RTS] Click chuột trái không trúng Unit nào thuộc LayerMask quy định.");
             // Bấm vào chỗ trống -> bỏ chọn hết
             DeselectAll();
         }
@@ -1358,12 +1327,10 @@ public class UnitSelectionManager : MonoBehaviour
             if (i < nearbyFields.Count)
             {
                 selectedVillagers[i].CommandFarm(nearbyFields[i]);
-                GameLog.Log($"[RTS] Tự động phân công {selectedVillagers[i].gameObject.name} chăm sóc ruộng lúa {nearbyFields[i].gameObject.name}");
             }
             else
             {
                 selectedVillagers[i].GoIdle();
-                GameLog.Log($"[RTS] Cư dân thừa {selectedVillagers[i].gameObject.name} được đặt về Idle");
             }
         }
     }
@@ -1514,7 +1481,6 @@ public class UnitSelectionManager : MonoBehaviour
             if (villager != null)
             {
                 villager.CommandGather(clickedNode, null);
-                GameLog.Log($"[RTS] Left-click chỉ định khai thác tài nguyên: {clickedNode.ResourceType}");
             }
         }
 
@@ -1538,41 +1504,7 @@ public static class UnitPerformanceMetrics
     {
         if (UnityEngine.Time.time >= _lastReportTime + 4.0f)
         {
-            int pendingCount = 0;
-            for (int i = 0; i < BaseCombatUnitController.Registry.Count; i++)
-            {
-                var unit = BaseCombatUnitController.Registry[i];
-                if (unit != null && unit.enabled && unit.gameObject.activeInHierarchy)
-                {
-                    var agent = unit.NavAgent;
-                    if (agent != null && agent.enabled && agent.pathPending)
-                    {
-                        pendingCount++;
-                    }
-                }
-            }
-            for (int i = 0; i < VillagerController.AllVillagers.Count; i++)
-            {
-                var villager = VillagerController.AllVillagers[i];
-                if (villager != null && villager.enabled && villager.gameObject.activeInHierarchy)
-                {
-                    var agent = villager.NavAgent;
-                    if (agent != null && agent.enabled && agent.pathPending)
-                    {
-                        pendingCount++;
-                    }
-                }
-            }
-
-            UnityEngine.Debug.Log($"[Performance Metrics] (Last 4s)\n" +
-                                  $"- SetDestination calls: {SetDestinationCount}\n" +
-                                  $"- Combat scans: {CombatScanCount}\n" +
-                                  $"- Kite scans: {KiteScanCount}\n" +
-                                  $"- Hunt repaths: {HuntRepathCount}\n" +
-                                  $"- Path pending units: {pendingCount}\n" +
-                                  $"- Buffer overflows: {BufferOverflowCount}");
-
-            // Reset after report
+            // Counters still tracked for profiler/inspector use; console spam removed.
             SetDestinationCount = 0;
             CombatScanCount = 0;
             KiteScanCount = 0;

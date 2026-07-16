@@ -204,7 +204,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
             _enemyPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Unit/Enemy/Skeleton_Warrior.prefab");
             if (_enemyPrefab != null)
             {
-                GameLog.Log($"[EnemyManager] Tự động tải thành công prefab kẻ địch: {_enemyPrefab.name}");
+                GameLog.LogVerbose($"[EnemyManager] Tự động tải thành công prefab kẻ địch: {_enemyPrefab.name}");
             }
             else
             {
@@ -220,7 +220,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
             _enemyArcherPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Unit/Enemy/EnemyArcher.prefab");
             if (_enemyArcherPrefab != null)
             {
-                GameLog.Log($"[EnemyManager] Tự động tải thành công prefab EnemyArcher: {_enemyArcherPrefab.name}");
+                GameLog.LogVerbose($"[EnemyManager] Tự động tải thành công prefab EnemyArcher: {_enemyArcherPrefab.name}");
             }
             else
             {
@@ -247,7 +247,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
         if (TimeManager.Instance != null)
         {
             TimeManager.Instance.OnDayNightChanged += HandleDayNightChanged;
-            GameLog.Log("[EnemyManager] Đăng ký lắng nghe sự kiện OnDayNightChanged thành công.");
+            GameLog.LogVerbose("[EnemyManager] Đăng ký lắng nghe sự kiện OnDayNightChanged thành công.");
         }
         else
         {
@@ -308,7 +308,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
             successfulSpawns += SpawnWave(_currentNightNumber, waveIndex, centerSpawnPos, edgeName);
         }
 
-        GameLog.Log($"[EnemyManager] Đêm {_currentNightNumber}: Spawn test thành công {successfulSpawns} kẻ địch từ hướng {edgeName}.");
+        GameLog.LogVerbose($"[EnemyManager] Đêm {_currentNightNumber}: Spawn test thành công {successfulSpawns} kẻ địch từ hướng {edgeName}.");
     }
 
     public int GetEnemyCountForNight(int nightNumber)
@@ -339,7 +339,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
 
         int waveIndex = GetNextUnspawnedWaveIndex();
         int successfulSpawns = SpawnWave(_currentNightNumber, waveIndex, centerSpawnPos, edgeName);
-        GameLog.Log($"[EnemyManager] Force wave: night {_currentNightNumber}, wave {waveIndex + 1}, spawned {successfulSpawns}, edge {edgeName}.");
+        GameLog.LogVerbose($"[EnemyManager] Force wave: night {_currentNightNumber}, wave {waveIndex + 1}, spawned {successfulSpawns}, edge {edgeName}.");
     }
 
     /// <summary>
@@ -395,7 +395,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
         int count = Mathf.Clamp(2 + (_currentNightNumber / 2), 2, 8);
         int successfulSpawns = SpawnEnemyGroup(_enemyPrefab, "RainyRaid_Skeleton", count, _currentNightNumber, 99, centerSpawnPos);
 
-        GameLog.Log($"[EnemyManager] Đột kích ngày mưa: Spawn thành công {successfulSpawns} Skeleton từ hướng {edgeName} lúc sáng sớm.");
+        GameLog.LogVerbose($"[EnemyManager] Đột kích ngày mưa: Spawn thành công {successfulSpawns} Skeleton từ hướng {edgeName} lúc sáng sớm.");
     }
 
     private void TrySpawnDaySpecialEvent()
@@ -419,7 +419,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
             totalSpawned += SpawnEnemyGroup(prefab, $"{eventName}_{entries[i].name}", entries[i].baseCount, _currentNightNumber, 98, centerSpawnPos);
         }
 
-        GameLog.Log($"[EnemyManager] Sự kiện ban ngày {eventName}: spawned {totalSpawned} enemies từ {edgeName}.");
+        GameLog.LogVerbose($"[EnemyManager] Sự kiện ban ngày {eventName}: spawned {totalSpawned} enemies từ {edgeName}.");
     }
 
 
@@ -682,7 +682,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
                 _activeNightWaves);
         }
 
-        GameLog.Log(usingCustomWaves
+        GameLog.LogVerbose(usingCustomWaves
             ? $"[EnemyManager] Đêm {night} ({weather}): Đã tải {_activeNightWaves.Count} wave cấu hình sẵn từ customWaves."
             : $"[EnemyManager] Đêm {night} ({weather}): Tự sinh {_activeNightWaves.Count} wave từ Enemy Roster.");
 
@@ -758,7 +758,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
             if (TryGetSpawnEdge(out Vector3 centerSpawnPos, out string edgeName))
             {
                 int successfulSpawns = SpawnWave(_currentNightNumber, waveIndex, centerSpawnPos, edgeName);
-                GameLog.Log($"[EnemyManager] Đêm {_currentNightNumber}: Wave {waveIndex + 1}/{_activeNightWaves.Count} spawned {successfulSpawns} enemies.");
+                GameLog.LogVerbose($"[EnemyManager] Đêm {_currentNightNumber}: Wave {waveIndex + 1}/{_activeNightWaves.Count} spawned {successfulSpawns} enemies.");
             }
 
             _spawnedWavesThisNight[waveIndex] = true;
@@ -817,7 +817,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
             totalSpawned += SpawnEnemyGroup(prefab, entry.name, requestedCount, nightNumber, waveIndex, centerSpawnPos);
         }
 
-        GameLog.Log($"[EnemyManager] Đêm {nightNumber}: {wave.waveName} tại {edgeName}, spawned {totalSpawned}/{totalRequested}, active {_activeEnemies.Count}/{_maxActiveEnemies}.");
+        GameLog.LogVerbose($"[EnemyManager] Đêm {nightNumber}: {wave.waveName} tại {edgeName}, spawned {totalSpawned}/{totalRequested}, active {_activeEnemies.Count}/{_maxActiveEnemies}.");
         return totalSpawned;
     }
 
@@ -857,7 +857,7 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
         int enemyCount = Mathf.Min(requestedCount, activeEnemySlots);
         if (enemyCount <= 0)
         {
-            GameLog.Log($"[EnemyManager] Đêm {nightNumber}: Bỏ qua group {enemyName} vì đã đạt giới hạn active enemies ({_activeEnemies.Count}/{_maxActiveEnemies}).");
+            GameLog.LogVerbose($"[EnemyManager] Đêm {nightNumber}: Bỏ qua group {enemyName} vì đã đạt giới hạn active enemies ({_activeEnemies.Count}/{_maxActiveEnemies}).");
             return 0;
         }
 
@@ -1078,6 +1078,6 @@ public class EnemyManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveabl
         this._dayRainRaidSpawned = state.dayRainRaidSpawned;
         this._daySpecialEventSpawned = state.daySpecialEventSpawned;
         
-        GameLog.Log($"[EnemyManager] Restored currentNightNumber to: {this._currentNightNumber}");
+        GameLog.LogVerbose($"[EnemyManager] Restored currentNightNumber to: {this._currentNightNumber}");
     }
 }

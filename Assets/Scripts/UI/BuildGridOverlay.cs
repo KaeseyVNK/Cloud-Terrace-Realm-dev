@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class BuildGridOverlay : MonoBehaviour
@@ -5,8 +6,9 @@ public class BuildGridOverlay : MonoBehaviour
     [SerializeField] private Color _gridColor = new Color(0.15f, 0.9f, 1f, 0.7f);
     [SerializeField] private float _heightOffset = 0.12f;
     [SerializeField] private float _lineWidth = 0.045f;
-    [SerializeField] private int _maxVisibleCellsPerAxis = 90;
-    [SerializeField] private int _terrainLineSegments = 6;
+    [SerializeField] private int _maxVisibleCellsPerAxis = 56;
+    [SerializeField] private int _terrainLineSegments = 3;
+    [SerializeField] private float _rebuildInterval = 0.15f;
 
     private GridSystem _gridSystem;
     private GameObject _gridObject;
@@ -19,7 +21,12 @@ public class BuildGridOverlay : MonoBehaviour
     private int _lastStartZ = int.MinValue;
     private int _lastEndZ = int.MinValue;
     private float _lastCellSize = -1f;
-    private bool _lastVisible;
+    private BuildingData _lastSelectedBuilding;
+    private float _nextRebuildTime;
+
+    private readonly List<Vector3> _vertices = new List<Vector3>();
+    private readonly List<Color> _colors = new List<Color>();
+    private readonly List<int> _triangles = new List<int>();
 
     private void Awake()
     {
@@ -80,6 +87,8 @@ public class BuildGridOverlay : MonoBehaviour
             return;
         }
 
+        BuildingData selectedBuilding = _buildingManager != null ? _buildingManager.CurrentSelectedBuilding : null;
+
         float cellSize = _gridSystem.GetCellSize();
         int width = _gridSystem.GetWidth();
         int length = _gridSystem.GetLength();
@@ -110,23 +119,29 @@ public class BuildGridOverlay : MonoBehaviour
             && startZ == _lastStartZ
             && endZ == _lastEndZ
             && Mathf.Approximately(cellSize, _lastCellSize)
+            && _lastSelectedBuilding == selectedBuilding
             && _gridMesh.vertexCount > 0)
         {
             return;
         }
 
-        RebuildGridMesh(startX, endX, startZ, endZ, cellSize);
+        if (Time.time < _nextRebuildTime)
+        {
+            return;
+        }
+        _nextRebuildTime = Time.time + Mathf.Max(0.02f, _rebuildInterval);
+
+        RebuildGridMesh(startX, endX, startZ, endZ, cellSize, selectedBuilding);
         _lastStartX = startX;
         _lastEndX = endX;
         _lastStartZ = startZ;
         _lastEndZ = endZ;
         _lastCellSize = cellSize;
+        _lastSelectedBuilding = selectedBuilding;
     }
-
 
     private void SetVisible(bool visible)
     {
-        _lastVisible = visible;
         if (_gridObject != null)
         {
             if (_gridObject.activeSelf != visible)
@@ -142,45 +157,58 @@ public class BuildGridOverlay : MonoBehaviour
             _lastStartZ = int.MinValue;
             _lastEndZ = int.MinValue;
             _lastCellSize = -1f;
+            _lastSelectedBuilding = null;
+            _nextRebuildTime = 0f;
         }
     }
 
-    private void RebuildGridMesh(int startX, int endX, int startZ, int endZ, float cellSize)
+    private void RebuildGridMesh(int startX, int endX, int startZ, int endZ, float cellSize, BuildingData selectedBuilding)
     {
-        int segments = Mathf.Max(1, _terrainLineSegments);
-        int verticalLines = Mathf.Max(0, endX - startX + 1);
-        int horizontalLines = Mathf.Max(0, endZ - startZ + 1);
-        int stripSegmentCount = (verticalLines + horizontalLines) * segments;
-        Vector3[] vertices = new Vector3[stripSegmentCount * 4];
-        Color[] colors = new Color[vertices.Length];
-        int[] triangles = new int[stripSegmentCount * 6];
-        int vertexIndex = 0;
-        int triangleIndex = 0;
-
-        for (int x = startX; x <= endX; x++)
+        if (_buildingManager == null)
         {
-            AddTerrainStrip(vertices, colors, triangles, ref vertexIndex, ref triangleIndex,
-                new Vector3(x * cellSize, 0f, startZ * cellSize),
-                new Vector3(x * cellSize, 0f, endZ * cellSize),
-                segments);
+            return;
         }
 
-        for (int z = startZ; z <= endZ; z++)
+        int segments = Mathf.Max(1, _terrainLineSegments);
+        _vertices.Clear();
+        _colors.Clear();
+        _triangles.Clear();
+
+        for (int x = startX; x < endX; x++)
         {
-            AddTerrainStrip(vertices, colors, triangles, ref vertexIndex, ref triangleIndex,
-                new Vector3(startX * cellSize, 0f, z * cellSize),
-                new Vector3(endX * cellSize, 0f, z * cellSize),
-                segments);
+            for (int z = startZ; z < endZ; z++)
+            {
+                if (!_buildingManager.IsCellEligibleForGrid(x, z, selectedBuilding))
+                {
+                    continue;
+                }
+
+                float x0 = x * cellSize;
+                float x1 = (x + 1) * cellSize;
+                float z0 = z * cellSize;
+                float z1 = (z + 1) * cellSize;
+
+                AddTerrainStrip(new Vector3(x0, 0f, z0), new Vector3(x1, 0f, z0), segments);
+                AddTerrainStrip(new Vector3(x0, 0f, z1), new Vector3(x1, 0f, z1), segments);
+                AddTerrainStrip(new Vector3(x0, 0f, z0), new Vector3(x0, 0f, z1), segments);
+                AddTerrainStrip(new Vector3(x1, 0f, z0), new Vector3(x1, 0f, z1), segments);
+            }
         }
 
         _gridMesh.Clear();
-        _gridMesh.vertices = vertices;
-        _gridMesh.colors = colors;
-        _gridMesh.triangles = triangles;
+        if (_vertices.Count == 0)
+        {
+            _gridMesh.RecalculateBounds();
+            return;
+        }
+
+        _gridMesh.SetVertices(_vertices);
+        _gridMesh.SetColors(_colors);
+        _gridMesh.SetTriangles(_triangles, 0);
         _gridMesh.RecalculateBounds();
     }
 
-    private void AddTerrainStrip(Vector3[] vertices, Color[] colors, int[] triangles, ref int vertexIndex, ref int triangleIndex, Vector3 start, Vector3 end, int segments)
+    private void AddTerrainStrip(Vector3 start, Vector3 end, int segments)
     {
         float halfWidth = Mathf.Max(0.005f, _lineWidth * 0.5f);
         Vector3 previous = ProjectToTerrain(start);
@@ -196,26 +224,25 @@ public class BuildGridOverlay : MonoBehaviour
             }
 
             Vector3 side = Vector3.Cross(Vector3.up, flatDirection.normalized) * halfWidth;
+            int vertexIndex = _vertices.Count;
 
-            vertices[vertexIndex] = previous - side;
-            vertices[vertexIndex + 1] = previous + side;
-            vertices[vertexIndex + 2] = next - side;
-            vertices[vertexIndex + 3] = next + side;
+            _vertices.Add(previous - side);
+            _vertices.Add(previous + side);
+            _vertices.Add(next - side);
+            _vertices.Add(next + side);
 
-            colors[vertexIndex] = _gridColor;
-            colors[vertexIndex + 1] = _gridColor;
-            colors[vertexIndex + 2] = _gridColor;
-            colors[vertexIndex + 3] = _gridColor;
+            _colors.Add(_gridColor);
+            _colors.Add(_gridColor);
+            _colors.Add(_gridColor);
+            _colors.Add(_gridColor);
 
-            triangles[triangleIndex] = vertexIndex;
-            triangles[triangleIndex + 1] = vertexIndex + 1;
-            triangles[triangleIndex + 2] = vertexIndex + 2;
-            triangles[triangleIndex + 3] = vertexIndex + 2;
-            triangles[triangleIndex + 4] = vertexIndex + 1;
-            triangles[triangleIndex + 5] = vertexIndex + 3;
+            _triangles.Add(vertexIndex);
+            _triangles.Add(vertexIndex + 1);
+            _triangles.Add(vertexIndex + 2);
+            _triangles.Add(vertexIndex + 2);
+            _triangles.Add(vertexIndex + 1);
+            _triangles.Add(vertexIndex + 3);
 
-            vertexIndex += 4;
-            triangleIndex += 6;
             previous = next;
         }
     }

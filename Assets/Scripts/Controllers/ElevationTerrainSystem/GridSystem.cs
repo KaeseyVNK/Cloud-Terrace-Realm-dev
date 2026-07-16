@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System.Collections.Generic;
 using Unity.AI.Navigation;
 
@@ -24,7 +25,9 @@ public class GridSystem : MonoBehaviour
         }
     }
     [SerializeField] private bool _resizeTerrainOnGenerate = true;
-    [SerializeField] private Vector2Int _mapWorldSize = new Vector2Int(512, 512);
+    [SerializeField] private Vector2Int _mapWorldSize = new Vector2Int(600, 600);
+    [SerializeField] private Transform _waterPlane;
+    private const float DefaultPlaneMeshSize = 10f;
     [SerializeField] private int _startingSafeRadiusCells = 14;
     [SerializeField] private Vector2Int _startingSafeZoneCenter = new Vector2Int(-1, -1);
     public Vector2Int StartingSafeZoneCenter => _startingSafeZoneCenter;
@@ -35,9 +38,6 @@ public class GridSystem : MonoBehaviour
 
     [Header("Terrain Details")]
     [SerializeField] private bool _generateTerrainDetails = true;
-#pragma warning disable 0414
-    [SerializeField] private bool _useComputeShaderGrass = true;
-#pragma warning restore 0414
     [SerializeField] private Texture2D _detailTexture;
     [SerializeField, Range(0, 255)] private int _detailDensity = 128;
     [SerializeField] private bool _disableDetailBillboards = true;
@@ -56,19 +56,11 @@ public class GridSystem : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float _maxDetailHeight01 = 0.75f;
 
     [Header("Terrain Generation (Shape)")]
+    [Tooltip("World-space height (meters) for flat land. Should stay above Water Height.")]
+    [SerializeField] private float _flatLandWorldHeight = 3.0f;
     [UnityEngine.Serialization.FormerlySerializedAs("terrainHeightMultiplier")]
     [SerializeField] private float _terrainHeightMultiplier = 30f;
-    [UnityEngine.Serialization.FormerlySerializedAs("terrainNoiseScale")]
-    [SerializeField] private float _terrainNoiseScale = 0.03f;
-    [UnityEngine.Serialization.FormerlySerializedAs("octaves")]
-    [SerializeField] private int _octaves = 4;
-    [UnityEngine.Serialization.FormerlySerializedAs("persistance")]
-    [Range(0, 1)] [SerializeField] private float _persistance = 0.5f;
-    [UnityEngine.Serialization.FormerlySerializedAs("lacunarity")]
-    [SerializeField] private float _lacunarity = 2f;
-    [UnityEngine.Serialization.FormerlySerializedAs("heightCurve")]
-    [SerializeField] private AnimationCurve _heightCurve = AnimationCurve.Linear(0, 0, 1, 1);
-    
+
     [Header("Rivers")]
     [UnityEngine.Serialization.FormerlySerializedAs("generateRivers")]
     [SerializeField] private bool _generateRivers = true;
@@ -97,24 +89,12 @@ public class GridSystem : MonoBehaviour
     [SerializeField] private Vector2Int _stoneNodeAmountRange = new Vector2Int(200, 300);
     [SerializeField] private Vector2Int _goldNodeAmountRange = new Vector2Int(200, 300);
     [SerializeField] private Vector2Int _foodNodeAmountRange = new Vector2Int(200, 300);
-    
-    [Header("Resource Noise (Forest/Ore)")]
-    [UnityEngine.Serialization.FormerlySerializedAs("resourceNoiseScale")]
-    [SerializeField] private float _resourceNoiseScale = 0.2f; 
-    [UnityEngine.Serialization.FormerlySerializedAs("forestThreshold")]
-    [Range(0f, 1f)] [SerializeField] private float _forestThreshold = 0.65f; 
-    
-    [Header("Scattered Resource Chances (0.01 = 1%)")]
-    [UnityEngine.Serialization.FormerlySerializedAs("stoneSpawnChance")]
-    [Range(0f, 1f)] [SerializeField] private float _stoneSpawnChance = 0.02f;    
-    [UnityEngine.Serialization.FormerlySerializedAs("goldSpawnChance")]
-    [Range(0f, 1f)] [SerializeField] private float _goldSpawnChance = 0.01f;   
-    [SerializeField] [Range(0f, 1f)] private float _bushSpawnChance = 0.01f;
 
     [Header("Resource Placement Variation")]
     [SerializeField, Range(0f, 0.49f)] private float _resourcePositionJitter = 0.38f;
 
     [Header("Resource Clusters")]
+    [SerializeField] private Vector2Int _resourceReferenceMapSize = new Vector2Int(512, 512);
     [SerializeField] private int _forestClusterCount = 18;
     [SerializeField] private Vector2Int _forestClusterRadiusRange = new Vector2Int(5, 10);
     [SerializeField, Range(0f, 1f)] private float _forestClusterDensity = 0.38f;
@@ -182,12 +162,11 @@ public class GridSystem : MonoBehaviour
         if (_goldNodeAmountRange.x < 200) _goldNodeAmountRange = new Vector2Int(200, 300);
         if (_foodNodeAmountRange.x < 200) _foodNodeAmountRange = new Vector2Int(200, 300);
 
-        InitGridFromTerrain();
-    }
-
-    private void Start()
-    {
-        InitializeRuntimeWaterObstacles();
+        // New game: InitGame → GenerateFullProceduralMap sẽ init grid. Continue: LoadGame regen map sau.
+        if (!Application.isPlaying || CloudTerraceRealm.SaveSystem.SaveGameSystem.ResumeRequested)
+        {
+            InitGridFromTerrain();
+        }
     }
 
     private void Update()
@@ -213,6 +192,23 @@ public class GridSystem : MonoBehaviour
         }
     }
 
+    private float GetMapAreaScale()
+    {
+        int refCellsW = Mathf.Max(1, Mathf.RoundToInt(_resourceReferenceMapSize.x / _cellSize));
+        int refCellsL = Mathf.Max(1, Mathf.RoundToInt(_resourceReferenceMapSize.y / _cellSize));
+        return (_width * _length) / (float)(refCellsW * refCellsL);
+    }
+
+    private int ScaleResourceCount(int baseCount)
+    {
+        return Mathf.Max(0, Mathf.RoundToInt(baseCount * GetMapAreaScale()));
+    }
+
+    private int GetScaledClusterMinDistance()
+    {
+        return Mathf.Max(1, Mathf.RoundToInt(_resourceClusterMinDistance * Mathf.Sqrt(GetMapAreaScale())));
+    }
+
     private void InitGridFromTerrain()
     {
         UpdateGridDimensions();
@@ -226,19 +222,15 @@ public class GridSystem : MonoBehaviour
             {
                 _gridArray[x, z] = new GridCell(x, z, 0); 
                 
-                // Nếu ô đất này thấp hơn mực nước, đánh dấu là không thể xây dựng.
-                // Chỉ cấm di chuyển nếu nước sâu hơn 0.3m (độ cao đất < _waterHeight - 0.3f)
+                // Dưới mực nước: không đi / không xây (qua sông bằng cầu)
                 if (canSampleTerrain)
                 {
                     float worldX = x * _cellSize;
                     float worldZ = z * _cellSize;
-                    float height = terrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                    float height = GetTerrainWorldHeight(worldX, worldZ);
                     if (height < _waterHeight)
                     {
-                        if (height < _waterHeight - 0.3f)
-                        {
-                            _gridArray[x, z].isWalkable = false;
-                        }
+                        _gridArray[x, z].isWalkable = false;
                         _gridArray[x, z].isBuildable = false;
                     }
                 }
@@ -308,6 +300,10 @@ public class GridSystem : MonoBehaviour
     public int GetWidth() => _width;
     public int GetLength() => _length;
 
+    /// <summary>
+    /// Entry point duy nhất tạo map: Editor menu "0", Play mới (GameManager), Continue load (SaveManager).
+    /// Terrain → cầu → NavMesh (loại sông) → tài nguyên → init grid.
+    /// </summary>
     [ContextMenu("0. Generate Full Procedural Map")]
     public void GenerateFullProceduralMap()
     {
@@ -325,34 +321,6 @@ public class GridSystem : MonoBehaviour
             PrepareTerrainSize();
             GenerateTerrainShape();
             FindSafeSpawnCenter();
-
-            // [TEMPORARILY DISABLED] Grass generation from GridSystem
-            // if (_useComputeShaderGrass)
-            // {
-            //     // Clear legacy details so they don't render
-            //     Terrain terrain = Terrain.activeTerrain;
-            //     if (terrain != null && terrain.terrainData != null)
-            //     {
-            //         TerrainData tData = terrain.terrainData;
-            //         int[,] emptyLayer = new int[tData.detailHeight, tData.detailWidth];
-            //         for (int i = 0; i < tData.detailPrototypes.Length; i++)
-            //         {
-            //             tData.SetDetailLayer(0, 0, i, emptyLayer);
-            //         }
-            //         terrain.Flush();
-            //     }
-            //
-            //     // Trigger the ProceduralGrassRenderer
-            //     ProceduralGrassRenderer grassRenderer = FindAnyObjectByType<ProceduralGrassRenderer>();
-            //     if (grassRenderer != null)
-            //     {
-            //         grassRenderer.GenerateGrass(Terrain.activeTerrain);
-            //     }
-            // }
-            // else
-            // {
-            //     GenerateTerrainDetails();
-            // }
 
             // Dọn dẹp cầu gỗ cũ trước khi sinh map mới
             foreach (var b in GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Exclude))
@@ -376,11 +344,6 @@ public class GridSystem : MonoBehaviour
             }
 
             GenerateProceduralBridges(); // Sinh cầu tự động kết nối các bờ sông cô lập
-
-            if (Application.isPlaying)
-            {
-                InitializeRuntimeWaterObstacles();
-            }
 
             BakeNavigationMesh(force: true);
             GenerateGrid();
@@ -410,101 +373,307 @@ public class GridSystem : MonoBehaviour
             return;
         }
 
+        UpdateGridDimensions();
+
         if (Application.isPlaying)
         {
-            // Ở chế độ chơi (Play Mode), sử dụng UpdateNavMesh để nướng bất đồng bộ (Asynchronously) trên luồng nền (Background Thread),
-            // tránh gây khựng/lag khung hình chính của game!
-            if (_navMeshSurface.navMeshData != null)
-            {
-                _navMeshSurface.UpdateNavMesh(_navMeshSurface.navMeshData);
-            }
-            else
-            {
-                _navMeshSurface.BuildNavMesh(); // Fallback nếu chưa có dữ liệu NavMesh
-            }
+            InitializeRuntimeWaterObstacles();
+            BuildNavMeshSurfaceWithWaterSettings();
+            GameLog.LogVerbose("[GridSystem] Đã bake NavMesh runtime loại trừ vùng nước sâu.");
             return;
         }
 
-        // Đảm bảo kích thước grid đã được cập nhật
-        UpdateGridDimensions();
-
-        // Dọn dẹp các obstacles cũ trước bằng cách duyệt qua tất cả đối tượng (kể cả đối tượng ẩn)
         CleanUpTempObstacles();
 
-        // Tạo các đối tượng cản tạm thời tại các ô sông hồ ngập nước
+        // Parent dưới NavMeshSurface để modifier volume được thu thập khi bake.
         GameObject tempObstacles = new GameObject("TempNavMeshWaterObstacles");
-        // Thiết lập ẩn đi và không lưu lại để không làm bẩn Scene hoặc Git diff
-        tempObstacles.hideFlags = HideFlags.HideAndDontSave;
-        
-        // Lấy seedOffset để xác định vị trí của các ford (lối đi cạn)
-        Vector2 seedOffset = GetSeedOffset(11);
-        Vector2 riverSeedOffset = GetSeedOffset(37);
-        float waterHeight = _waterHeight;
-        float cellSize = _cellSize;
+        tempObstacles.transform.SetParent(_navMeshSurface.transform, true);
+        tempObstacles.hideFlags = HideFlags.HideInHierarchy;
 
+        try
+        {
+            PopulateNavMeshWaterObstacles(tempObstacles.transform, "WaterVolume_", trackInRuntimeMap: false);
+            BuildNavMeshSurfaceWithWaterSettings();
+            GameLog.LogVerbose("[GridSystem] Đã bake NavMesh loại trừ các khu vực sông hồ ngập nước thành công!");
+        }
+        finally
+        {
+            CleanUpTempObstacles();
+        }
+    }
+
+    private void BuildNavMeshSurfaceWithWaterSettings()
+    {
+        bool previousOverrideTileSize = _navMeshSurface.overrideTileSize;
+        int previousTileSize = _navMeshSurface.tileSize;
+
+        try
+        {
+            _navMeshSurface.overrideTileSize = true;
+            _navMeshSurface.tileSize = 64;
+            _navMeshSurface.BuildNavMesh();
+        }
+        finally
+        {
+            _navMeshSurface.overrideTileSize = previousOverrideTileSize;
+            _navMeshSurface.tileSize = previousTileSize;
+        }
+    }
+
+    private float GetTerrainWorldHeight(float worldX, float worldZ)
+    {
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            return 0f;
+        }
+
+        return terrain.SampleHeight(new Vector3(worldX, 0f, worldZ)) + terrain.transform.position.y;
+    }
+
+    /// <summary>
+    /// Chặn NavMesh ở mọi ô dưới mực nước (trừ safe zone và cầu).
+    /// </summary>
+    private bool ShouldCreateNavMeshWaterObstacle(int x, int z, float terrainHeight)
+    {
+        if (IsInsideStartingSafeZone(x, z))
+        {
+            return false;
+        }
+
+        if (_gridArray != null && x >= 0 && x < _width && z >= 0 && z < _length)
+        {
+            GridCell cell = _gridArray[x, z];
+            if (cell != null && cell.hasBridge)
+            {
+                return false;
+            }
+        }
+
+        return terrainHeight < _waterHeight;
+    }
+
+    private struct WaterBlockRect
+    {
+        public int minX;
+        public int maxX;
+        public int minZ;
+        public int maxZ;
+    }
+
+    private bool[,] BuildWaterBlockMask()
+    {
+        bool[,] blocked = new bool[_width, _length];
         for (int x = 0; x < _width; x++)
         {
             for (int z = 0; z < _length; z++)
             {
-                Vector3 cellWorldPos = GetWorldPosition(x, z);
+                float terrainHeight = GetTerrainWorldHeight(x * _cellSize, z * _cellSize);
+                blocked[x, z] = ShouldCreateNavMeshWaterObstacle(x, z, terrainHeight);
+            }
+        }
 
-                // Kiểm tra xem đây có phải là khu vực sông không
-                float rX = cellWorldPos.x * _riverFrequency + riverSeedOffset.x;
-                float rY = cellWorldPos.z * _riverFrequency + riverSeedOffset.y;
-                float riverNoise = Mathf.Abs(Mathf.PerlinNoise(rX, rY) - 0.5f) * 2f;
-                bool isRiver = _generateRivers && (riverNoise < _riverWidth);
+        return blocked;
+    }
 
-                if (isRiver)
+    private List<WaterBlockRect> BuildMergedWaterBlockRects(bool[,] blocked)
+    {
+        bool[,] visited = new bool[_width, _length];
+        List<WaterBlockRect> rects = new List<WaterBlockRect>();
+
+        for (int z = 0; z < _length; z++)
+        {
+            for (int x = 0; x < _width; x++)
+            {
+                if (!blocked[x, z] || visited[x, z])
                 {
-                    // Nếu ô này đã được gán cầu gỗ thì bỏ qua không chặn NavMesh cản nước!
-                    if (_gridArray != null && x >= 0 && x < _width && z >= 0 && z < _length)
+                    continue;
+                }
+
+                int xEnd = x;
+                while (xEnd + 1 < _width && blocked[xEnd + 1, z] && !visited[xEnd + 1, z])
+                {
+                    xEnd++;
+                }
+
+                int zEnd = z;
+                while (true)
+                {
+                    int nextZ = zEnd + 1;
+                    if (nextZ >= _length)
                     {
-                        GridCell cell = _gridArray[x, z];
-                        if (cell != null && cell.hasBridge)
+                        break;
+                    }
+
+                    bool rowMatches = true;
+                    for (int cx = x; cx <= xEnd; cx++)
+                    {
+                        if (!blocked[cx, nextZ] || visited[cx, nextZ])
                         {
-                            continue;
+                            rowMatches = false;
+                            break;
                         }
                     }
 
-                    // Nếu nằm trong Starting Safe Zone (Khu vực an toàn của Nhà Chính ở trung tâm)
-                    // thì bỏ qua không chặn NavMesh để lính có thể đi lại tự do xung quanh nhà chính.
-                    if (IsInsideStartingSafeZone(x, z))
+                    if (!rowMatches)
                     {
-                        continue;
+                        break;
                     }
 
-                    // Tính toán fordNoise giống hệt lúc tạo địa hình để xác định lối đi cạn
-                    float fordX = cellWorldPos.x * 0.02f + seedOffset.x * 0.5f;
-                    float fordY = cellWorldPos.z * 0.02f + seedOffset.y * 0.5f;
-                    float fordNoise = Mathf.PerlinNoise(fordX, fordY);
-                    bool isFord = _generateRivers && (fordNoise > 0.41f && fordNoise < 0.53f);
+                    zEnd = nextZ;
+                }
 
-                    // Quy định ngưỡng cao độ chặn NavMesh:
-                    // - Nếu là lối đi cạn (Ford): chỉ chặn nếu sâu hơn 0.3m (dưới 5.7m) để giữ lối đi
-                    // - Nếu là lòng sông bình thường: nâng ngưỡng chặn lên Y = 6.3m (waterHeight + 0.3m)
-                    //   để tạo một dải đệm an toàn (buffer zone) dọc bờ sông, đẩy NavMesh lùi sâu vào đất liền,
-                    //   tránh lính ôm cua sát mép vực bị kẹt hoặc trượt ngã.
-                    float blockThreshold = isFord ? (waterHeight - 0.3f) : (waterHeight + 0.3f);
-
-                    if (cellWorldPos.y < blockThreshold)
+                for (int cz = z; cz <= zEnd; cz++)
+                {
+                    for (int cx = x; cx <= xEnd; cx++)
                     {
-                        // Tạo đối tượng cản NavMesh bằng NavMeshModifierVolume để chặn chính xác vùng nước sâu
-                        GameObject obstacle = new GameObject($"WaterVolume_{x}_{z}");
-                        obstacle.transform.SetParent(tempObstacles.transform);
-                        obstacle.transform.position = new Vector3(cellWorldPos.x, cellWorldPos.y, cellWorldPos.z);
-                        obstacle.hideFlags = HideFlags.HideAndDontSave;
+                        visited[cx, cz] = true;
+                    }
+                }
 
-                        var vol = obstacle.AddComponent<Unity.AI.Navigation.NavMeshModifierVolume>();
-                        vol.center = Vector3.zero;
-                        vol.size = new Vector3(cellSize, 20f, cellSize);
-                        vol.area = 1; // 1 là Area "Not Walkable" mặc định của Unity
+                rects.Add(new WaterBlockRect
+                {
+                    minX = x,
+                    maxX = xEnd,
+                    minZ = z,
+                    maxZ = zEnd
+                });
+            }
+        }
+
+        return rects;
+    }
+
+    private GameObject CreateMergedNavMeshWaterVolume(Transform parent, WaterBlockRect rect, string namePrefix, int index)
+    {
+        float minWorldX = rect.minX * _cellSize;
+        float maxWorldX = (rect.maxX + 1) * _cellSize;
+        float minWorldZ = rect.minZ * _cellSize;
+        float maxWorldZ = (rect.maxZ + 1) * _cellSize;
+
+        float sizeX = Mathf.Max(4f, maxWorldX - minWorldX + 0.1f);
+        float sizeZ = Mathf.Max(4f, maxWorldZ - minWorldZ + 0.1f);
+        float centerX = (minWorldX + maxWorldX) * 0.5f;
+        float centerZ = (minWorldZ + maxWorldZ) * 0.5f;
+
+        GameObject obstacle = new GameObject($"{namePrefix}{index}_{rect.minX}_{rect.minZ}");
+        obstacle.transform.position = new Vector3(centerX, _waterHeight, centerZ);
+        obstacle.transform.SetParent(parent, true);
+
+        if (_navMeshSurface != null)
+        {
+            obstacle.layer = _navMeshSurface.gameObject.layer;
+        }
+
+        var vol = obstacle.AddComponent<NavMeshModifierVolume>();
+        vol.center = Vector3.zero;
+        vol.size = new Vector3(sizeX, 24f, sizeZ);
+        int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");
+        vol.area = notWalkableArea >= 0 ? notWalkableArea : 1;
+        return obstacle;
+    }
+
+    private void PopulateNavMeshWaterObstacles(Transform parent, string namePrefix, bool trackInRuntimeMap)
+    {
+        bool[,] blocked = BuildWaterBlockMask();
+        List<WaterBlockRect> rects = BuildMergedWaterBlockRects(blocked);
+        int blockedCells = 0;
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _length; z++)
+            {
+                if (blocked[x, z])
+                {
+                    blockedCells++;
+                }
+            }
+        }
+
+        for (int i = 0; i < rects.Count; i++)
+        {
+            WaterBlockRect rect = rects[i];
+            GameObject volumeObstacle = CreateMergedNavMeshWaterVolume(parent, rect, namePrefix, i);
+            CreateMergedNavMeshWaterBlockerMesh(parent, rect, namePrefix, i);
+
+            if (trackInRuntimeMap && _waterObstaclesMap != null)
+            {
+                for (int x = rect.minX; x <= rect.maxX; x++)
+                {
+                    for (int z = rect.minZ; z <= rect.maxZ; z++)
+                    {
+                        _waterObstaclesMap[x, z] = volumeObstacle;
                     }
                 }
             }
         }
 
-        _navMeshSurface.BuildNavMesh();
-        GameLog.Log("[GridSystem] Đã bake NavMesh loại trừ các khu vực sông hồ ngập nước thành công!");
+        GameLog.LogVerbose($"[GridSystem] NavMesh water blockers: {rects.Count} merged volumes / {blockedCells} cells ({_width * _length} total)");
+    }
+
+    private void CreateMergedNavMeshWaterBlockerMesh(Transform parent, WaterBlockRect rect, string namePrefix, int index)
+    {
+        float minWorldX = rect.minX * _cellSize;
+        float maxWorldX = (rect.maxX + 1) * _cellSize;
+        float minWorldZ = rect.minZ * _cellSize;
+        float maxWorldZ = (rect.maxZ + 1) * _cellSize;
+
+        float sizeX = Mathf.Max(4f, maxWorldX - minWorldX + 0.1f);
+        float sizeZ = Mathf.Max(4f, maxWorldZ - minWorldZ + 0.1f);
+        float centerX = (minWorldX + maxWorldX) * 0.5f;
+        float centerZ = (minWorldZ + maxWorldZ) * 0.5f;
+
+        float avgTerrainY = 0f;
+        int sampleCount = 0;
+        for (int x = rect.minX; x <= rect.maxX; x++)
+        {
+            for (int z = rect.minZ; z <= rect.maxZ; z++)
+            {
+                avgTerrainY += GetTerrainWorldHeight(x * _cellSize, z * _cellSize);
+                sampleCount++;
+            }
+        }
+
+        if (sampleCount == 0)
+        {
+            return;
+        }
+
+        avgTerrainY /= sampleCount;
+
+        GameObject blocker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        blocker.name = $"{namePrefix}Mesh_{index}_{rect.minX}_{rect.minZ}";
+
+        Collider collider = blocker.GetComponent<Collider>();
+        if (collider != null)
+        {
+            if (Application.isPlaying) Destroy(collider);
+            else DestroyImmediate(collider);
+        }
+
+        MeshRenderer renderer = blocker.GetComponent<MeshRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = false;
+        }
+
+        blocker.transform.position = new Vector3(centerX, avgTerrainY + 0.75f, centerZ);
+        blocker.transform.localScale = new Vector3(sizeX, 1.5f, sizeZ);
+        blocker.transform.SetParent(parent, true);
+
+        if (_navMeshSurface != null)
+        {
+            blocker.layer = _navMeshSurface.gameObject.layer;
+        }
+
+        NavMeshModifier modifier = blocker.GetComponent<NavMeshModifier>();
+        if (modifier == null)
+        {
+            modifier = blocker.AddComponent<NavMeshModifier>();
+        }
+
+        modifier.overrideArea = true;
+        int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");
+        modifier.area = notWalkableArea >= 0 ? notWalkableArea : 1;
     }
 
     private void PrepareTerrainSize()
@@ -522,9 +691,61 @@ public class GridSystem : MonoBehaviour
         }
 
         TerrainData tData = terrain.terrainData;
+        if (tData == null)
+        {
+            GameLog.LogWarning("Terrain không có TerrainData!");
+            return;
+        }
+
         float height = Mathf.Max(1f, tData.size.y);
         tData.size = new Vector3(Mathf.Max(_cellSize, _mapWorldSize.x), height, Mathf.Max(_cellSize, _mapWorldSize.y));
         UpdateGridDimensions();
+        SyncWaterPlaneToMapSize();
+    }
+
+    private void SyncWaterPlaneToMapSize()
+    {
+        Transform waterPlane = _waterPlane;
+        if (waterPlane == null)
+        {
+            GameObject found = GameObject.Find("WaterPlane");
+            if (found != null)
+            {
+                waterPlane = found.transform;
+            }
+        }
+
+        if (waterPlane == null)
+        {
+            return;
+        }
+
+        float scale = _mapWorldSize.x / DefaultPlaneMeshSize;
+        waterPlane.localScale = new Vector3(scale, waterPlane.localScale.y, scale);
+        float centerX = _mapWorldSize.x * 0.5f;
+        float centerZ = _mapWorldSize.y * 0.5f;
+        waterPlane.position = new Vector3(centerX, _waterHeight, centerZ);
+        ExcludeObjectFromNavMeshBuild(waterPlane.gameObject);
+
+#if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(waterPlane.gameObject);
+#endif
+    }
+
+    private void ExcludeObjectFromNavMeshBuild(GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        NavMeshModifier modifier = target.GetComponent<NavMeshModifier>();
+        if (modifier == null)
+        {
+            modifier = target.AddComponent<NavMeshModifier>();
+        }
+
+        modifier.ignoreFromBuild = true;
     }
 
     [ContextMenu("1. Generate Terrain Shape")]
@@ -545,36 +766,26 @@ public class GridSystem : MonoBehaviour
         }
 
         TerrainData tData = terrain.terrainData;
+        if (tData == null)
+        {
+            GameLog.LogWarning("Terrain không có TerrainData!");
+            return;
+        }
+
         int res = tData.heightmapResolution;
         float[,] heights = new float[res, res];
 
-        Vector2 seedOffset = GetSeedOffset(11);
         Vector2 riverSeedOffset = GetSeedOffset(37);
+
+        float heightMultiplier = Mathf.Max(0.0001f, _terrainHeightMultiplier);
+        float flatNoiseHeight = Mathf.Clamp01(_flatLandWorldHeight / heightMultiplier);
 
         // Quét từng điểm trên Heightmap
         for (int y = 0; y < res; y++)
         {
             for (int x = 0; x < res; x++)
             {
-                float amplitude = 1f;
-                float frequency = 1f;
-                float noiseHeight = 0f;
-
-                // FBM (Fractal Brownian Motion) - Xếp chồng nhiều lớp Noise
-                for (int i = 0; i < _octaves; i++)
-                {
-                    float sampleX = (x / (float)res) * tData.size.x * _terrainNoiseScale * frequency + seedOffset.x;
-                    float sampleY = (y / (float)res) * tData.size.z * _terrainNoiseScale * frequency + seedOffset.y;
-
-                    float perlinValue = Mathf.PerlinNoise(sampleX, sampleY);
-                    noiseHeight += perlinValue * amplitude;
-
-                    amplitude *= _persistance;
-                    frequency *= _lacunarity;
-                }
-
-                // Dùng AnimationCurve để nặn hình dạng (ví dụ: bóp phẳng vùng thấp làm đồng bằng, kéo vuốt vùng cao làm núi)
-                noiseHeight = _heightCurve.Evaluate(Mathf.Clamp01(noiseHeight / 2f)); // Chia 2 để chuẩn hóa tương đối
+                float noiseHeight = flatNoiseHeight;
 
                 // TẠO SÔNG (Ridge Noise)
                 if (_generateRivers)
@@ -590,31 +801,19 @@ public class GridSystem : MonoBehaviour
                         float carve = 1f - (riverNoise / _riverWidth); // 1 ở giữa tâm sông, 0 ở bờ
                         // Sử dụng SmoothStep để uốn cong chữ U mềm mại cho lòng sông và bờ sông
                         float smoothCarve = Mathf.SmoothStep(0f, 1f, carve);
-                        
-                        // Sử dụng trục nhiễu phụ để tạo các lối đi cạn (ford) ngẫu nhiên dọc sông để kết nối các vùng đất
-                        float fordX = (x / (float)res) * tData.size.x * 0.02f + seedOffset.x * 0.5f;
-                        float fordY = (y / (float)res) * tData.size.z * 0.02f + seedOffset.y * 0.5f;
-                        float fordNoise = Mathf.PerlinNoise(fordX, fordY);
 
-                        float targetDepth = 0.008f; // Mặc định lòng sông sâu 0.8m (không đi qua được)
-                        
-                        // Khoảng 18% chiều dài sông sẽ trở thành các lối đi cạn qua nước
-                        if (fordNoise > 0.41f && fordNoise < 0.53f)
-                        {
-                            targetDepth = 0.027f; // Độ cao ~1.75m (Nước chỉ sâu 0.25m, cho phép đi bộ qua)
-                        }
-
+                        const float targetDepth = 0.008f; // Lòng sông sâu thống nhất (~0.8m dưới đất phẳng)
                         noiseHeight = Mathf.Lerp(noiseHeight, targetDepth, smoothCarve);
                     }
                 }
 
                 // Áp dụng chiều cao chuẩn hóa (0.0 đến 1.0)
-                heights[y, x] = Mathf.Clamp01(noiseHeight * (_terrainHeightMultiplier / tData.size.y));
+                heights[y, x] = Mathf.Clamp01(noiseHeight * (heightMultiplier / tData.size.y));
             }
         }
 
         tData.SetHeights(0, 0, heights);
-        GameLog.Log("Đã nặn xong địa hình!");
+        GameLog.LogVerbose("Đã nặn xong địa hình!");
     }
 
     private void FindSafeSpawnCenter()
@@ -664,7 +863,7 @@ public class GridSystem : MonoBehaviour
                         if (areaIsSafe)
                         {
                             _startingSafeZoneCenter = new Vector2Int(x, z);
-                            GameLog.Log($"[GridSystem] Found safe spawn center at: {x}, {z} (Distance from map center: {r} cells)");
+                            GameLog.LogVerbose($"[GridSystem] Found safe spawn center at: {x}, {z} (Distance from map center: {r} cells)");
                             return;
                         }
                     }
@@ -749,7 +948,7 @@ public class GridSystem : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(tData);
 #endif
-        GameLog.Log("[GridSystem] Generated Terrain Details by code. Density = " + _detailDensity + ", Billboard = Off.");
+        GameLog.LogVerbose("[GridSystem] Generated Terrain Details by code. Density = " + _detailDensity + ", Billboard = Off.");
     }
 
     private int[,] GenerateBrushDetailLayer(
@@ -923,7 +1122,7 @@ public class GridSystem : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(tData);
 #endif
-        GameLog.Log("[GridSystem] Added default non-billboard grass Detail Prototype to Terrain.");
+        GameLog.LogVerbose("[GridSystem] Added default non-billboard grass Detail Prototype to Terrain.");
         return tData.detailPrototypes;
     }
 
@@ -944,15 +1143,13 @@ public class GridSystem : MonoBehaviour
     }
 
     [ContextMenu("4. Generate Resources on Terrain")]
-    private void GenerateGrid()
+    public void GenerateGrid()
     {
         ClearGrid(); 
         _pendingResourceRespawns.Clear();
         UpdateGridDimensions();
 
         _gridArray = new GridCell[_width, _length];
-        bool useLegacyScatter = false;
-        Vector2 resourceNoiseOffset = Vector2.zero;
         for (int x = 0; x < _width; x++)
         {
             for (int z = 0; z < _length; z++)
@@ -964,13 +1161,10 @@ public class GridSystem : MonoBehaviour
                 {
                     float worldX = x * _cellSize;
                     float worldZ = z * _cellSize;
-                    float height = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ));
+                    float height = GetTerrainWorldHeight(worldX, worldZ);
                     if (height < _waterHeight)
                     {
-                        if (height < _waterHeight - 0.3f)
-                        {
-                            _gridArray[x, z].isWalkable = false;
-                        }
+                        _gridArray[x, z].isWalkable = false;
                         _gridArray[x, z].isBuildable = false;
                     }
                 }
@@ -978,35 +1172,6 @@ public class GridSystem : MonoBehaviour
                 if (IsInsideStartingSafeZone(x, z))
                 {
                     continue;
-                }
-
-                float resXCoord = (float)x * _resourceNoiseScale + resourceNoiseOffset.x;
-                float resZCoord = (float)z * _resourceNoiseScale + resourceNoiseOffset.y;
-                float biomeNoise = Mathf.PerlinNoise(resXCoord, resZCoord);
-
-                if (useLegacyScatter && biomeNoise > _forestThreshold && _treePrefab != null)
-                {
-                    InstantiateResource(_gridArray[x, z], _treePrefab, "Tree", ResourceType.Wood);
-                }
-                else if (useLegacyScatter)
-                {
-                    // Đá và Vàng sinh riêng lẻ rải rác (Dùng Random thay vì Perlin Noise)
-                    float randomChance = GetDeterministic01(x, z, 101);
-                    
-                    if (randomChance < _stoneSpawnChance && _rockPrefab != null)
-                    {
-                        InstantiateResource(_gridArray[x, z], _rockPrefab, "Rock", ResourceType.Stone);
-                    }
-                    else if (randomChance >= _stoneSpawnChance && randomChance < (_stoneSpawnChance + _goldSpawnChance) && _goldPrefab != null)
-                    {
-                        InstantiateResource(_gridArray[x, z], _goldPrefab, "Gold", ResourceType.Gold);
-                    }
-                    else if (randomChance >= (_stoneSpawnChance + _goldSpawnChance) &&
-                             randomChance < (_stoneSpawnChance + _goldSpawnChance + _bushSpawnChance) &&
-                             _bushPrefab != null)
-                    {
-                        InstantiateResource(_gridArray[x, z], _bushPrefab, "Bush", ResourceType.Food);
-                    }
                 }
             }
         }
@@ -1017,18 +1182,19 @@ public class GridSystem : MonoBehaviour
     private void GenerateResourceClusters()
     {
         List<Vector2Int> clusterCenters = new List<Vector2Int>();
+        int scaledClusterMinDistance = GetScaledClusterMinDistance();
 
         SpawnStartingResources();
 
-        SpawnScatteredResources(_scatteredTreeCount, _maxTreeResources, _treePrefab, "Tree", ResourceType.Wood, 809);
-        SpawnScatteredResources(_scatteredStoneCount, _maxStoneResources, _rockPrefab, "Rock", ResourceType.Stone, 907);
-        SpawnScatteredResources(_scatteredGoldCount, _maxGoldResources, _goldPrefab, "Gold", ResourceType.Gold, 1009);
-        SpawnScatteredResources(_scatteredBushCount, _maxBushResources, _bushPrefab, "Bush", ResourceType.Food, 1103);
+        SpawnScatteredResources(ScaleResourceCount(_scatteredTreeCount), ScaleResourceCount(_maxTreeResources), _treePrefab, "Tree", ResourceType.Wood, 809);
+        SpawnScatteredResources(ScaleResourceCount(_scatteredStoneCount), ScaleResourceCount(_maxStoneResources), _rockPrefab, "Rock", ResourceType.Stone, 907);
+        SpawnScatteredResources(ScaleResourceCount(_scatteredGoldCount), ScaleResourceCount(_maxGoldResources), _goldPrefab, "Gold", ResourceType.Gold, 1009);
+        SpawnScatteredResources(ScaleResourceCount(_scatteredBushCount), ScaleResourceCount(_maxBushResources), _bushPrefab, "Bush", ResourceType.Food, 1103);
 
-        SpawnResourceClusters(_forestClusterCount, _forestClusterRadiusRange, _forestClusterDensity, _maxTreeResources, _treePrefab, "Tree", ResourceType.Wood, 401, clusterCenters);
-        SpawnResourceClusters(_stoneClusterCount, _stoneClusterRadiusRange, _stoneClusterDensity, _maxStoneResources, _rockPrefab, "Rock", ResourceType.Stone, 503, clusterCenters);
-        SpawnResourceClusters(_goldClusterCount, _goldClusterRadiusRange, _goldClusterDensity, _maxGoldResources, _goldPrefab, "Gold", ResourceType.Gold, 607, clusterCenters);
-        SpawnResourceClusters(_bushClusterCount, _bushClusterRadiusRange, _bushClusterDensity, _maxBushResources, _bushPrefab, "Bush", ResourceType.Food, 709, clusterCenters);
+        SpawnResourceClusters(ScaleResourceCount(_forestClusterCount), _forestClusterRadiusRange, _forestClusterDensity, ScaleResourceCount(_maxTreeResources), _treePrefab, "Tree", ResourceType.Wood, 401, clusterCenters, scaledClusterMinDistance);
+        SpawnResourceClusters(ScaleResourceCount(_stoneClusterCount), _stoneClusterRadiusRange, _stoneClusterDensity, ScaleResourceCount(_maxStoneResources), _rockPrefab, "Rock", ResourceType.Stone, 503, clusterCenters, scaledClusterMinDistance);
+        SpawnResourceClusters(ScaleResourceCount(_goldClusterCount), _goldClusterRadiusRange, _goldClusterDensity, ScaleResourceCount(_maxGoldResources), _goldPrefab, "Gold", ResourceType.Gold, 607, clusterCenters, scaledClusterMinDistance);
+        SpawnResourceClusters(ScaleResourceCount(_bushClusterCount), _bushClusterRadiusRange, _bushClusterDensity, ScaleResourceCount(_maxBushResources), _bushPrefab, "Bush", ResourceType.Food, 709, clusterCenters, scaledClusterMinDistance);
     }
 
     private void SpawnStartingResources()
@@ -1171,7 +1337,8 @@ public class GridSystem : MonoBehaviour
         string namePrefix,
         ResourceType type,
         int salt,
-        List<Vector2Int> clusterCenters)
+        List<Vector2Int> clusterCenters,
+        int clusterMinDistance)
     {
         if (clusterCount <= 0 || prefab == null || maxResources <= 0)
         {
@@ -1187,7 +1354,7 @@ public class GridSystem : MonoBehaviour
         int spawnedCount = 0;
         for (int clusterIndex = 0; clusterIndex < clusterCount && spawnedCount < maxResources; clusterIndex++)
         {
-            if (!TryFindClusterCenter(clusterRandom, attemptsPerCluster, clusterCenters, out Vector2Int center))
+            if (!TryFindClusterCenter(clusterRandom, attemptsPerCluster, clusterCenters, clusterMinDistance, out Vector2Int center))
             {
                 continue;
             }
@@ -1202,6 +1369,7 @@ public class GridSystem : MonoBehaviour
         System.Random clusterRandom,
         int attemptsPerCluster,
         List<Vector2Int> existingCenters,
+        int clusterMinDistance,
         out Vector2Int center)
     {
         center = Vector2Int.zero;
@@ -1212,7 +1380,7 @@ public class GridSystem : MonoBehaviour
             int z = clusterRandom.Next(0, _length);
             Vector2Int candidate = new Vector2Int(x, z);
 
-            if (IsInsideStartingSafeZone(candidate.x, candidate.y) || !IsFarEnoughFromOtherClusters(candidate, existingCenters))
+            if (IsInsideStartingSafeZone(candidate.x, candidate.y) || !IsFarEnoughFromOtherClusters(candidate, existingCenters, clusterMinDistance))
             {
                 continue;
             }
@@ -1230,16 +1398,16 @@ public class GridSystem : MonoBehaviour
         return new System.Random(seed);
     }
 
-    private bool IsFarEnoughFromOtherClusters(Vector2Int candidate, List<Vector2Int> existingCenters)
+    private bool IsFarEnoughFromOtherClusters(Vector2Int candidate, List<Vector2Int> existingCenters, int clusterMinDistance)
     {
-        if (_resourceClusterMinDistance <= 0)
+        if (clusterMinDistance <= 0)
         {
             return true;
         }
 
         for (int i = 0; i < existingCenters.Count; i++)
         {
-            if (Vector2Int.Distance(candidate, existingCenters[i]) < _resourceClusterMinDistance)
+            if (Vector2Int.Distance(candidate, existingCenters[i]) < clusterMinDistance)
             {
                 return false;
             }
@@ -1594,13 +1762,7 @@ public class GridSystem : MonoBehaviour
 
     private void ExcludeResourceFromNavMeshBuild(GameObject resourceObject)
     {
-        NavMeshModifier modifier = resourceObject.GetComponent<NavMeshModifier>();
-        if (modifier == null)
-        {
-            modifier = resourceObject.AddComponent<NavMeshModifier>();
-        }
-
-        modifier.ignoreFromBuild = true;
+        ExcludeObjectFromNavMeshBuild(resourceObject);
     }
 
     private Vector3 GetResourceSpawnPosition(GridCell cell)
@@ -1680,12 +1842,45 @@ public class GridSystem : MonoBehaviour
         float worldZ = z * _cellSize;
         float worldY = 0f;
 
-        if (Terrain.activeTerrain != null)
-        {
-            worldY = Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0, worldZ));
-        }
+        worldY = GetTerrainWorldHeight(worldX, worldZ);
 
         return new Vector3(worldX, worldY, worldZ);
+    }
+
+    /// <summary>
+    /// Tính độ cao đặt công trình trên footprint (trung bình hoặc max tùy mode).
+    /// </summary>
+    public float GetFootprintHeight(int startX, int startZ, int sizeX, int sizeZ, BuildingPlacementMode mode)
+    {
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null || sizeX <= 0 || sizeZ <= 0)
+        {
+            return 0f;
+        }
+
+        float sumY = 0f;
+        float maxY = float.MinValue;
+        int count = 0;
+
+        for (int x = 0; x < sizeX; x++)
+        {
+            for (int z = 0; z < sizeZ; z++)
+            {
+                float worldX = (startX + x) * _cellSize;
+                float worldZ = (startZ + z) * _cellSize;
+                float h = terrain.SampleHeight(new Vector3(worldX, 0f, worldZ)) + terrain.transform.position.y;
+                sumY += h;
+                if (h > maxY) maxY = h;
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            return 0f;
+        }
+
+        return mode == BuildingPlacementMode.FollowTerrainMax ? maxY : sumY / count;
     }
 
     public void GetXY(Vector3 worldPosition, out int x, out int z)
@@ -1718,19 +1913,8 @@ public class GridSystem : MonoBehaviour
         TerrainData tData = terrain.terrainData;
         Vector3 terrainPos = terrain.transform.position;
 
-        // 1. Tính toán độ cao trung bình của khu vực móng nhà
-        float sumY = 0f;
-        int count = 0;
-        for (int x = 0; x < sizeX; x++)
-        {
-            for (int z = 0; z < sizeZ; z++)
-            {
-                sumY += terrain.SampleHeight(GetWorldPosition(startX + x, startZ + z));
-                count++;
-            }
-        }
-        float targetY = sumY / count; // Lấy trung bình cộng làm độ cao nền nhà
-        float normalizedTarget = targetY / tData.size.y;
+        float targetY = GetFootprintHeight(startX, startZ, sizeX, sizeZ, BuildingPlacementMode.FlattenFootprint);
+        float normalizedTarget = (targetY - terrainPos.y) / tData.size.y;
 
         // 2. Chuyển đổi vùng móng sang tọa độ Heightmap của Unity
         float startXWorld = startX * _cellSize - terrainPos.x;
@@ -1932,10 +2116,12 @@ public class GridSystem : MonoBehaviour
                             // Restore defaults based on water height
                             float worldX = x * _cellSize;
                             float worldZ = z * _cellSize;
-                            float height = Terrain.activeTerrain != null ? Terrain.activeTerrain.SampleHeight(new Vector3(worldX, 0f, worldZ)) : 0f;
+                            float height = Terrain.activeTerrain != null
+                                ? GetTerrainWorldHeight(worldX, worldZ)
+                                : 0f;
                             if (height < _waterHeight)
                             {
-                                cell.isWalkable = (height >= _waterHeight - 0.3f);
+                                cell.isWalkable = false;
                                 cell.isBuildable = false;
                             }
                             else
@@ -2050,11 +2236,11 @@ public class GridSystem : MonoBehaviour
             }
         }
 
-        GameLog.Log($"[GridSystem] Phát hiện thấy {componentId} vùng đất liền riêng biệt trên bản đồ.");
+        GameLog.LogVerbose($"[GridSystem] Phát hiện thấy {componentId} vùng đất liền riêng biệt trên bản đồ.");
 
         if (componentId <= 1)
         {
-            GameLog.Log("[GridSystem] Bản đồ đã liên thông hoàn toàn, không cần sinh cầu tự động.");
+            GameLog.LogVerbose("[GridSystem] Bản đồ đã liên thông hoàn toàn, không cần sinh cầu tự động.");
             return;
         }
 
@@ -2251,13 +2437,13 @@ public class GridSystem : MonoBehaviour
 
                 if (allConnected)
                 {
-                    GameLog.Log("[GridSystem] Tất cả các vùng đất liền đã liên thông 100%!");
+                    GameLog.LogVerbose("[GridSystem] Tất cả các vùng đất liền đã liên thông 100%!");
                     break;
                 }
             }
         }
 
-        GameLog.Log($"[GridSystem] Đã tự động sinh {bridgesSpawned} cầu vượt sông dựa trên phân tích liên thông đất liền.");
+        GameLog.LogVerbose($"[GridSystem] Đã tự động sinh {bridgesSpawned} cầu vượt sông dựa trên phân tích liên thông đất liền.");
     }
 
     private bool IsProceduralBridgeAlignedWithRiver(BridgeCandidate candidate, System.Func<int, int, bool> checkIsRiver)
@@ -2299,8 +2485,19 @@ public class GridSystem : MonoBehaviour
     {
         if (!Application.isPlaying) return;
 
+        if (_navMeshSurface == null)
+        {
+            _navMeshSurface = FindAnyObjectByType<NavMeshSurface>();
+        }
+
         // Dọn dẹp đối tượng cản nước runtime cũ nếu có để tránh trùng lặp khi sinh lại map
-        Transform oldParent = transform.Find("RuntimeNavMeshWaterObstacles");
+        Transform obstacleRoot = _navMeshSurface != null ? _navMeshSurface.transform : transform;
+        Transform oldParent = obstacleRoot.Find("RuntimeNavMeshWaterObstacles");
+        if (oldParent == null)
+        {
+            oldParent = transform.Find("RuntimeNavMeshWaterObstacles");
+        }
+
         if (oldParent != null)
         {
             if (Application.isPlaying) Destroy(oldParent.gameObject);
@@ -2311,65 +2508,10 @@ public class GridSystem : MonoBehaviour
         _waterObstaclesMap = new GameObject[_width, _length];
 
         GameObject runtimeParent = new GameObject("RuntimeNavMeshWaterObstacles");
-        runtimeParent.transform.SetParent(transform);
+        runtimeParent.transform.SetParent(obstacleRoot, true);
 
-        Vector2 seedOffset = GetSeedOffset(11);
-        Vector2 riverSeedOffset = GetSeedOffset(37);
-        float waterHeight = _waterHeight;
-        float cellSize = _cellSize;
-
-        for (int x = 0; x < _width; x++)
-        {
-            for (int z = 0; z < _length; z++)
-            {
-                // Check if this cell is river
-                Vector3 cellWorldPos = GetWorldPosition(x, z);
-                float rX = cellWorldPos.x * _riverFrequency + riverSeedOffset.x;
-                float rY = cellWorldPos.z * _riverFrequency + riverSeedOffset.y;
-                float riverNoise = Mathf.Abs(Mathf.PerlinNoise(rX, rY) - 0.5f) * 2f;
-                bool isRiver = _generateRivers && (riverNoise < _riverWidth);
-
-                if (isRiver)
-                {
-                    // Skip starting safe zone
-                    if (IsInsideStartingSafeZone(x, z))
-                    {
-                        continue;
-                    }
-
-                    // Check for ford
-                    float fordX = cellWorldPos.x * 0.02f + seedOffset.x * 0.5f;
-                    float fordY = cellWorldPos.z * 0.02f + seedOffset.y * 0.5f;
-                    float fordNoise = Mathf.PerlinNoise(fordX, fordY);
-                    bool isFord = _generateRivers && (fordNoise > 0.41f && fordNoise < 0.53f);
-
-                    float blockThreshold = isFord ? (waterHeight - 0.3f) : (waterHeight + 0.3f);
-
-                    if (cellWorldPos.y < blockThreshold)
-                    {
-                        // Create water obstacle
-                        GameObject obstacle = new GameObject($"RuntimeWaterVolume_{x}_{z}");
-                        obstacle.transform.SetParent(runtimeParent.transform);
-                        obstacle.transform.position = new Vector3(cellWorldPos.x, cellWorldPos.y, cellWorldPos.z);
-
-                        var vol = obstacle.AddComponent<Unity.AI.Navigation.NavMeshModifierVolume>();
-                        vol.center = Vector3.zero;
-                        vol.size = new Vector3(cellSize, 20f, cellSize);
-                        vol.area = 1; // Not Walkable
-
-                        _waterObstaclesMap[x, z] = obstacle;
-
-                        // If this cell already has a bridge, disable it immediately!
-                        GridCell cell = GetCell(x, z);
-                        if (cell != null && cell.hasBridge)
-                        {
-                            obstacle.SetActive(false);
-                        }
-                    }
-                }
-            }
-        }
-        GameLog.Log("[GridSystem] Đã khởi tạo bộ đệm cản nước NavMesh chạy runtime thành công!");
+        PopulateNavMeshWaterObstacles(runtimeParent.transform, "RuntimeWaterVolume_", trackInRuntimeMap: true);
+        GameLog.LogVerbose("[GridSystem] Đã khởi tạo bộ đệm cản nước NavMesh chạy runtime thành công!");
     }
 
     public void SetWaterObstaclesActive(int centerX, int centerZ, bool isVertical, bool active)

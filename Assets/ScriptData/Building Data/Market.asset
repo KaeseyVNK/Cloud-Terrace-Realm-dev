@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   buildingName: Market
   description: Allows resource trading and caravan delivery at night.
-  category: 0
+  category: 2
   icon: {fileID: -787844382, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 5580713827240879289, guid: ed5edbc57a012dd4c8517eff25ee82d9, type: 3}
   buildingSize: {x: 3, y: 3}
+  placementMode: 0
   buildCosts:
   - resourceType: 0
     amount: 150
@@ -28,6 +29,7 @@ MonoBehaviour:
   maxHealth: 250
   maxWorkers: 0
   buildTime: 20
+  housingCapacity: 0
   isInstantBuild: 0
   isStorage: 0
   acceptedResources: 

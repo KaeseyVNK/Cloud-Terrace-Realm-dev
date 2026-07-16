@@ -136,6 +136,7 @@ public class MainBuildingUIController : MonoBehaviour
             _autoShelterToggle.isOn = VillagerController.ShouldShelterAtNight;
             _autoShelterToggle.onValueChanged.AddListener((val) => {
                 VillagerController.ShouldShelterAtNight = val;
+                HouseShelter.RefreshAutoEjectAll();
             });
         }
 

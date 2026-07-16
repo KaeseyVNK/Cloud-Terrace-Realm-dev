@@ -239,7 +239,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             MyGame.Audio.AudioManager.Instance.PlayTrainingStart();
         }
 
-        GameLog.Log("Đã thêm " + unit.unitName + " vào hàng đợi sản xuất.");
 
         // 5. Nếu đang không bận rộn thì bắt đầu sản xuất ngay
         if (!_isProducing)
@@ -260,7 +259,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         {
             MyGame.Audio.AudioManager.Instance.PlayTrainingStart();
         }
-        GameLog.Log("Đã thêm " + unit.unitName + " vào hàng đợi sản xuất của " + gameObject.name);
         if (!_isProducing)
         {
             StartNextProduction();
@@ -294,7 +292,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             _productionQueue.Enqueue(unit);
         }
 
-        GameLog.Log($"Đã hủy {unitToCancel.unitName} ở vị trí hàng đợi {index} và hoàn trả tài nguyên.");
         return true;
     }
 
@@ -306,7 +303,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
             _currentProductionTimer = _currentProducingUnit.productionTime;
             _isProducing = true;
             _populationBlockedLogged = false;
-            GameLog.Log("Đang sản xuất: " + _currentProducingUnit.unitName + "...");
         }
         else
         {
@@ -345,7 +341,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
 
     private void FinishProduction()
     {
-        GameLog.Log("Sản xuất hoàn tất: " + _currentProducingUnit.unitName);
         
         // Sinh ra lính / dân
         if (_currentProducingUnit.unitPrefab != null)
@@ -392,7 +387,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         _rallyResource = null;
         _rallyAttackTarget = null;
         MoveRallyFlag(rallyPoint);
-        GameLog.Log($"[Rally] {gameObject.name} đã đặt điểm tập kết tại {rallyPoint}.");
     }
 
     public void SetRallyResource(ResourceNode resource)
@@ -408,7 +402,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         _rallyAttackTarget = null;
         MoveRallyFlag(resource.transform.position);
         resource.TriggerBounceEffect();
-        GameLog.Log($"[Rally] {gameObject.name} đã đặt việc khai thác {resource.ResourceType}.");
     }
 
     public void SetRallyAttackTarget(BaseCombatUnitController target)
@@ -422,7 +415,6 @@ public class BuildingProduction : MonoBehaviour, CloudTerraceRealm.SaveSystem.IS
         _rallyResource = null;
         _rallyAttackTarget = target;
         MoveRallyFlag(target.transform.position);
-        GameLog.Log($"[Rally] {gameObject.name} đã đặt mục tiêu tấn công {target.unitName}.");
     }
 
     public void SetRallyFromHit(RaycastHit hit)

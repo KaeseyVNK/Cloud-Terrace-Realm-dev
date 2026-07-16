@@ -30,7 +30,7 @@ public static class SaveGameSystem
         _resumeRequested = false;
         _isQuitting = false;
         IsLoading = false;
-        GameLog.Log("[SaveGame] Statics reset via SubsystemRegistration in Editor.");
+        GameLog.LogVerbose("[SaveGame] Statics reset via SubsystemRegistration in Editor.");
     }
 #endif
 
@@ -42,7 +42,7 @@ public static class SaveGameSystem
     public static void SetQuitting(bool quitting)
     {
         _isQuitting = quitting;
-        GameLog.Log($"[SaveGame] SetQuitting called. _isQuitting={_isQuitting}");
+        GameLog.LogVerbose($"[SaveGame] SetQuitting called. _isQuitting={_isQuitting}");
     }
 
     public static bool HasSaveGame()
@@ -72,7 +72,7 @@ public static class SaveGameSystem
             if (File.Exists(SavePath))
             {
                 File.Delete(SavePath);
-                GameLog.Log("[SaveGame] Deleted autosave.json");
+                GameLog.LogVerbose("[SaveGame] Deleted autosave.json");
             }
 
             // Also check for autosave_v2.json in case SaveManager.Instance is null
@@ -80,7 +80,7 @@ public static class SaveGameSystem
             if (File.Exists(savePathV2))
             {
                 File.Delete(savePathV2);
-                GameLog.Log("[SaveGame] Deleted autosave_v2.json");
+                GameLog.LogVerbose("[SaveGame] Deleted autosave_v2.json");
             }
         }
         catch (Exception ex)
@@ -95,16 +95,16 @@ public static class SaveGameSystem
 
     public static bool SaveCurrentGame()
     {
-        GameLog.Log($"[SaveGame] SaveCurrentGame called. _isQuitting={_isQuitting}");
+        GameLog.LogVerbose($"[SaveGame] SaveCurrentGame called. _isQuitting={_isQuitting}");
         if (_isQuitting)
         {
-            GameLog.Log("[SaveGame] Save request ignored because application is quitting.");
+            GameLog.LogVerbose("[SaveGame] Save request ignored because application is quitting.");
             return false;
         }
 
         if (!IsGameScene(SceneManager.GetActiveScene().name))
         {
-            GameLog.Log($"[SaveGame] SaveCurrentGame ignored because active scene is not game scene: {SceneManager.GetActiveScene().name}");
+            GameLog.LogVerbose($"[SaveGame] SaveCurrentGame ignored because active scene is not game scene: {SceneManager.GetActiveScene().name}");
             return false;
         }
 
@@ -120,7 +120,7 @@ public static class SaveGameSystem
             SaveData fullData = CaptureCurrentGame();
             string json = JsonUtility.ToJson(fullData, true);
             File.WriteAllText(SavePath, json);
-            GameLog.Log($"[SaveGame] Full game state saved to {SavePath}");
+            GameLog.LogVerbose($"[SaveGame] Full game state saved to {SavePath}");
         }
         catch (Exception ex)
         {
@@ -208,7 +208,7 @@ public static class SaveGameSystem
             
             RecalculateCardStats();
             
-            GameLog.Log($"[SaveGame] Resume data applied | resources={data.resources?.Count ?? 0}, resourceNodes={data.resourceNodes?.Count ?? 0}, buildings={data.buildings?.Count ?? 0}, villagers={data.villagers?.Count ?? 0}, combatUnits={data.combatUnits?.Count ?? 0}, productionQueues={data.productionQueues?.Count ?? 0}, ruins={data.activeRuins?.Count ?? 0}, portals={data.voidPortals?.Count ?? 0}, caravans={data.caravans?.Count ?? 0}, enemies={data.activeEnemies?.Count ?? 0}");
+            GameLog.LogVerbose($"[SaveGame] Resume data applied | resources={data.resources?.Count ?? 0}, resourceNodes={data.resourceNodes?.Count ?? 0}, buildings={data.buildings?.Count ?? 0}, villagers={data.villagers?.Count ?? 0}, combatUnits={data.combatUnits?.Count ?? 0}, productionQueues={data.productionQueues?.Count ?? 0}, ruins={data.activeRuins?.Count ?? 0}, portals={data.voidPortals?.Count ?? 0}, caravans={data.caravans?.Count ?? 0}, enemies={data.activeEnemies?.Count ?? 0}");
         }
         finally
         {
@@ -1197,7 +1197,7 @@ public static class SaveGameSystem
 
         // Tiêu diệt sạch sẽ toàn bộ công trình cũ trong scene (cả pre-placed và đã đăng ký) để tránh trùng lặp
         var allBuildings = UnityEngine.Object.FindObjectsByType<ConstructibleBuilding>(FindObjectsInactive.Include);
-        GameLog.Log($"[SaveGame] Destroying {allBuildings.Length} existing buildings in scene");
+        GameLog.LogVerbose($"[SaveGame] Destroying {allBuildings.Length} existing buildings in scene");
         foreach (ConstructibleBuilding cb in allBuildings)
         {
             if (cb != null && cb.gameObject != null)
@@ -1222,7 +1222,7 @@ public static class SaveGameSystem
         counts?.Clear();
         SetPrivateField(buildingManager, "_mainBuildingInstance", null);
 
-        GameLog.Log($"[SaveGame] Re-instantiating {buildings.Count} buildings from save data");
+        GameLog.LogVerbose($"[SaveGame] Re-instantiating {buildings.Count} buildings from save data");
         foreach (BuildingEntry entry in buildings)
         {
             if (string.IsNullOrEmpty(entry.buildingName))
@@ -1266,11 +1266,11 @@ public static class SaveGameSystem
             if (data == buildingManager.MainBuildingData)
             {
                 SetPrivateField(buildingManager, "_mainBuildingInstance", instance);
-                GameLog.Log($"[SaveGame] Assigned new Main Building instance to BuildingManager: {instance.name}");
+                GameLog.LogVerbose($"[SaveGame] Assigned new Main Building instance to BuildingManager: {instance.name}");
             }
 
             ApplyBuildingRuntimeState(instance, entry);
-            GameLog.Log($"[SaveGame] Recreated building: '{entry.buildingName}' at position {entry.position}");
+            GameLog.LogVerbose($"[SaveGame] Recreated building: '{entry.buildingName}' at position {entry.position}");
         }
     }
 
@@ -1985,7 +1985,7 @@ public class SaveGameRuntime : MonoBehaviour
 
     private void HandleQuitting()
     {
-        GameLog.Log("[SaveGame] Application.quitting event triggered. Saving game before teardown...");
+        GameLog.LogVerbose("[SaveGame] Application.quitting event triggered. Saving game before teardown...");
         SaveGameSystem.SaveCurrentGame();
         SaveGameSystem.SetQuitting(true);
     }
@@ -2002,7 +2002,7 @@ public class SaveGameRuntime : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        GameLog.Log($"[SaveGame] HandleSceneLoaded triggered for scene: {scene.name}. ResumeRequested: {SaveGameSystem.ResumeRequested}");
+        GameLog.LogVerbose($"[SaveGame] HandleSceneLoaded triggered for scene: {scene.name}. ResumeRequested: {SaveGameSystem.ResumeRequested}");
         if (SaveGameSystem.IsGameScene(scene.name))
         {
             StartCoroutine(ApplyResumeOnNextFrame());
@@ -2011,7 +2011,7 @@ public class SaveGameRuntime : MonoBehaviour
 
     private IEnumerator ApplyResumeOnNextFrame()
     {
-        GameLog.Log("[SaveGame] ApplyResumeOnNextFrame coroutine started.");
+        GameLog.LogVerbose("[SaveGame] ApplyResumeOnNextFrame coroutine started.");
         yield return null;
 
         if (!SaveGameSystem.ResumeRequested)
@@ -2019,7 +2019,7 @@ public class SaveGameRuntime : MonoBehaviour
             yield break;
         }
 
-        GameLog.Log("[SaveGame] Resume requested. Loading full game state...");
+        GameLog.LogVerbose("[SaveGame] Resume requested. Loading full game state...");
 
         // Retry loop: chờ SaveManager khởi tạo nếu chưa sẵn
         int retries = 0;
@@ -2043,7 +2043,7 @@ public class SaveGameRuntime : MonoBehaviour
         // 2. Khôi phục toàn bộ game state (resources, buildings, units...) từ autosave.json
         if (SaveGameSystem.TryLoad(out SaveData fullData))
         {
-            GameLog.Log("[SaveGame] Full save data loaded. Applying game state...");
+            GameLog.LogVerbose("[SaveGame] Full save data loaded. Applying game state...");
             SaveGameSystem.ApplyLoadedGame(fullData);
         }
         else
@@ -2061,17 +2061,17 @@ public class SaveGameRuntime : MonoBehaviour
             // Bỏ qua nếu ứng dụng đang thoát (tránh lưu đè dữ liệu rỗng khi tắt game)
             if (SaveGameSystem.IsQuitting)
             {
-                GameLog.Log("[SaveGame] OnApplicationPause ignored because application is quitting.");
+                GameLog.LogVerbose("[SaveGame] OnApplicationPause ignored because application is quitting.");
                 return;
             }
-            GameLog.Log("[SaveGame] OnApplicationPause (true). Auto-saving game for mobile background state...");
+            GameLog.LogVerbose("[SaveGame] OnApplicationPause (true). Auto-saving game for mobile background state...");
             SaveGameSystem.SaveCurrentGame();
         }
     }
 
     private void OnApplicationQuit()
     {
-        GameLog.Log("[SaveGame] OnApplicationQuit triggered.");
+        GameLog.LogVerbose("[SaveGame] OnApplicationQuit triggered.");
         
         // Trong Unity Editor, Application.quitting không được kích hoạt khi tắt Play Mode.
         // Do đó ta cần gọi SaveCurrentGame ở đây để tự động lưu trong Editor.

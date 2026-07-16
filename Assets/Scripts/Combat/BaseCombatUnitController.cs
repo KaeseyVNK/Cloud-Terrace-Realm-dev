@@ -206,10 +206,6 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             {
                 Debug.LogWarning($"[Combat] Failed to retrieve layers 'Unit', 'Unit Enemy', 'Buiding' for fallback on {gameObject.name}.");
             }
-            else
-            {
-                Debug.LogWarning($"[Combat] _combatTargetLayerMask is unassigned (0) on {gameObject.name}. Falling back to default Unit/Enemy/Building layers.");
-            }
             #endif
         }
     }
@@ -851,9 +847,7 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
         if (currentTarget != null)
         {
             BaseCombatUnitController attackTarget = currentTarget;
-            string targetName = attackTarget.unitName;
             attackTarget.TakeDamage(attackDamage, this);
-            GameLog.Log($"[Combat] {unitName} tấn công {targetName} gây {attackDamage} sát thương.");
         }
     }
 
@@ -890,8 +884,6 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
                 MyGame.Audio.AudioManager.Instance.PlaySwordHit(transform.position);
             }
         }
-
-        GameLog.Log($"[Combat] {unitName} nhận {damage} sát thương. Máu còn lại: {currentHealth}/{maxHealth}");
 
         // Kích hoạt nhấp nháy đỏ phản hồi thị giác (không làm gián đoạn hành động/animation)
         TriggerHitFlash();
@@ -1038,8 +1030,6 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             SetAnimatorBoolIfExists("IsDead", true);
         }
 
-        GameLog.Log($"[Combat] {unitName} đã tử trận!");
-        
         OnDeath();
     }
 
@@ -1128,8 +1118,8 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             return true;
         }
 
-        // Dự phòng: Lấy điểm gần nhất có thể đi được trên NavMesh trong phạm vi 4 mét
-        if (NavMesh.SamplePosition(requestedPosition, out NavMeshHit hit, 4f, ~2))
+        // Dự phòng: Lấy điểm gần nhất có thể đi được trên NavMesh trong phạm vi rộng (100 mét)
+        if (NavMesh.SamplePosition(requestedPosition, out NavMeshHit hit, 100f, ~2))
         {
             resolvedDestination = hit.position;
             if (navAgent.SetDestination(resolvedDestination))
@@ -1191,7 +1181,6 @@ public abstract class BaseCombatUnitController : MonoBehaviour, CloudTerraceReal
             navAgent.ResetPath();
         }
         ChangeState(CombatState.Idle);
-        GameLog.Log($"[RTS] {gameObject.name} đã được ra lệnh Giữ vị trí (Hold Position).");
     }
 
     public virtual void CommandAttackMove(Vector3 position)

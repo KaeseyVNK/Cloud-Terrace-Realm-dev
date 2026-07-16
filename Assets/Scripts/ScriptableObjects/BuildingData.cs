@@ -13,6 +13,13 @@ public enum BuildingCategory
     Expansion
 }
 
+public enum BuildingPlacementMode
+{
+    FlattenFootprint,
+    FollowTerrainAverage,
+    FollowTerrainMax
+}
+
 [CreateAssetMenu(fileName = "New Building Data", menuName = "Cloud Terrace/Building Data")]
 public class BuildingData : ScriptableObject
 {
@@ -29,6 +36,16 @@ public class BuildingData : ScriptableObject
     [Tooltip("Kích thước công trình (X và Z) tính bằng ô lưới")]
     public Vector2Int buildingSize = new Vector2Int(1, 1);
 
+    [Header("Terrain Placement")]
+    [Tooltip("FlattenFootprint: ủi phẳng footprint rồi đặt ở độ cao trung bình. FollowTerrainAverage/Max: giữ nguyên địa hình.")]
+    public BuildingPlacementMode placementMode = BuildingPlacementMode.FlattenFootprint;
+
+    /// <summary>True nếu công trình này ủi phẳng terrain khi xây.</summary>
+    public bool FlattensTerrain => placementMode == BuildingPlacementMode.FlattenFootprint;
+
+    /// <summary>True nếu công trình hành xử như cầu (đi bộ qua, đặt trên nước).</summary>
+    public bool ActsAsBridge => placementMode == BuildingPlacementMode.FollowTerrainMax;
+
     [Header("Costs")]
     public List<ResourceCost> buildCosts;
 
@@ -36,6 +53,13 @@ public class BuildingData : ScriptableObject
     public int maxHealth = 100;
     public int maxWorkers = 0; // Số dân tối đa có thể làm việc ở đây
     public float buildTime = 15f; // Thời gian cần xây dựng (giây) để hoàn thành công trình
+
+    [Header("Housing / Population")]
+    [Tooltip("Sức chứa dân làng do công trình này cung cấp. > 0 = gắn HouseShelter và cộng vào population cap. 0 = không ảnh hưởng pop.")]
+    public int housingCapacity = 0;
+
+    /// <summary>True nếu BuildingData này cung cấp chỗ ở / tăng population cap.</summary>
+    public bool ProvidesHousing => housingCapacity > 0;
     
     [Header("Special Settings")]
     [Tooltip("Nếu true, công trình sẽ được xây dựng ngay lập tức mà không cần dân và móng")]

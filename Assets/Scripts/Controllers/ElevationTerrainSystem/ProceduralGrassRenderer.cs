@@ -46,7 +46,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
     [Header("Grass Spawning Settings")]
     [Tooltip("Grass blades per square meter.")]
-    [SerializeField] private float _densityPerUnit = 3.5f;
+    [SerializeField] private float _densityPerUnit = 2.8f;
     [Tooltip("Width range (min, max) of grass blades.")]
     [SerializeField] private Vector2 _minSize = new Vector2(0.3f, 0.45f);
     [Tooltip("Height range (min, max) of grass blades.")]
@@ -81,10 +81,12 @@ public class ProceduralGrassRenderer : MonoBehaviour
     [Tooltip("Extra grid cells cleared around each building footprint.")]
     [Min(0)]
     [SerializeField] private int _buildingGrassPaddingCells = 0;
+    [Tooltip("How often (seconds) to refresh the building exclusion zones sent to the compute shader.")]
+    [SerializeField] private float _exclusionZoneRefreshInterval = 0.3f;
 
     [Header("Rendering & Layer Settings")]
     [Tooltip("Maximum distance to draw grass.")]
-    [SerializeField] private float _cullDistance = 250f;
+    [SerializeField] private float _cullDistance = 200f;
     [Tooltip("Enable frustum and distance culling on the GPU.")]
     [SerializeField] private bool _enableCulling = true;
     [Tooltip("Layer index to render the grass on.")]
@@ -122,6 +124,10 @@ public class ProceduralGrassRenderer : MonoBehaviour
     private int _totalSourceBlades;
     private bool _isInitialized;
     private int _diagnosticFrameCount;
+    private int _cullKernel = -1;
+    private BuildingManager _cachedBuildingManager;
+    private int _cachedExclusionZoneCount;
+    private float _nextExclusionZoneRefreshTime;
 
     // Fog of War cached references
     private csFogWar _fogWar;
@@ -175,7 +181,7 @@ public class ProceduralGrassRenderer : MonoBehaviour
         }
 
         _fogAvailable = true;
-        GameLog.Log("[ProceduralGrassRenderer] Fog of War integration initialized successfully.");
+        GameLog.LogVerbose("[ProceduralGrassRenderer] Fog of War integration initialized successfully.");
     }
 
     private void InitializeRenderer()
@@ -222,8 +228,9 @@ public class ProceduralGrassRenderer : MonoBehaviour
 
         _bladeMesh = CreateGrassBladeMesh();
         _propertyBlock = new MaterialPropertyBlock();
+        _cullKernel = _computeShader.FindKernel("CullAndProcess");
         _isInitialized = true;
-        GameLog.Log("[ProceduralGrassRenderer] Renderer successfully initialized.");
+        GameLog.LogVerbose("[ProceduralGrassRenderer] Renderer successfully initialized.");
     }
 
     public void GenerateGrass(Terrain terrain)
@@ -463,14 +470,14 @@ public class ProceduralGrassRenderer : MonoBehaviour
         }
         for (int i = interactorCount; i < 128; i++) _interactorData[i] = Vector4.zero;
 
-        int kernel = _computeShader.FindKernel("CullAndProcess");
+        int kernel = _cullKernel;
         _computeShader.SetVector("_CameraPosition", camPos);
         _computeShader.SetFloat("_CullDistance", _cullDistance);
         _computeShader.SetVectorArray("_FrustumPlanes", _frustumPlanes);
         _computeShader.SetInt("_EnableCulling", _enableCulling ? 1 : 0);
         _computeShader.SetInt("_NumInteractors", interactorCount);
         _computeShader.SetVectorArray("_Interactors", _interactorData);
-        _computeShader.SetInt("_NumBuildingExclusionZones", CollectBuildingExclusionZones());
+        _computeShader.SetInt("_NumBuildingExclusionZones", GetThrottledExclusionZoneCount());
         _computeShader.SetVectorArray("_BuildingExclusionZones", _buildingExclusionZones);
 
         SetupFogComputeData(kernel);
@@ -497,12 +504,24 @@ public class ProceduralGrassRenderer : MonoBehaviour
         }
     }
 
+    private int GetThrottledExclusionZoneCount()
+    {
+        if (Time.time < _nextExclusionZoneRefreshTime)
+        {
+            return _cachedExclusionZoneCount;
+        }
+
+        _nextExclusionZoneRefreshTime = Time.time + Mathf.Max(0.05f, _exclusionZoneRefreshInterval);
+        _cachedExclusionZoneCount = CollectBuildingExclusionZones();
+        return _cachedExclusionZoneCount;
+    }
+
     private int CollectBuildingExclusionZones()
     {
         for (int i = 0; i < _buildingExclusionZones.Length; i++) _buildingExclusionZones[i] = Vector4.zero;
         if (!_excludeBuildingFootprints) return 0;
-        BuildingManager bm = BuildingManager.Instance ?? FindAnyObjectByType<BuildingManager>();
-        return bm != null ? bm.CollectGrassExclusionZones(_buildingExclusionZones, _buildingGrassPaddingCells) : 0;
+        if (_cachedBuildingManager == null) _cachedBuildingManager = BuildingManager.Instance ?? FindAnyObjectByType<BuildingManager>();
+        return _cachedBuildingManager != null ? _cachedBuildingManager.CollectGrassExclusionZones(_buildingExclusionZones, _buildingGrassPaddingCells) : 0;
     }
 
     private void SetupFogComputeData(int kernel)

@@ -3,6 +3,17 @@ using Object = UnityEngine.Object;
 
 public static class GameLog
 {
+    /// <summary>
+    /// When true, LogVerbose messages are printed. Default false to keep the console clean.
+    /// Enable via code or #define GAME_LOG_VERBOSE.
+    /// </summary>
+    public static bool VerboseEnabled =
+#if GAME_LOG_VERBOSE
+        true;
+#else
+        false;
+#endif
+
     [Conditional("UNITY_EDITOR")]
     [Conditional("DEVELOPMENT_BUILD")]
     public static void Log(object message)
@@ -16,6 +27,22 @@ public static class GameLog
     public static void Log(object message, Object context)
     {
         if (IsMainMenuScene()) return;
+        UnityEngine.Debug.Log(message, context);
+    }
+
+    [Conditional("UNITY_EDITOR")]
+    [Conditional("DEVELOPMENT_BUILD")]
+    public static void LogVerbose(object message)
+    {
+        if (!VerboseEnabled || IsMainMenuScene()) return;
+        UnityEngine.Debug.Log(message);
+    }
+
+    [Conditional("UNITY_EDITOR")]
+    [Conditional("DEVELOPMENT_BUILD")]
+    public static void LogVerbose(object message, Object context)
+    {
+        if (!VerboseEnabled || IsMainMenuScene()) return;
         UnityEngine.Debug.Log(message, context);
     }
 

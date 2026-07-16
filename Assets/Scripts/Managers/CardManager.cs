@@ -380,11 +380,12 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
     /// </summary>
     private List<UpgradeCardData> GetWeightedCardChoices(int count, CardRarity minimumRarity, bool isBloodMoon = false)
     {
-        // Xây pool loại bỏ Unlock đã có
+        // Xây pool loại bỏ Unlock đã có và loại bỏ Decree
         List<UpgradeCardData> pool = new List<UpgradeCardData>();
         foreach (var card in _allCards)
         {
             if (card == null) continue;
+            if (card.cardType == UpgradeCardType.Decree) continue; // Loại bỏ thẻ Sắc lệnh khỏi danh sách nâng cấp thông thường
             if (card.cardType == UpgradeCardType.Unlock && _unlockedCards.Contains(card)) continue;
             pool.Add(card);
         }
@@ -451,7 +452,6 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
     {
         if (card == null) return;
 
-        GameLog.Log($"[CardManager] Applying Card: {card.cardName}");
         ApplyCardEffects(card, true);
 
         Time.timeScale = 1f; // Resume the game
@@ -470,6 +470,34 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         yield return new WaitForSecondsRealtime(0.15f);
         TriggerCardDraft(CardRarity.Common, _isPendingSurvivalBloodMoon);
         _isPendingSurvivalBloodMoon = false;
+    }
+
+    public void ApplyRandomUpgradeCard(CardRarity minimumRarity = CardRarity.Common, bool isBloodMoon = false)
+    {
+        List<UpgradeCardData> choices = GetWeightedCardChoices(1, minimumRarity, isBloodMoon);
+        if (choices.Count > 0)
+        {
+            UpgradeCardData chosenCard = choices[0];
+            
+            // Áp dụng hiệu ứng của thẻ
+            ApplyCardEffects(chosenCard, true);
+            
+            // Hiển thị thông báo cho người chơi biết họ nhận được thẻ gì
+            if (HUDManager.Instance != null)
+            {
+                HUDManager.Instance.ShowBloodMoonAlert(
+                    "NHẬN THẺ NÂNG CẤP",
+                    $"Nhận thẻ ngẫu nhiên: {chosenCard.cardName}\n({chosenCard.description})",
+                    5.0f
+                );
+            }
+            
+            OnCardStateChanged?.Invoke();
+        }
+        else
+        {
+            GameLog.LogWarning("[CardManager] Không còn thẻ nâng cấp nào khả dụng để random.");
+        }
     }
 
     private void ApplyCardEffects(UpgradeCardData card, bool triggerFloatingText)
@@ -512,7 +540,6 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
                     blacksmith.AddCardTechnology(cardTech);
                 }
 
-                GameLog.Log($"[CardManager] Dang ky nghien cuu mo khoa cho: {card.cardName} tai Lo Ren.");
                 return;
             }
 
@@ -524,7 +551,6 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
                 if (!BuildingManager.Instance.AvailableBuildings.Contains(card.buildingToUnlock))
                 {
                     BuildingManager.Instance.AvailableBuildings.Add(card.buildingToUnlock);
-                    GameLog.Log($"[CardManager] Unlocked Building: {card.buildingToUnlock.buildingName}");
                 }
             }
 
@@ -535,7 +561,6 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
                     _unlockedUnitIds.Add(card.unitToUnlock.name);
                 if (!string.IsNullOrEmpty(card.unitToUnlock.unitName))
                     _unlockedUnitIds.Add(card.unitToUnlock.unitName);
-                GameLog.Log($"[CardManager] Unlocked Unit: {card.unitToUnlock.unitName}");
             }
         }
         else if (card.cardType == UpgradeCardType.StatBuff)
@@ -561,12 +586,10 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
             if (card.cardId.StartsWith("night_decree"))
             {
                 _activeNightDecreeCard = card;
-                GameLog.Log($"[CardManager] Active Night Decree: {card.cardName}");
             }
             else
             {
                 _activeDecreeCard = card;
-                GameLog.Log($"[CardManager] Active Decree: {card.cardName}");
             }
             RecalculateAllUnitStats();
         }
@@ -609,13 +632,11 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
             if (card.buildingMaxHealthMultiplier != 1f)
             {
                 _buildingMaxHealthMultiplier *= card.buildingMaxHealthMultiplier;
-                GameLog.Log($"[CardManager] Building HP multiplier now: {BuildingMaxHealthMultiplier:F2}x");
             }
 
             if (card.populationCapBonus != 0)
             {
                 _populationCapBonus += card.populationCapBonus;
-                GameLog.Log($"[CardManager] Population cap bonus: +{card.populationCapBonus} (total: {PopulationCapBonus})");
             }
         }
     }
@@ -666,7 +687,6 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         if (mainBuilding != null)
         {
             mainBuilding.currentHealth = mainBuilding.maxHealth;
-            GameLog.Log("[CardManager] Main Building fully healed!");
         }
     }
 
@@ -677,7 +697,6 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
         {
             float healAmount = mainBuilding.maxHealth * percent;
             mainBuilding.currentHealth = (int)Mathf.Min(mainBuilding.currentHealth + healAmount, mainBuilding.maxHealth);
-            GameLog.Log($"[CardManager] Main Building healed by {percent * 100f:F0}% ({healAmount:F0} HP).");
         }
     }
 
@@ -712,11 +731,11 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
             return;
         }
 
-        // Lấy tất cả các thẻ Decree
+        // Lấy tất cả các thẻ Decree (loại trừ các thẻ đêm)
         List<UpgradeCardData> decreeChoices = new List<UpgradeCardData>();
         foreach (var card in _allCards)
         {
-            if (card != null && card.cardType == UpgradeCardType.Decree)
+            if (card != null && card.cardType == UpgradeCardType.Decree && !card.cardId.StartsWith("night_decree"))
             {
                 decreeChoices.Add(card);
             }
@@ -728,7 +747,7 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
             InitializeDefaultDecrees();
             foreach (var card in _allCards)
             {
-                if (card != null && card.cardType == UpgradeCardType.Decree)
+                if (card != null && card.cardType == UpgradeCardType.Decree && !card.cardId.StartsWith("night_decree"))
                 {
                     decreeChoices.Add(card);
                 }
@@ -920,7 +939,8 @@ public class CardManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISaveable
     {
         if (isNight)
         {
-            TriggerNightDecreeDraft();
+            // Sắc lệnh đêm bị vô hiệu hóa theo yêu cầu thiết kế (chỉ random sắc lệnh vào buổi sáng)
+            // TriggerNightDecreeDraft();
         }
         else
         {

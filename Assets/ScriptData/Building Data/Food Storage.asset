@@ -14,16 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   buildingName: Granary
   description: Where villagers deposit gathered food.
-  category: 1
+  category: 2
   icon: {fileID: -561964831, guid: 08b33ddf064cdb54f96d9e61189aa59f, type: 3}
   buildingPrefab: {fileID: 4439591625897593992, guid: 295e5cdf952e1cf449860da3660a0738, type: 3}
   buildingSize: {x: 3, y: 3}
+  placementMode: 0
   buildCosts:
   - resourceType: 0
     amount: 50
   maxHealth: 150
   maxWorkers: 0
   buildTime: 10
+  housingCapacity: 0
   isInstantBuild: 0
   isStorage: 1
   acceptedResources: 02000000

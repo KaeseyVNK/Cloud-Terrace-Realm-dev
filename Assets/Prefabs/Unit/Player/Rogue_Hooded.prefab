@@ -762,6 +762,9 @@ MonoBehaviour:
   attackRange: 20
   attackCooldown: 2.5
   scanRange: 29
+  _combatTargetLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
   idleScanInterval: 0.25
   movingScanInterval: 0.35
   currentState: 0
@@ -783,6 +786,10 @@ MonoBehaviour:
   _kiteTriggerDistance: 5
   _kiteRetreatDistance: 5
   _meleeThreatAttackRange: 3.5
+  _combatUnitLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  _kiteScanInterval: 0.15
 --- !u!114 &-8641387443041071923
 MonoBehaviour:
   m_ObjectHideFlags: 0

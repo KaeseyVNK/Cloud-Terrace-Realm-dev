@@ -106,8 +106,6 @@ namespace MyGame.Environment
 
             float speed = Random.Range(_minFlightSpeed, _maxFlightSpeed);
             controller.Initialize(startWorld, targetWorld, speed);
-
-            GameLog.Log($"[AmbientBirdSpawner] Đã thả một chú chim bay từ {startWorld} đến {targetWorld} với tốc độ {speed:F1}m/s");
         }
     }
 }

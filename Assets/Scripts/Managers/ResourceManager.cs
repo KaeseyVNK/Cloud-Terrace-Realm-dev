@@ -88,7 +88,6 @@ public class ResourceManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISave
             OnResourceChanged?.Invoke(type, resourceInventory[type]);
             return true;
         }
-        GameLog.Log($"Không đủ {type}! Bạn cần {amount} nhưng chỉ có {resourceInventory[type]}.");
         return false;
     }
 
@@ -104,7 +103,6 @@ public class ResourceManager : MonoBehaviour, CloudTerraceRealm.SaveSystem.ISave
         {
             if (GetResourceAmount(cost.resourceType) < cost.amount)
             {
-                GameLog.Log($"Không đủ {cost.resourceType}! Bạn cần {cost.amount} nhưng chỉ có {GetResourceAmount(cost.resourceType)}.");
                 return false;
             }
         }
